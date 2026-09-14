@@ -13,8 +13,10 @@ After=@@P@@-traefik.service
 # gem bump builds the matching server image.
 Image=${PLAYWRIGHT_IMAGE}
 ContainerName=@@P@@-%i-playwright
-Network=@@P@@-%i-dev
-NetworkAlias=playwright
+# Alias scoped to the worktree's own network -- a bare NetworkAlias= would
+# also publish `playwright` on the shared proxy network, where every worktree
+# publishes the same name. See rails@.container for what that breaks.
+Network=@@P@@-%i-dev:alias=playwright
 Network=@@P@@-proxy.network
 
 EnvironmentFile=@@ROOT@@/.unit-env/%i.env

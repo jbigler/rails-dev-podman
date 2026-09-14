@@ -34,8 +34,14 @@ After=@@P@@-playwright@%i.service @@P@@-nvim@%i.service
 # the same ruby/node combination rather than one per project.
 Image=${RAILS_IMAGE}
 ContainerName=@@P@@-%i-rails
-Network=@@P@@-%i-dev
-NetworkAlias=rails
+# Alias scoped to the worktree's own network, deliberately. NetworkAlias=
+# is --network-alias, which podman applies to EVERY network the container
+# joins -- so `rails` also resolved on the shared proxy network, where
+# every worktree's container carries the same alias. A DNS query then
+# returned one record per running worktree and the caller reached whichever
+# one it picked: the playwright browser opening http://rails:3000 landed on
+# another worktree's app, footer branch and all.
+Network=@@P@@-%i-dev:alias=rails
 Network=@@P@@-proxy.network
 
 # Rootless podman maps container UID 0 to the host UID, so a container running

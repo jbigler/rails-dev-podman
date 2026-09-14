@@ -8,8 +8,10 @@ After=@@P@@-traefik.service
 [Container]
 Image=docker.io/rustfs/rustfs:1.0.0-alpha.83
 ContainerName=@@P@@-%i-rustfs
-Network=@@P@@-%i-dev
-NetworkAlias=rustfs
+# Alias scoped to the worktree's own network -- a bare NetworkAlias= would
+# also publish `rustfs` on the shared proxy network, where every worktree
+# publishes the same name. See rails@.container for what that breaks.
+Network=@@P@@-%i-dev:alias=rustfs
 Network=@@P@@-proxy.network
 # Loopback only; see rails@ for why wt:share needs a published port.
 PublishPort=127.0.0.1:${S3_PORT}:9000
