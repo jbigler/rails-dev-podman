@@ -363,7 +363,7 @@ description = "Stop this worktree's containers AND delete its db, rustfs and nod
 run = "{{config_root}}/.scripts/podman-wt.sh down"
 
 [tasks.restart]
-description = "Restart this worktree's rails service, recreating the container. Run from a worktree."
+description = "Restart one of this worktree's services (default rails), recreating the container; e.g. `mise run restart nvim`. Run from a worktree."
 run = "{{config_root}}/.scripts/podman-wt.sh restart"
 
 [tasks.status]

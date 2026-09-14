@@ -372,7 +372,7 @@ cmd_pull() {
   printf '  mise run build\n'
 }
 
-cmd_restart() { require_units; systemctl --user restart "$(unit rails)"; cmd_status; }
+cmd_restart() { require_units; systemctl --user restart "$(unit "${1:-rails}")"; cmd_status; }
 
 cmd_status() {
   printf '\n'
@@ -464,10 +464,10 @@ case "${1:-}" in
   stop)        shift; cmd_stop ;;
   down)        shift; cmd_down ;;
   pull)        shift; cmd_pull ;;
-  restart)     shift; cmd_restart ;;
+  restart)     shift; cmd_restart "$@" ;;
   status)      shift; cmd_status ;;
   logs)        shift; cmd_logs "$@" ;;
   exec)        shift; cmd_exec "$@" ;;
   test:system) shift; cmd_test_system "$@" ;;
-  *) die "usage: $(basename "$0") {up|stop|down|restart|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
+  *) die "usage: $(basename "$0") {up|stop|down|restart [svc]|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
 esac
