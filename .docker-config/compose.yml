@@ -38,9 +38,20 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+    # `rails` and `playwright` are also published on the shared proxy network,
+    # because Compose registers the service name as an alias on EVERY network a
+    # service joins and there is no way to opt out. Every worktree is its own
+    # project but they all share the proxy network, so a lookup of `rails` there
+    # returns one record per running worktree and the caller reaches whichever
+    # it is handed. Aliases declared under a specific network are NOT copied
+    # around like that, so `wt-rails` exists only here -- same literal name in
+    # every worktree, but each on its own private network. Address this service
+    # from a sibling container by that name, never by `rails`.
     networks:
-      - dev
-      - proxy
+      dev:
+        aliases:
+          - wt-rails
+      proxy:
     # Traefik-routed hosts resolve to Traefik's static IP on the proxy
     # network — its host ports are loopback-bound, so host-gateway can't
     # reach them from a container.
@@ -252,9 +263,13 @@ services:
       HEADLESS_SYSTEM_TESTS: ${HEADLESS_SYSTEM_TESTS:-0}
       # Target of the entrypoint's loopback :80 shim for *.localhost hosts.
       TRAEFIK_IP: ${TRAEFIK_IP:-10.213.0.2}
+    # Dev-network-scoped alias; see the rails service for why the bare
+    # service name cannot be used across containers.
     networks:
-      - dev
-      - proxy
+      dev:
+        aliases:
+          - wt-playwright
+      proxy:
     # See the rails service — Traefik-routed hosts via its static proxy-net IP.
     extra_hosts:
       - "${WORKTREE_HOST}:${TRAEFIK_IP:-10.213.0.2}"

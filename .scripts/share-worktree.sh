@@ -42,7 +42,7 @@ services:
   rails:
     environment:
       DOMAIN: $ts_host
-      DEV_HOSTS: $WORKTREE_HOST
+      DEV_HOSTS: $WORKTREE_HOST,wt-rails
       RUSTFS_ENDPOINT: https://$ts_host:8443
     extra_hosts:
       - "$ts_host:$ts_ip"

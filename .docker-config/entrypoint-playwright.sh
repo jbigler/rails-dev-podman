@@ -69,8 +69,11 @@ websockify --web=/usr/share/novnc "$VNC_WEB_PORT" "localhost:${VNC_RFB_PORT}" &
 CDP_PORT="${CDP_PORT:-9222}"
 CDP_PUBLIC_PORT="${CDP_PUBLIC_PORT:-9223}"
 CHROME_PROFILE_DIR="${CHROME_PROFILE_DIR:-/tmp/claude-chrome-profile}"
-# Rails dev only authorizes hosts in DOMAIN/DEV_HOSTS; "rails" is allowed via DEV_HOSTS.
-CHROME_START_URL="${CHROME_START_URL:-http://rails:3000}"
+# wt-rails, not rails: the bare service name also resolves on the shared proxy
+# network, where every worktree publishes it, so it could open another
+# worktree's app. Rails dev only authorizes hosts in DOMAIN/DEV_HOSTS, and
+# DEV_HOSTS carries wt-rails.
+CHROME_START_URL="${CHROME_START_URL:-http://wt-rails:3000}"
 CHROME_BIN="$(node -e 'console.log(require("/usr/lib/node_modules/playwright-core").chromium.executablePath())')"
 
 # Clear stale singleton locks left by an unclean shutdown (same reason as the X locks).
@@ -132,7 +135,7 @@ done
 socat TCP-LISTEN:"$CDP_PUBLIC_PORT",fork,reuseaddr TCP:127.0.0.1:"$CDP_PORT" &
 
 # Host the browser server. The browser is launched into $DISPLAY when a client connects;
-# clients reach it at ws://playwright:${PLAYWRIGHT_PORT}/connect (see PLAYWRIGHT_HOST).
+# clients reach it at ws://wt-playwright:${PLAYWRIGHT_PORT}/connect (see PLAYWRIGHT_HOST).
 exec node -e '
   const { chromium } = require("/usr/lib/node_modules/playwright-core");
   chromium.launchServer({

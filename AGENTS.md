@@ -150,7 +150,10 @@ noVNC; watch at http://vnc.<worktree>.localhost.
 - Playwright >= 1.54: connect_to_playwright_server removed. Use connect_to_browser_server. Headless/Headed  
   decided server-side via chromium.launchServer.
 - HEADLESS_SYSTEM_TESTS drives both paths: container launchServer (env) and client headless option (local).
-- PLAYWRIGHT_HOST (.docker-config/.env) = ws://playwright:8888/connect; /connect matches entrypoint launchServer.
+- PLAYWRIGHT_HOST (.docker-config/.env) = ws://wt-playwright:8888/connect; /connect matches entrypoint launchServer.
+- wt-rails / wt-playwright are dev-network-scoped aliases. Compose publishes a service name on EVERY network
+  the service joins, and rails/playwright/rustfs also join the shared proxy network, so `rails` resolves to one
+  container per running worktree there. Address a sibling service by its wt- alias, never the bare name.
 - Playwright version derived per worktree from Gemfile.lock (playwright-version.sh → PLAYWRIGHT_VERSION →  
   image tag v<ver>-noble + npm playwright-core). Gem bump → next `up` builds the matching image. `up` warns  
   when PLAYWRIGHT_VERSION is empty (stale mise.local.toml).
