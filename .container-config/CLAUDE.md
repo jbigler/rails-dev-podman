@@ -67,6 +67,22 @@ Rules:
 Both are upstream bugs, not permanent policy — pipes: rtk-ai/rtk#3722, `du`:
 rtk-ai/rtk#3486. Drop this section once they ship.
 
+# Docs and specs go under .container-config/docs/
+
+In the wrapper repo, write docs and design specs to `.container-config/docs/`
+(specs in `.container-config/docs/specs/`), never a top-level `docs/`.
+
+Its `.gitignore` is deny-all (`/*`) with an explicit allowlist — only
+`AGENTS.md`, `.container-config/`, `mise.*`, `.mise/`, and `.scripts/` are
+un-ignored. A top-level `docs/` is silently ignored, so anything written there
+is never committed and is invisible to everyone else. The superpowers
+brainstorming skill's default path (`docs/superpowers/specs/`) walks straight
+into this; a spec has already been lost there.
+
+When a skill or habit says to write to `docs/…`, redirect to
+`.container-config/docs/…`, and run `git check-ignore -v <path>` before
+claiming anything is committed.
+
 # Browser access (chrome-devtools MCP)
 
 A dedicated interactive Chromium runs in the `playwright` container and is
