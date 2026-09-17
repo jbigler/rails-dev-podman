@@ -94,7 +94,7 @@ find_base_worktree_name() {
 # disagree with the file it actually rewrites.
 ensure_unit_env() {
   local wt="${CURRENT_WORKTREE_NAME:?not set -- run from inside a worktree}"
-  local root out src stale=""
+  local root out src live stale=""
   root="$(find_project_root)"
   out="$root/.unit-env/$wt.env"
 
@@ -109,6 +109,16 @@ ensure_unit_env() {
       stale="${src#$root/} changed"
       break
     done
+  fi
+  # The agent socket is the one baked value with no file to date-stamp: its path
+  # changes whenever the agent restarts, and the stale one is then a bind source
+  # that podman refuses outright. So it is compared against the live agent
+  # rather than an mtime, and both nvim@ and podman-claude.sh can trust the
+  # value in the file instead of each re-deciding what to do about it.
+  if [[ -z "$stale" ]]; then
+    live="${SSH_AUTH_SOCK:-}"
+    [[ -S "$live" ]] || live=/dev/null
+    grep -qxF "SSH_AGENT_SOCK=$live" "$out" || stale="ssh agent socket changed"
   fi
   [[ -n "$stale" ]] || return 0
 

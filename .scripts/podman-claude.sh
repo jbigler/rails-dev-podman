@@ -37,6 +37,11 @@ ensure_unit_env
 # Nothing here needs it anyway; every value below comes from the unit env file,
 # and the container still receives .env through --env-file further down.
 set -a; . "$WT_ENV"; set +a
+# SSH_PATH, SSH_AGENT_SOCK, GITIGNORE_PATH and GITCONFIG_PATH come out of that
+# file already resolved to paths that exist -- /dev/null stands in for an absent
+# gitconfig or a dead agent -- so the mounts below are unconditional and
+# identical to nvim@'s. ensure_unit_env above rewrites the file when the agent
+# socket moves, which is the only one of the four that changes under you.
 podman image exists "$CLAUDE_IMAGE" || die "$CLAUDE_IMAGE is not built. Run: mise run build claude"
 
 # Best-effort, like the unit's Wants=.
@@ -48,14 +53,6 @@ systemctl --user start "$P-rails@$W.service" "$P-playwright@$W.service" 2>/dev/n
 # over anything stored in the home.
 token=()
 [[ -n "${CLAUDE_NO_TOKEN:-}" ]] || token=(--env CLAUDE_CODE_OAUTH_TOKEN)
-
-# SSH_AGENT_SOCK may be unset or stale; mounting a missing path fails the run
-# outright under podman, so skip it rather than lose the session over an agent.
-agent=()
-[[ -S "${SSH_AGENT_SOCK:-}" ]] && agent=(-v "$SSH_AGENT_SOCK:/tmp/ssh-agent.sock:ro,z")
-gitignore=()
-[[ -f "$HOME/.config/git/ignore" ]] && \
-  gitignore=(-v "$HOME/.config/git/ignore:/home/appuser/.config/git/ignore:ro,z")
 
 # The two plugin payload dirs are mounted separately and deliberately NOT as one
 # volume at ~/.claude/plugins: known_marketplaces.json and installed_plugins.json
@@ -81,7 +78,7 @@ exec podman run --rm -it \
   --env POWERLEVEL9K_DISABLE_GITSTATUS=true \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
-  "${token[@]}" "${agent[@]}" "${gitignore[@]}" \
+  "${token[@]}" \
   -v "$ROOT/.home/$W:/home/appuser:z" \
   -v "$WT_DIR:/app-$W:z" \
   -v "$ROOT/.container-config/CLAUDE.md:/opt/claude/CLAUDE.md:ro,z" \
@@ -92,6 +89,9 @@ exec podman run --rm -it \
   -v "$ROOT/.container-config/status:/status:z" \
   -v "$MAIN_WORKTREE_PATH/.git:$MAIN_WORKTREE_PATH/.git:z" \
   -v "$SSH_PATH:/home/appuser/.ssh:ro,z" \
+  -v "$SSH_AGENT_SOCK:/tmp/ssh-agent.sock:ro,z" \
+  -v "$GITIGNORE_PATH:/home/appuser/.config/git/ignore:ro,z" \
+  -v "$GITCONFIG_PATH:/home/appuser/.gitconfig:ro,z" \
   -v "$GEM_VOLUME:/usr/local/bundle" \
   -v "$P-$W-node-modules:/app-$W/node_modules:U" \
   -v "${P}_npm_cache:/home/appuser/.npm:U" \

@@ -40,7 +40,14 @@ Volume=${SSH_PATH}:/home/appuser/.ssh:ro,z
 # host key is reused instead of prompting per container.
 Volume=${SSH_AGENT_SOCK}:/tmp/ssh-agent.sock:ro,z
 Volume=@@ROOT@@/.container-config/entrypoint-nvim.sh:/usr/local/bin/entrypoint-nvim.sh:ro,z
-Volume=%h/.config/git/ignore:/home/appuser/.config/git/ignore:ro,z
+# The host's own gitconfig and gitignore, resolved by units-env.sh (which
+# substitutes /dev/null when either is absent, since a missing bind source
+# fails the unit). user.signingkey must be `~/.ssh/<key>.pub` or a
+# `key::<literal pubkey>`, never an absolute host path: ssh-keygen expands the
+# tilde against $HOME, which is /home/appuser in here, and that is where the
+# host's ~/.ssh is mounted -- /home/<you>/.ssh/... is not.
+Volume=${GITIGNORE_PATH}:/home/appuser/.config/git/ignore:ro,z
+Volume=${GITCONFIG_PATH}:/home/appuser/.gitconfig:ro,z
 # kitty remote control for vim-kitty-navigator: the plugin shells out to
 # `kitten @` from the nvim server in here. The host's kitten links only libc so
 # it runs as-is. The socket *directory* is mounted, not the socket (whose name

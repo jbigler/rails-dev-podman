@@ -187,6 +187,19 @@ fi
   # one that knows.
   printf 'NVIM_CONFIG_SOURCE=%s\n'    "$nvim_config_source"
   printf 'SSH_PATH=%s\n'              "$SSH_PATH"
+  # The host's own gitconfig and global gitignore, so signing settings
+  # (commit.gpgsign, user.signingkey, gpg.format) stay in sync with the host.
+  # Resolved here rather than in each container's mount line because nvim@ is a
+  # Quadlet unit and cannot branch on a missing file, while podman refuses the
+  # whole container when a bind source does not exist. /dev/null is the "absent"
+  # value, as it is for the agent socket below: git reads it as an empty config,
+  # and the :z relabel of it is a no-op wherever SELinux is not enforcing.
+  gitconfig="$HOME/.gitconfig"
+  [[ -f "$gitconfig" ]] || gitconfig=/dev/null
+  gitignore="$HOME/.config/git/ignore"
+  [[ -f "$gitignore" ]] || gitignore=/dev/null
+  printf 'GITCONFIG_PATH=%s\n'        "$gitconfig"
+  printf 'GITIGNORE_PATH=%s\n'        "$gitignore"
   # Validated, not just passed through. mise already falls back to /dev/null
   # when $SSH_AUTH_SOCK is unset, but a *stale* value -- an agent that died, or
   # a path inherited from another login session -- is worse under podman than it
