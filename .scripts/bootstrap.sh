@@ -9,8 +9,8 @@ Usage: bootstrap.sh [-p <project-prefix>] <user/repo | git-url>
       in mise.local.toml, and podman volume/network names
       (default: <repo> basename)
 
-Bootstraps a new rails-dev-docker workspace:
-  1. Clones rails-dev-docker into ./<prefix>/
+Bootstraps a new rails-dev-podman workspace:
+  1. Clones rails-dev-podman into ./<prefix>/
   2. Writes ./<prefix>/mise.local.toml with PROJECT_PREFIX et al.
   3. Creates the shared podman volumes
   4. Invokes .scripts/init-repo.sh to clone the rails project into
@@ -49,8 +49,8 @@ if [ -e "$dest" ]; then
   exit 1
 fi
 
-echo "Cloning rails-dev-docker into $dest..."
-git clone https://github.com/jbigler/rails-dev-docker.git "$dest"
+echo "Cloning rails-dev-podman into $dest..."
+git clone https://github.com/jbigler/rails-dev-podman.git "$dest"
 
 echo "Writing $dest/mise.local.toml (PROJECT_PREFIX=$prefix)..."
 cat > "$dest/mise.local.toml" <<EOF

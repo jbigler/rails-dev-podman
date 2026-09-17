@@ -2,8 +2,8 @@
 
 Not Rails app. Thin orchestration wrapper. Manages Filial Rails via git worktrees. Provides per-worktree
 **rootless podman** dev/test stacks as systemd user units (Quadlet) via mise tasks + shared Traefik proxy.
-Repo history unrelated to app. (Repo name and .container-config/ predate the podman conversion; there is no
-Docker anywhere in the runtime.)
+Repo history unrelated to app. (.container-config/ predates the podman conversion; the name stuck. There is
+no Docker anywhere in the runtime — the last Compose version is tagged docker-final.)
 
 > Read before touch .mise/, .scripts/, or .container-config/.
 
