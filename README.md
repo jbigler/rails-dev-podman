@@ -4,8 +4,9 @@ Per-worktree Rails dev stacks as **rootless podman** containers, run as systemd 
 (Quadlet) behind one shared Traefik proxy. Each git worktree gets its own containers, its own
 `<slug>.localhost` hostname and its own ports, so several branches run at once.
 
-> `.container-config/` predates the podman conversion; the name stuck. There is no Docker in the
-> runtime any more. The last Compose-based version is tagged [`docker-final`](../../tree/docker-final).
+<img width="640" height="1035" alt="Oprah-You-Get-A-Car-Everybody-Gets-A-Container-meme" src="https://github.com/user-attachments/assets/3d314d90-b3c1-4e86-9775-cd042e0f21d0" />
+
+> The last Docker-based version is tagged [`docker-final`](../../tree/docker-final).
 
 ## Requirements
 
