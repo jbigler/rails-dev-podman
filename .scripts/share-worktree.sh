@@ -69,10 +69,17 @@ case "$action" in
     # endpoint server-side. These override .unit-env/<wt>.env, which rails@ loads
     # first -- podman joins --env over the earlier --env-file, and systemd's
     # last EnvironmentFile wins the same way.
+    #
+    # DEV_HOSTS overrides rather than merges, so it must carry `rails` itself.
+    # The playwright container's Chromium starts at http://rails:3000
+    # (entrypoint-playwright.sh) and claude's chrome-devtools MCP drives that
+    # same browser; dropping the name made config.hosts reject them both for
+    # as long as a share was up. Comma-separated -- development.rb splits on
+    # "," and strips.
     cat > "$SHARE_ENV" <<EOF
 # Written by wt:share. Remove with: mise run wt:unshare
 DOMAIN=$ts_host
-DEV_HOSTS=$WORKTREE_HOST
+DEV_HOSTS=$WORKTREE_HOST,rails
 RUSTFS_ENDPOINT=https://$ts_host:8443
 TS_HOST_ENTRY=$ts_host:$ts_ip
 EOF
