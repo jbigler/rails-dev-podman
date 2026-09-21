@@ -232,11 +232,47 @@ lint_env_values() {
   return 1
 }
 
+# `Restart=unless-stopped` is Compose's spelling; systemd has no such value. The
+# unit is not rejected -- the generator logs "Failed to parse
+# Restart=unless-stopped, ignoring" to the journal and falls back to the
+# default, Restart=no. So the unit installs, starts and runs correctly right up
+# until the container dies, at which point nothing brings it back. The proxy
+# stack carried this on all three templates and the only symptom was Traefik
+# staying down after a crash, with the parse error buried in `systemctl status`
+# output from an earlier boot.
+lint_restart() {
+  local f out all=""
+  for f in "$ROOT"/.container-config/quadlet/*.container; do
+    [[ -e "$f" ]] || continue
+    out="$(awk '
+      /^\[/ { section = $0; next }
+      section == "[Service]" && /^Restart[[:space:]]*=/ {
+        line = $0
+        sub(/[[:space:]]*#.*/, "", line)         # strip trailing comments
+        sub(/^Restart[[:space:]]*=[[:space:]]*/, "", line)
+        sub(/[[:space:]]+$/, "", line)
+        if (line !~ /^(no|on-success|on-failure|on-abnormal|on-watchdog|on-abort|always)$/)
+          print "    " NR ": " $0
+      }
+    ' "$f")"
+    [[ -n "$out" ]] || continue
+    printf '  %s\n%s\n' "$(basename "$f")" "$out" >&2
+    all="x$all"
+  done
+  [[ -n "$all" ]] || return 0
+  printf '\nerror: systemd does not accept the Restart= values above. It ignores the\n' >&2
+  printf 'line and leaves the unit at its default, Restart=no -- so a container that\n' >&2
+  printf 'crashes is never restarted. Use on-failure (what every other template\n' >&2
+  printf 'uses) or always.\n' >&2
+  return 1
+}
+
 cmd_install() {
   require_hard
   lint_templates || die "refusing to install templates that would silently lose data"
   lint_env_expansion || die "refusing to install templates whose keys cannot expand"
   lint_env_values || die "refusing to install with env values podman would mangle"
+  lint_restart || die "refusing to install templates with an unusable Restart= policy"
   mkdir -p "$DEST"
   local src b out
   for src in "$ROOT"/.container-config/quadlet/*; do

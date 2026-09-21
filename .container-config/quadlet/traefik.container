@@ -56,7 +56,7 @@ Exec=--providers.docker=true \
   --accesslog=false
 
 [Service]
-Restart=unless-stopped
+Restart=on-failure
 
 # Started on demand: `mise run proxy:up`, or pulled in by a
 # worktree unit's Wants=. No [Install] section, so nothing runs at login --

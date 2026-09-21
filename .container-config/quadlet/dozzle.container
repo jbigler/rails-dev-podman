@@ -19,6 +19,6 @@ Label=traefik.http.routers.wt-logs.entrypoints=web
 Label=traefik.http.services.wt-logs.loadbalancer.server.port=8080
 
 [Service]
-Restart=unless-stopped
+Restart=on-failure
 
 # No [Install]: pulled in by Requires= on traefik when the proxy starts.
