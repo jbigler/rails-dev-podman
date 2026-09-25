@@ -53,6 +53,11 @@ GEM_VOLUME_BASE = "${name}_shared_gems"
 # PODMAN_PROXY_IP_RANGE = "10.215.0.128/25"
 # PODMAN_TRAEFIK_IP = "10.215.0.2"
 
+# --- claude firewall ----------------------------------------------------
+# Extra hostnames the claude container may reach, space- or comma-separated.
+# Resolved to IPs once, when the container starts.
+# CLAUDE_FIREWALL_ALLOW = "searxng.example.com"
+
 # --- secrets ------------------------------------------------------------
 # CLAUDE_CODE_OAUTH_TOKEN = "..."
 EOF

@@ -78,6 +78,7 @@ exec podman run --rm -it \
   --env POWERLEVEL9K_DISABLE_GITSTATUS=true \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
+  --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \
   "${token[@]}" \
   -v "$ROOT/.home/$W:/home/appuser:z" \
   -v "$WT_DIR:/app-$W:z" \

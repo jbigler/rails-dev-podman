@@ -79,7 +79,8 @@ else
     done < <(echo "$dd_ranges" | jq -r '.api.prefixes_ipv4[]')
 fi
 
-# Resolve and add other allowed domains
+# Resolve and add other allowed domains, plus any passed as arguments
+# (CLAUDE_FIREWALL_ALLOW, via entrypoint-claude.sh -- sudo drops the env).
 for domain in \
     "registry.npmjs.org" \
     "codeload.github.com" \
@@ -95,7 +96,12 @@ for domain in \
     "mcp.datadoghq.com" \
     "ga.jspm.io" \
     "cdn.jsdelivr.net" \
-    "api.rubyonrails.org"; do
+    "api.rubyonrails.org" \
+    "$@"; do
+    if [[ ! "$domain" =~ ^[A-Za-z0-9.-]+$ ]]; then
+        echo "WARN: Invalid domain $domain, skipping"
+        continue
+    fi
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}' || true)
     if [ -z "$ips" ]; then
@@ -181,5 +187,3 @@ if ! curl --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
 else
     echo "Firewall verification passed - able to reach https://api.github.com as expected"
 fi
-
-exec "$@"

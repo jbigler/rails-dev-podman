@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# Run firewall setup as root via sudo (allowed by /etc/sudoers.d/firewall)
-sudo /usr/local/bin/init-firewall.sh
+# Run firewall setup as root via sudo (allowed by /etc/sudoers.d/firewall).
+# sudo resets the env, so personal extra domains go over as arguments.
+read -ra extra_domains <<< "${CLAUDE_FIREWALL_ALLOW//,/ }"
+sudo /usr/local/bin/init-firewall.sh "${extra_domains[@]}"
 
 # The home directory is per-worktree (.home/<slug> on the host), so the
 # default ~/.claude is already isolated: credentials, sessions and plugin
