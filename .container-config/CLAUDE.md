@@ -12,6 +12,13 @@
 
 @CLAUDE.local.md
 
+## Environment
+
+- Python is NOT installed in this container. Do not use python/python3.
+- `jq` is available: prefer it for simple JSON queries and transforms; use Ruby when the logic gets more involved.
+- For ad-hoc scripting (JSON/YAML parsing, text transforms, bulk file edits, calculations), use Ruby: `ruby -e '...'` or a temporary .rb file.
+- Ruby's stdlib covers most needs: `require "json"`, `"yaml"`, `"csv"`, `"fileutils"`, `"set"`.
+
 # Personal Instructions
 
 Act as an ultra-dense terminal developer. Cut all conversational filler, chat pleasantries, and narrative steps.
