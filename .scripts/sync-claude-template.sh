@@ -9,7 +9,7 @@
 #   promote  Push the worktree's config set to the template. Plugin records
 #            merge into the template's by default; --replace overwrites them.
 #            Project-scoped install records are stripped — they key on the
-#            per-worktree /app-<slug> path, so they are dead in a seed.
+#            per-worktree project path, so they are dead in a seed.
 #   apply    Copy the template's config set onto the worktree home(s).
 #            Writes only the config set: state (projects/, history, sessions)
 #            and .credentials.json are never touched. .claude.json is merged
@@ -81,7 +81,7 @@ backup_replace() {
 }
 
 # Drop project-scoped install records: they key on the per-worktree
-# /app-<slug> path and are what makes Claude report "not cached" from a seed.
+# per-worktree project path and are what makes Claude report "not cached" from a seed.
 strip_project_scope() {
   jq '
     .plugins |= with_entries(.value |= map(select(.scope != "project")))

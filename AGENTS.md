@@ -101,9 +101,9 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
 - rustfs — S3 storage, Traefik-routed.
 - claude — NOT a unit. `docker compose run --rm` was a one-off interactive container and a systemd unit
   cannot be one (started detached, nothing on its TTY), so .scripts/podman-claude.sh holds the run args
-  and starts rails + playwright first. claude target; NET_ADMIN/NET_RAW; worktree mounted at /app-<slug>  
-  (not /app — kept so host paths differ per worktree in prompts/logs, even though homes are  
-  per-worktree now); home is a per-worktree bind mount (../.home/<slug>:/home/appuser), plain  
+  and starts rails + playwright first. claude target; NET_ADMIN/NET_RAW; worktree mounted at its host path  
+  (not /app — the gitdir paths git records in master/.git/worktrees/ must resolve inside, or git and  
+  gh-stack flag the worktree prunable; sibling worktrees are still prunable in here); home is a per-worktree bind mount (../.home/<slug>:/home/appuser), plain  
   ~/.claude (no override env var); entrypoint: init-firewall.sh, add MCP  
   (pencil; chrome-devtools via socat loopback bridge 127.0.0.1:9222→playwright:9223 — CDP rejects  
   non-localhost Host header), rtk init, then claude --dangerously-skip-permissions.  
@@ -111,7 +111,7 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   (browser/MCP + rtk instructions); imports optional CLAUDE.local.md (gitignored  
   .home/<slug>/.claude/) for user-local instructions.  
   File memory: ../.container-config/claude-memory bind-mounted over  
-  ~/.claude/projects/-app-<slug>/memory — the one dir every worktree and host session shares.
+  ~/.claude/projects/<host-path key>/memory (the old -app-<slug> dir is renamed once) — the one dir every worktree and host session shares.
 
 GEM_VOLUME is shared across worktrees on the same ruby; node_modules is per-worktree. Networks:
 <prefix>-<slug>-dev (per worktree, MTU 1400 — aliases db/redis/rustfs would collide on a shared one)

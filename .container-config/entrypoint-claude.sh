@@ -28,7 +28,7 @@ if ! jq -e '.installMethod == "native"' "$CLAUDE_JSON" >/dev/null 2>&1; then
 fi
 
 # Pre-trust this worktree's project dir. The mount point is per-worktree
-# (/app-<slug>), so without this every new worktree's first interactive
+# (its host path), so without this every new worktree's first interactive
 # session stops at the "Do you trust the files in this folder?" dialog.
 if ! jq -e --arg p "$PWD" '.projects[$p].hasTrustDialogAccepted == true' "$CLAUDE_JSON" >/dev/null 2>&1; then
   tmp="${CLAUDE_JSON}.tmp.$$"

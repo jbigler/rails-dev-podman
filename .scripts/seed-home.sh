@@ -38,8 +38,7 @@ mkdir -p \
   "$home_dir/.cache/ms-playwright" \
   "$home_dir/.local/share/nvim" \
   "$home_dir/.claude/plugins/cache" \
-  "$home_dir/.claude/plugins/marketplaces" \
-  "$home_dir/.claude/projects/-app-$name"
+  "$home_dir/.claude/plugins/marketplaces"
 
 # ~/.config/git/ignore is a FILE bind target: nvim@ mounts the host's copy at
 # this path, which lands inside the bind-mounted home. Under docker the daemon

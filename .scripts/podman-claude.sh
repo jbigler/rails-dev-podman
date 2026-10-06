@@ -63,8 +63,17 @@ token=()
 # which symlink to it. Homes are per-worktree and wt:rm deletes them, so memory
 # kept under .home/<slug> would die with the worktree.
 mkdir -p "$ROOT/.container-config/claude-memory" "$ROOT/.container-config/status"
-memdir="$ROOT/.home/$W/.claude/projects/-app-$W"
-mkdir -p "$memdir"
+# The worktree is mounted at its host path, not a container-only one, so the
+# paths git recorded in master/.git/worktrees/<slug>/gitdir resolve in here and
+# git/gh-stack do not flag this worktree prunable. Claude keys its per-project
+# state on the cwd with every non-alphanumeric turned into '-'.
+projkey="${WT_DIR//[^a-zA-Z0-9]/-}"
+projects="$ROOT/.home/$W/.claude/projects"
+# One-time move from the old /app-<slug> key, so --resume keeps old sessions.
+if [[ -d "$projects/-app-$W" && ! -e "$projects/$projkey" ]]; then
+  mv "$projects/-app-$W" "$projects/$projkey"
+fi
+mkdir -p "$projects/$projkey"
 
 exec podman run --rm -it \
   --name "$P-$W-claude" \
@@ -81,9 +90,9 @@ exec podman run --rm -it \
   --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \
   "${token[@]}" \
   -v "$ROOT/.home/$W:/home/appuser:z" \
-  -v "$WT_DIR:/app-$W:z" \
+  -v "$WT_DIR:$WT_DIR:z" \
   -v "$ROOT/.container-config/CLAUDE.md:/opt/claude/CLAUDE.md:ro,z" \
-  -v "$ROOT/.container-config/claude-memory:/home/appuser/.claude/projects/-app-$W/memory:z" \
+  -v "$ROOT/.container-config/claude-memory:/home/appuser/.claude/projects/$projkey/memory:z" \
   -v "$ROOT/.container-config/entrypoint-claude.sh:/usr/local/bin/entrypoint-claude.sh:ro,z" \
   -v "$ROOT/.container-config/init-firewall.sh:/usr/local/bin/init-firewall.sh:ro,z" \
   -v "$ROOT/.container-config/claude-status-hook.sh:/usr/local/bin/claude-status-hook.sh:ro,z" \
@@ -94,11 +103,11 @@ exec podman run --rm -it \
   -v "$GITIGNORE_PATH:/home/appuser/.config/git/ignore:ro,z" \
   -v "$GITCONFIG_PATH:/home/appuser/.gitconfig:ro,z" \
   -v "$GEM_VOLUME:/usr/local/bundle" \
-  -v "$P-$W-node-modules:/app-$W/node_modules:U" \
+  -v "$P-$W-node-modules:$WT_DIR/node_modules:U" \
   -v "${P}_npm_cache:/home/appuser/.npm:U" \
   -v "${P}_npm_global:/home/appuser/.npm-global:U" \
   -v "${P}_claude_plugins_cache:/home/appuser/.claude/plugins/cache:U" \
   -v "${P}_claude_plugins_marketplaces:/home/appuser/.claude/plugins/marketplaces:U" \
-  -w "/app-$W" \
+  -w "$WT_DIR" \
   --entrypoint entrypoint-claude.sh \
   "$CLAUDE_IMAGE" "$@"
