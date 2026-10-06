@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 input="${1:?Usage: mise run init <user/repo | git-url>}"
 
-source "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/lib.sh"
 root=$(find_project_root)
 
 # A manual clone of the wrapper has no root mise.local.toml, which leaves
@@ -13,11 +13,14 @@ root=$(find_project_root)
 
 # --- Resolve clone URL ---
 
-if [[ "$input" =~ ^https?:// || "$input" =~ ^git@ ]]; then
-  clone_url="$input"
-elif [[ "$input" =~ ^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$ ]]; then
-  clone_url="https://github.com/${input}.git"
-else
+# user/repo: exactly one '/', non-empty on both sides, [a-zA-Z0-9_.-] only.
+case "$input" in
+  http://*|https://*|git@*) clone_url="$input" ;;
+  */*/*|/*|*/|*[!a-zA-Z0-9_./-]*) clone_url="" ;;
+  */*) clone_url="https://github.com/${input}.git" ;;
+  *) clone_url="" ;;
+esac
+if [ -z "$clone_url" ]; then
   echo "Error: unrecognized format '${input}'"
   echo "  Expected: user/repo  or  https://github.com/user/repo.git"
   exit 1

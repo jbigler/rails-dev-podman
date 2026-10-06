@@ -1,10 +1,12 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 # Run firewall setup as root via sudo (allowed by /etc/sudoers.d/firewall).
 # sudo resets the env, so personal extra domains go over as arguments.
-read -ra extra_domains <<< "${CLAUDE_FIREWALL_ALLOW//,/ }"
-sudo /usr/local/bin/init-firewall.sh "${extra_domains[@]}"
+# Split on commas and blanks in a subshell, so IFS and noglob stay local and "$@"
+# (claude's arguments, used below) is untouched.
+# shellcheck disable=SC2086
+(IFS=$(printf ', \t'); set -f; sudo /usr/local/bin/init-firewall.sh ${CLAUDE_FIREWALL_ALLOW:-})
 
 # The home directory is per-worktree (.home/<slug> on the host), so the
 # default ~/.claude is already isolated: credentials, sessions and plugin

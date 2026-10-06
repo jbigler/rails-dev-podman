@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 # No -x by default: it was the only entrypoint of the four that traced, and the
 # trace interleaves with its own output -- a diagnostic line came out as
 # "nvim_entries=+...> ls -A", which defeats the point of having one. The
 # container log is where you read these now, so keep it readable.
-[[ -n "${ENTRYPOINT_DEBUG:-}" ]] && set -x
+[ -n "${ENTRYPOINT_DEBUG:-}" ] && set -x
 
 mkdir -p ~/.config
 mkdir -p ~/.local
@@ -44,7 +44,7 @@ gh extension install github/gh-stack --force >/dev/null 2>&1 || true
 nvim_entries=$(ls -A ~/.config/nvim 2>/dev/null | wc -l)
 case "${NVIM_CONFIG_SOURCE:-unknown}" in
 	volume)
-		if (( nvim_entries == 0 )); then
+		if [ "$nvim_entries" -eq 0 ]; then
 			echo "nvim config: shared volume, empty. Configure nvim in here and it" >&2
 			echo "             persists across every worktree. To use your host config" >&2
 			echo "             read-only instead, set NVIM_CONFIG_DIR in the" >&2
@@ -54,11 +54,11 @@ case "${NVIM_CONFIG_SOURCE:-unknown}" in
 		fi
 		;;
 	host)
-		if (( nvim_entries == 0 )); then
+		if [ "$nvim_entries" -eq 0 ]; then
 			echo "WARN: NVIM_CONFIG_DIR is set but ~/.config/nvim is empty -- the bind" >&2
 			echo "      mount did not land. Check the path, then:" >&2
 			echo "      mise run units:env && mise run units:install" >&2
-		elif [[ ! -f ~/.config/nvim/init.lua && ! -f ~/.config/nvim/init.vim ]]; then
+		elif [ ! -f ~/.config/nvim/init.lua ] && [ ! -f ~/.config/nvim/init.vim ]; then
 			echo "WARN: host config mounted but has no init.lua or init.vim." >&2
 			echo "      Contents: $(ls -A ~/.config/nvim | tr '\n' ' ')" >&2
 		else
@@ -72,7 +72,7 @@ case "${NVIM_CONFIG_SOURCE:-unknown}" in
 esac
 
 # Plugins are a separate axis: ~/.local/share/nvim is its own named volume.
-if [[ -z "$(ls -A ~/.local/share/nvim 2>/dev/null)" ]]; then
+if [ -z "$(ls -A ~/.local/share/nvim 2>/dev/null)" ]; then
 	echo "note: ~/.local/share/nvim is empty, so no plugins are installed yet." >&2
 	echo "      Your plugin manager installs them when the server first loads the" >&2
 	echo "      config; a headless server may need it driven explicitly, e.g." >&2

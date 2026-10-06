@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Dump this worktree's development database and its RustFS objects into
 # .container-config/db-dumps/, which is exactly where the restore path reads from:
 # db@'s initdb hook (restore-dump.sh) creates and restores <dbname>.dump on a
@@ -7,9 +7,9 @@
 # picked up automatically by the next `up` on an empty volume.
 #
 # Usage: podman-db-dump.sh [clear]
-set -euo pipefail
+set -eu
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(dirname "$0")/lib.sh"
 ROOT="$(find_project_root)"
 
 : "${PROJECT_PREFIX:?run from a worktree directory (mise env not loaded)}"
@@ -20,7 +20,7 @@ DUMP_DIR="$ROOT/.container-config/db-dumps"
 
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
-if [[ "${1:-}" == "clear" ]]; then
+if [ "${1:-}" = "clear" ]; then
   # Deliberately explicit extensions rather than a glob of the directory: the
   # .gitkeep must survive, and restore-dump.sh treats every file it finds as a
   # database, so a stray file here would be restored as one.

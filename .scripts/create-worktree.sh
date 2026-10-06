@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 input="${1:?Usage: mise run wt <branch-name|PR#|new-branch-name>}"
 
 # --- Find a git worktree to run git commands from ---
 
-source "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/lib.sh"
 root=$(find_project_root)
 git_dir=$(find_git_dir)
 
@@ -14,7 +14,12 @@ run_git() {
 }
 
 # --- Resolve branch name ---
-if [[ "$input" =~ ^[0-9]+$ ]]; then
+# A PR number is all digits; anything else is a branch name.
+case "$input" in
+  ''|*[!0-9]*) is_pr="" ;;
+  *) is_pr=1 ;;
+esac
+if [ -n "$is_pr" ]; then
   if ! command -v gh >/dev/null 2>&1; then
     echo "Error: 'gh' CLI is required for PR checkouts"
     echo "  Install: https://cli.github.com/"

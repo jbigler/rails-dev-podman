@@ -1,17 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Create the workspace-root mise.local.toml if it is missing.
 #
 # bootstrap.sh writes this file as part of setting up a new workspace, but a
 # manual `git clone` of the wrapper does not -- and without it PROJECT_PREFIX
 # falls back to the literal "default", so every volume, network and container
 # is named default_*. This fills that gap and can be re-run safely.
-set -euo pipefail
+set -eu
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(dirname "$0")/lib.sh"
 ROOT="$(find_project_root)"
 CONF="$ROOT/mise.local.toml"
 
-if [[ -f "$CONF" ]]; then
+if [ -f "$CONF" ]; then
   printf 'mise.local.toml already exists -- leaving it alone.\n\n'
   grep -E '^(PROJECT_PREFIX|GEM_VOLUME_BASE|PODMAN_)' "$CONF" | sed 's/^/  /' || true
   exit 0
@@ -20,14 +20,15 @@ fi
 default_name="$(sanitize_worktree_name "$(basename "$ROOT")")"
 
 # Non-interactive (CI, a task pipeline) takes the default rather than blocking.
-if [[ -t 0 ]]; then
-  read -r -p "Project name [$default_name]: " name
+if [ -t 0 ]; then
+  printf 'Project name [%s]: ' "$default_name"
+  read -r name
 else
   name=""
   printf 'Not a terminal; using the default.\n'
 fi
 name="$(sanitize_worktree_name "${name:-$default_name}")"
-[[ -n "$name" ]] || { printf 'error: project name resolved to empty\n' >&2; exit 1; }
+[ -n "$name" ] || { printf 'error: project name resolved to empty\n' >&2; exit 1; }
 
 cat > "$CONF" <<EOF
 # Workspace-local configuration. Git-ignored -- yours alone, never shared.

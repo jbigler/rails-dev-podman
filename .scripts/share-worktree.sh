@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Expose ONE worktree over the tailnet, on demand. Run from the worktree dir.
 # Nothing persists: `off` puts it all back.
 #
@@ -15,9 +15,9 @@
 #
 # Traefik stays bypassed, exactly as before: no Host-header rules are involved
 # and no other worktree becomes reachable.
-set -euo pipefail
+set -eu
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(dirname "$0")/lib.sh"
 ROOT="$(find_project_root)"
 
 action="${1:-on}"
@@ -30,7 +30,7 @@ SHARE_ENV="$ROOT/.unit-env/$W.share.env"
 
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
-[[ -f "$WT_ENV" ]] || die "no env file at $WT_ENV -- run: mise run units:env"
+[ -f "$WT_ENV" ] || die "no env file at $WT_ENV -- run: mise run units:env"
 # shellcheck disable=SC1090
 set -a; . "$WT_ENV"; set +a
 : "${APP_PORT:?APP_PORT missing from $WT_ENV -- regenerate it: mise run units:env}"
@@ -42,9 +42,8 @@ restart_rails() {
   # tailscale serve can be pointed at a port nothing is listening on yet. Wait
   # for the listener rather than racing it -- /proc/net/tcp, because `ss` is not
   # installed everywhere and its absence would read as "not listening".
-  local hexport i
   hexport=$(printf '%04X' "$1")
-  for i in $(seq 1 60); do
+  for _ in $(seq 1 60); do
     if awk -v p=":$hexport" '$4 == "0A" && $2 ~ p"$" { f=1 } END { exit !f }' \
          /proc/net/tcp 2>/dev/null; then
       return 0

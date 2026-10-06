@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 input="${1:?Usage: mise run wt:rm <branch|dir-name>}"
 
-source "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/lib.sh"
 root=$(find_project_root)
 git_dir=$(find_git_dir)
 
@@ -43,11 +43,17 @@ fi
 # host paths, so any prune-like operation would see every absent directory as
 # a dead worktree and purge the entire registry (disconnecting all worktrees).
 # Only proceed when every registered worktree path actually exists on disk.
+# Captured first, not piped: under set -e a failing `git worktree list` stops
+# here instead of reading as "no worktrees, none missing".
+porcelain=$(run_git worktree list --porcelain)
 missing=""
 while read -r wt; do
   [ -n "$wt" ] || continue
-  [ -d "$wt" ] || missing="${missing}"$'\n'"  ${wt}"
-done < <(run_git worktree list --porcelain | sed -n 's/^worktree //p')
+  [ -d "$wt" ] || missing="${missing}
+  ${wt}"
+done <<EOF
+$(printf '%s\n' "$porcelain" | sed -n 's/^worktree //p')
+EOF
 if [ -n "$missing" ]; then
   echo "Error: Refusing to remove — git reports worktrees whose directories are missing:" >&2
   echo "$missing" >&2
@@ -178,10 +184,14 @@ for subdir in tracked-configs trusted-configs; do
   [ -d "$dir" ] || continue
   find "$dir" -type l | while read -r link; do
     target=$(readlink -f "$link" 2>/dev/null || true)
-    if [[ "$target" == "${worktree_dir}"* ]]; then
-      echo "Removing mise trust link: $link -> $target"
-      rm -f "$link"
-    fi
+    # The dir itself or below it -- a bare prefix match would also take a
+    # sibling whose name extends this one (api -> api-v2).
+    case "$target" in
+      "$worktree_dir"|"$worktree_dir"/*)
+        echo "Removing mise trust link: $link -> $target"
+        rm -f "$link"
+        ;;
+    esac
   done
 done
 

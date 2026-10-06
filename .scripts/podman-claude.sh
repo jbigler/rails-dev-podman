@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Run Claude Code for this worktree in a one-off interactive container.
 #
 # Deliberately NOT a systemd unit. Under compose this was `docker compose run
@@ -14,9 +14,9 @@
 # starting claude alone has to bring both up, or its system tests have nothing
 # to drive and nothing to visit. Failures there are not fatal -- neither should
 # take the Claude session down with it.
-set -euo pipefail
+set -eu
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(dirname "$0")/lib.sh"
 ROOT="$(find_project_root)"
 
 : "${PROJECT_PREFIX:?run from a worktree directory (mise env not loaded)}"
@@ -51,8 +51,8 @@ systemctl --user start "$P-rails@$W.service" "$P-playwright@$W.service" 2>/dev/n
 # prompt on a home that has none -- decides. Otherwise forward the host's token;
 # a bare --env NAME inherits the value from this environment, and the token wins
 # over anything stored in the home.
-token=()
-[[ -n "${CLAUDE_NO_TOKEN:-}" ]] || token=(--env CLAUDE_CODE_OAUTH_TOKEN)
+token=--env=CLAUDE_CODE_OAUTH_TOKEN
+[ -z "${CLAUDE_NO_TOKEN:-}" ] || token=""
 
 # The two plugin payload dirs are mounted separately and deliberately NOT as one
 # volume at ~/.claude/plugins: known_marketplaces.json and installed_plugins.json
@@ -67,10 +67,10 @@ mkdir -p "$ROOT/.container-config/claude-memory" "$ROOT/.container-config/status
 # paths git recorded in master/.git/worktrees/<slug>/gitdir resolve in here and
 # git/gh-stack do not flag this worktree prunable. Claude keys its per-project
 # state on the cwd with every non-alphanumeric turned into '-'.
-projkey="${WT_DIR//[^a-zA-Z0-9]/-}"
+projkey=$(printf '%s' "$WT_DIR" | tr -c 'a-zA-Z0-9' '-')
 projects="$ROOT/.home/$W/.claude/projects"
 # One-time move from the old /app-<slug> key, so --resume keeps old sessions.
-if [[ -d "$projects/-app-$W" && ! -e "$projects/$projkey" ]]; then
+if [ -d "$projects/-app-$W" ] && [ ! -e "$projects/$projkey" ]; then
   mv "$projects/-app-$W" "$projects/$projkey"
 fi
 mkdir -p "$projects/$projkey"
@@ -87,7 +87,7 @@ exec podman run --rm -it \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
   --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \
-  "${token[@]}" \
+  ${token:+"$token"} \
   -v "$ROOT/.home/$W:/home/appuser:z" \
   -v "$WT_DIR:$WT_DIR:z" \
   -v "$ROOT/.container-config/CLAUDE.md:/opt/claude/CLAUDE.md:ro,z" \

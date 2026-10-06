@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Remove every podman object this project owns, the rendered systemd units, and
 # the project folder. The nuclear option; `clean` is the surgical one.
 #
@@ -8,9 +8,9 @@
 # ~/.config/containers/systemd outlive the project folder, so they go too, or
 # the next login leaves systemd generating units for a workspace that no longer
 # exists.
-set -euo pipefail
+set -eu
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+. "$(dirname "$0")/lib.sh"
 
 : "${PROJECT_PREFIX:?PROJECT_PREFIX is unset; refusing to destroy}"
 P="$PROJECT_PREFIX"
@@ -52,14 +52,15 @@ if [ -n "$running_units" ]; then
   systemctl --user stop $running_units 2>/dev/null || true
 fi
 
-sweep() {
-  local kind="$1" lister="$2" remover="$3" pat="$4" found
+# ( ) body in place of `local`: keeps these names out of the script's scope.
+sweep() (
+  kind="$1" lister="$2" remover="$3" pat="$4"
   found=$(eval "$lister" | grep -E "$pat" || true)
   [ -n "$found" ] || return 0
   echo "Removing ${kind}:"; for x in $found; do echo "  $x"; done
   # shellcheck disable=SC2086
   eval "$remover $found" >/dev/null 2>&1 || true
-}
+)
 
 sweep containers "podman ps -a --format '{{.Names}}'"      "podman rm -f"        "$pattern"
 sweep networks   "podman network ls --format '{{.Name}}'"  "podman network rm -f" "$pattern"
