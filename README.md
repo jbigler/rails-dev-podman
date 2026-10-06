@@ -142,7 +142,7 @@ The dashboard is at `http://wt.localhost`; live logs for every project container
 
 ### Development
 
-- `mise run rails` — open a zsh shell in this worktree's Rails container
+- `mise run rails` — open a bash shell in this worktree's Rails container
 - `mise run console` (`c`) — Rails console
 - `mise run exec <cmd>` — run a command in the rails container, or in a transient one when the stack is down
 - `mise run nvim` (`v`) — connect to the in-container Neovim via `--remote-ui`

@@ -89,7 +89,7 @@ mkdir -p /home/appuser/.local/bin
 ln -sf /usr/bin/claude /home/appuser/.local/bin/claude
 
 # If first arg starts with '-' or no args given, run claude with skip-permissions
-# Otherwise run the given command directly (e.g., /bin/zsh)
+# Otherwise run the given command directly (e.g., /bin/bash)
 if [ $# -eq 0 ] || [ "${1#-}" != "$1" ]; then
   exec claude --dangerously-skip-permissions "$@"
 fi

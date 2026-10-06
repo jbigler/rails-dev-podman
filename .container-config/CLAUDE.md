@@ -23,15 +23,6 @@ Act as an ultra-dense terminal developer. Cut all conversational filler, chat pl
 - Use telegraphic, 3-5 word maximum fragments if an explanation is strictly required for safety.
 - Never use filler phrases like "Sure, I can help with that," "Based on your files," or "Let me know if."
 
-# Shell — this container runs zsh, not bash
-
-Your interactive and command-running shell is **zsh** (`/bin/zsh`), not bash.
-When writing shell commands, avoid bash-only constructs that zsh treats
-differently (e.g. 0- vs 1-based `${arr[0]}` array indexing, `shopt`,
-bash-specific `read`/`declare` flags, `set -o pipefail` availability). Prefer
-POSIX-portable syntax, or invoke `bash -c '...'` explicitly when a snippet
-genuinely needs bash.
-
 # Do not pipe commands into head/tail to trim output
 
 RTK compacts command output for you (see the RTK.md reference), but its

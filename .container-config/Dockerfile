@@ -90,7 +90,6 @@ RUN apt-get update -qq && \
   libjemalloc2 \
   kitty-terminfo \
   musl-dev \
-  zsh \
   fd-find \
   ripgrep \
   openssh-client \
@@ -129,7 +128,7 @@ COPY Gemfile* $APP_PATH/
 # (e.g. macOS primary group `staff`=20 collides with Debian's `dialout`). Reference
 # the group by numeric GID throughout so the group name is irrelevant.
 RUN if ! getent group "$APP_GROUP_GID" >/dev/null 2>&1; then addgroup --gid "$APP_GROUP_GID" "$APP_GROUP"; fi \
-  && useradd -g "$APP_GROUP_GID" -s /bin/zsh -p '' --uid "$APP_USER_UID" -m "$APP_USER" \
+  && useradd -g "$APP_GROUP_GID" -s /bin/bash -p '' --uid "$APP_USER_UID" -m "$APP_USER" \
   && chgrp -R "$APP_GROUP_GID" "$BUNDLE_APP_CONFIG" \
   && chmod -R g+w "$BUNDLE_APP_CONFIG" \
   && chown -R "$APP_USER_UID":"$APP_GROUP_GID" "$APP_PATH"
@@ -140,7 +139,7 @@ ENV PATH="/home/${APP_USER}/.local/bin:/home/${APP_USER}/.npm-global/bin:${PATH}
 
 WORKDIR $APP_PATH
 
-ENV SHELL=/bin/zsh
+ENV SHELL=/bin/bash
 
 USER $APP_USER
 
@@ -149,7 +148,7 @@ RUN mkdir -p /home/${APP_USER}/.npm-global && \
   mkdir -p $APP_PATH/node_modules && \
   bundle install
 
-SHELL ["/bin/zsh", "-c"]
+SHELL ["/bin/bash", "-c"]
 
 # ------------------------------------------------------------------------------
 # Rails image

@@ -84,7 +84,6 @@ exec podman run --rm -it \
   --label traefik.enable=false \
   --env-file "$ROOT/.container-config/.env" --env-file "$WT_ENV" \
   --env NODE_OPTIONS=--max-old-space-size=4096 \
-  --env POWERLEVEL9K_DISABLE_GITSTATUS=true \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
   --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \

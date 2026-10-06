@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 set -euo pipefail
 # No -x by default: it was the only entrypoint of the four that traced, and the
 # trace interleaves with its own output -- a diagnostic line came out as

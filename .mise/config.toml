@@ -98,7 +98,7 @@ alias = "v"
 
 [tasks.rails]
 description = "Shell into the running Rails container for this worktree."
-run = "{{config_root}}/.scripts/podman-wt.sh exec /bin/zsh"
+run = "{{config_root}}/.scripts/podman-wt.sh exec /bin/bash"
 
 [tasks.test]
 description = "Run the full local test suite: Rails unit tests then the JavaScript tests. System tests are not included — run 'test:rails_system' for those."
