@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Print the development database name from a Rails config/database.yml.
 #
 # Postgres only — the only adapter this tooling supports. Best-effort:
@@ -7,7 +7,7 @@
 # callers can fall back to a manual DEV_DB_NAME in mise.local.toml.
 #
 # Usage: dev-db-name.sh [path-to-database.yml]   (default: config/database.yml)
-set -euo pipefail
+set -eu
 
 yml="${1:-config/database.yml}"
 [ -f "$yml" ] || exit 0

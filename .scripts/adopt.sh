@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 # Adopt an existing Rails checkout into this wrapper as the base worktree.
 # Moves the checkout physically under the wrapper root (required: mise resolves
 # config by physical path, so the base must live under the root to inherit the

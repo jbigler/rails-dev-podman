@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Playwright browser server with a live VNC view of the headed browser.
 #
 # Clients (capybara-playwright-driver via browser_server_endpoint_url -> BrowserType.connect)
@@ -7,7 +7,7 @@
 # headed/headless is decided HERE, at launchServer time. We launch headed by default into
 # the Xvfb display, which x11vnc + noVNC expose as a web page so the run can be watched live.
 # Set HEADLESS_SYSTEM_TESTS=1 to launch headless instead (faster, nothing to view).
-set -euo pipefail
+set -eu
 
 # Lock down egress before anything network-facing starts (entrypoint runs as root).
 /usr/local/bin/init-firewall-playwright.sh

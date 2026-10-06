@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 set -e
 
 # Clear a stale puma pid left by an unclean shutdown — /app is bind-mounted,
@@ -8,7 +8,7 @@ rm -f tmp/pids/server.pid
 bundle install
 npm install
 
-if bin/rails runner "ActiveRecord::Base.connection.table_exists?('schema_migrations')" &>/dev/null; then
+if bin/rails runner "ActiveRecord::Base.connection.table_exists?('schema_migrations')" >/dev/null 2>&1; then
   echo "Database already initialized — running migrations..."
   bin/rails db:migrate
   bin/rails db:test:prepare

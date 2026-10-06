@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #MISE description="Run Claude in a new tab of the current terminal (falls back to the current window)."
 #MISE alias="ai:newterm"
 

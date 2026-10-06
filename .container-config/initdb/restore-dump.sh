@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 # Runs inside /docker-entrypoint-initdb.d/ during PostgreSQL first-start

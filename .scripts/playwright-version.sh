@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Print the Playwright version pinned by a Rails Gemfile.lock.
 #
 # playwright-ruby-client tracks upstream Playwright releases, so its locked
@@ -8,7 +8,7 @@
 # default tag.
 #
 # Usage: playwright-version.sh [path-to-Gemfile.lock]   (default: Gemfile.lock)
-set -euo pipefail
+set -eu
 
 lock="${1:-Gemfile.lock}"
 [ -f "$lock" ] || exit 0
