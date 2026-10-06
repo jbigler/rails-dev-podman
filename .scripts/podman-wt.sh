@@ -461,6 +461,11 @@ cmd_test_system() {
   # "localhost" -- the playwright container itself. The hostname is the short
   # container ID, which podman's DNS resolves on the dev network, for the
   # running rails container and a transient one alike.
+  # Workers default to every host core, but they all share one browser in a
+  # playwright container capped at --cpus=CPUS_25. Past that cap the pages
+  # starve and tests hit Playwright's 5s timeouts. Match the cap; an explicit
+  # PARALLEL_WORKERS in EXEC_ENV comes later on the command line and wins.
+  EXEC_ENV="PARALLEL_WORKERS=${CPUS_25:-$("$ROOT/.scripts/cpu-share.sh" 25)} ${EXEC_ENV:-}"
   cmd_exec sh -c 'APP_HOST=$(hostname) exec bin/rails test:system "$@"' sh "$@"
 }
 
