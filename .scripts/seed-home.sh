@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Seed a worktree's container home from the template, idempotently. Called by
 # `up`, `exec`'s transient-container path, podman-claude.sh and
 # create-worktree.sh — anything that may bind-mount .home/<slug> must run this
@@ -8,9 +8,9 @@
 # "statfs <path>: no such file or directory" (exit 125).
 #
 # Usage: seed-home.sh <worktree-name>
-set -euo pipefail
+set -eu
 
-source "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/lib.sh"
 
 name="${1:?usage: seed-home.sh <worktree-name>}"
 root=$(find_project_root)

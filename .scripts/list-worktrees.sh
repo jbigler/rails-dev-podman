@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-source "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/lib.sh"
 git_dir=$(find_git_dir) || exit 1
 base_name=$(find_base_worktree_name) || exit 1
 
