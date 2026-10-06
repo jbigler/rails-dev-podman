@@ -170,7 +170,7 @@ fi
   printf 'RAILS_IMAGE=localhost/%s/rails:ruby%s-node%s\n'      "$PROJECT_PREFIX" "$RUBY_VERSION" "$NODE_VERSION"
   printf 'NVIM_IMAGE=localhost/%s/nvim:ruby%s-node%s\n'        "$PROJECT_PREFIX" "$RUBY_VERSION" "$NODE_VERSION"
   printf 'PLAYWRIGHT_IMAGE=localhost/%s/playwright:v%s\n'      "$PROJECT_PREFIX" "$pw"
-  printf 'CLAUDE_IMAGE=localhost/%s/claude:latest\n'           "$PROJECT_PREFIX"
+  printf 'CLAUDE_IMAGE=localhost/%s/claude:ruby%s-node%s\n'    "$PROJECT_PREFIX" "$RUBY_VERSION" "$NODE_VERSION"
   printf '\n'
   # Also consumed by podman-build.sh as build args, so the image tags it
   # produces cannot drift from the tags the units expect.
