@@ -456,7 +456,12 @@ cmd_test_system() {
   # has no access to the host's systemd. Idle cost is low anyway: ShmSize is a
   # tmpfs cap, not a reservation.
   systemctl --user start "$(unit playwright)"
-  cmd_exec bin/rails test:system "$@"
+  # The browser must reach Capybara's server in this container. The app falls
+  # back to $HOSTNAME, which Docker exported and podman exec does not, leaving
+  # "localhost" -- the playwright container itself. The hostname is the short
+  # container ID, which podman's DNS resolves on the dev network, for the
+  # running rails container and a transient one alike.
+  cmd_exec sh -c 'APP_HOST=$(hostname) exec bin/rails test:system "$@"' sh "$@"
 }
 
 case "${1:-}" in
