@@ -1,12 +1,10 @@
-# syntax = docker/dockerfile:1.2
-
 ARG RUBY_VERSION
 ARG NODE_VERSION
 
 # ------------------------------------------------------------------------------
 # Build Neovim
 # ------------------------------------------------------------------------------
-FROM debian:bookworm-slim AS build-nvim
+FROM debian:trixie-slim AS build-nvim
 
 ARG BUILD_APT_DEPS="ninja-build gettext curl libtool libtool-bin build-essential autoconf automake cmake g++ pkg-config unzip git binutils wget"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -26,7 +24,7 @@ RUN make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/usr/local/ && \
 
 
 # ------------------------------------------------------------------------------
-# Node alias 
+# Node alias
 # ------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-slim AS node
 
@@ -34,7 +32,7 @@ FROM node:${NODE_VERSION}-slim AS node
 # Base image
 # ------------------------------------------------------------------------------
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
-FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim as base
+FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim AS base
 
 ENV APP_PATH=/app
 ARG APP_USER=appuser
@@ -104,21 +102,21 @@ ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
 
 # Install GitHub CLI
-RUN (type -p wget >/dev/null || ( apt update && apt-get install wget -y)) \
+RUN (type -p wget >/dev/null || ( apt-get update -qq && apt-get install --no-install-recommends -y wget)) \
   && mkdir -p -m 755 /etc/apt/keyrings \
   && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
   && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-  && apt update \
-  && apt install gh -y
+  && apt-get update -qq \
+  && apt-get install --no-install-recommends -y gh \
+  && rm -rf /var/lib/apt/lists/*
 
 
 # 1. Copy Node directly from the official image
 COPY --from=node /usr/local/bin /usr/local/bin
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 
-RUN --mount=type=cache,target=$BUNDLE_APP_CONFIG \
-  gem update --system && \
+RUN gem update --system && \
   gem install -N bundler && \
   mkdir -p $APP_PATH
 
@@ -148,12 +146,10 @@ RUN mkdir -p /home/${APP_USER}/.npm-global && \
   mkdir -p $APP_PATH/node_modules && \
   bundle install
 
-SHELL ["/bin/bash", "-c"]
-
 # ------------------------------------------------------------------------------
 # Rails image
 # ------------------------------------------------------------------------------
-FROM base as rails
+FROM base AS rails
 
 ENV RAILS_LOG_TO_STDOUT="1"
 ENV BINDING="0.0.0.0"
@@ -162,9 +158,6 @@ EXPOSE 3000
 
 CMD ["bin/dev"]
 
-# ------------------------------------------------------------------------------
-# NVim image
-# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # Claude Code CLI -- one download, used by both the nvim and claude images.
 #
@@ -194,18 +187,23 @@ RUN GCS_BUCKET="https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42
   printf '#!/bin/sh\nexport DISABLE_AUTOUPDATER=1\nexec /opt/claude-code/bin/claude "$@"\n' > /usr/bin/claude && \
   chmod 755 /usr/bin/claude
 
-
-FROM base as nvim
+# ------------------------------------------------------------------------------
+# NVim image
+# ------------------------------------------------------------------------------
+FROM base AS nvim
 USER root
 
-COPY --from=build-nvim /usr/local /usr/local/
+COPY --from=build-nvim /usr/local/bin/nvim /usr/local/bin/nvim
+COPY --from=build-nvim /usr/local/lib/nvim /usr/local/lib/nvim
+COPY --from=build-nvim /usr/local/share/nvim /usr/local/share/nvim
 
-RUN --mount=type=cache,sharing=locked,target=/var/cache/apt apt-get update -qq && \
-  apt-get install --no-install-recommends -y tree-sitter-cli xclip netbase fzf luarocks universal-ctags unzip ripgrep fzf fd-find lua5.4 
+RUN apt-get update -qq && \
+  apt-get install --no-install-recommends -y tree-sitter-cli xclip netbase fzf luarocks universal-ctags unzip lua5.4 && \
+  rm -rf /var/lib/apt/lists/*
 
 # Install lazygit
-RUN wget -q -O /usr/local/bin/lazygit https://github.com/jesseduffield/lazygit/releases/download/v0.64.1/lazygit_0.64.1_Linux_x86_64.tar.gz && \
-  tar -xvf /usr/local/bin/lazygit -C /usr/local/bin
+RUN wget -qO- https://github.com/jesseduffield/lazygit/releases/download/v0.65.1/lazygit_0.65.1_Linux_x86_64.tar.gz | \
+  tar -xz --no-same-owner -C /usr/local/bin lazygit
 
 RUN luarocks install dkjson
 
@@ -223,14 +221,16 @@ CMD ["/usr/local/bin/nvim", "--headless", "--listen", "0.0.0.0:7777"]
 # Claude image
 # ------------------------------------------------------------------------------
 
-FROM base as claude
+FROM base AS claude
 
 USER root
 
-COPY --from=build-nvim /usr/local /usr/local/
+COPY --from=build-nvim /usr/local/bin/nvim /usr/local/bin/nvim
+COPY --from=build-nvim /usr/local/lib/nvim /usr/local/lib/nvim
+COPY --from=build-nvim /usr/local/share/nvim /usr/local/share/nvim
 
 RUN apt-get update -qq && \
-  apt-get install -y \
+  apt-get install --no-install-recommends -y \
   less \
   procps \
   sudo \
@@ -267,9 +267,14 @@ COPY --from=claude-cli /usr/bin/claude /usr/bin/claude
 
 # Install RTK
 ENV RTK_INSTALL_DIR=/usr/local/bin
-RUN /bin/bash -c "$(wget -qO- https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh)"
+# Download to a file first: with `bash -c "$(wget ...)"` a failed download is
+# an empty script, which exits 0 and leaves the image without rtk.
+RUN wget -qO /tmp/rtk-install.sh https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh && \
+  bash /tmp/rtk-install.sh && \
+  rm /tmp/rtk-install.sh && \
+  command -v rtk
 
-# entrypoint-claude.sh and init-firewall.sh are volume-mounted by compose
+# entrypoint-claude.sh and init-firewall.sh are volume-mounted by the claude run args (.scripts/podman-claude.sh)
 # (repo convention) so script edits don't require an image rebuild.
 RUN echo "${APP_USER} ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/firewall
 
