@@ -69,8 +69,12 @@ websockify --web=/usr/share/novnc "$VNC_WEB_PORT" "localhost:${VNC_RFB_PORT}" &
 CDP_PORT="${CDP_PORT:-9222}"
 CDP_PUBLIC_PORT="${CDP_PUBLIC_PORT:-9223}"
 CHROME_PROFILE_DIR="${CHROME_PROFILE_DIR:-/tmp/claude-chrome-profile}"
-# Rails dev only authorizes hosts in DOMAIN/DEV_HOSTS; "rails" is allowed via DEV_HOSTS.
-CHROME_START_URL="${CHROME_START_URL:-http://rails:3000}"
+# WORKTREE_HOST on :80 (the loopback shim above -> Traefik), not http://rails:3000:
+# development.rb pins default_url_options to DOMAIN while keeping the request's
+# port, so a page on rails:3000 renders *_url links (ActiveStorage images) as
+# http://<DOMAIN>:3000/... -- cross-origin, so CSP blocks them, and nothing
+# listens there anyway.
+CHROME_START_URL="${CHROME_START_URL:-http://${WORKTREE_HOST}}"
 CHROME_BIN="$(node -e 'console.log(require("/usr/lib/node_modules/playwright-core").chromium.executablePath())')"
 
 # Clear stale singleton locks left by an unclean shutdown (same reason as the X locks).

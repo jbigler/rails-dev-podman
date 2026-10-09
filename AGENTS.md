@@ -246,3 +246,9 @@ noVNC; watch at http://vnc.<worktree>.localhost.
   the old macOS /run/host-services path is gone with Docker Desktop.
 - mise resolution: base worktree must live under wrapper root (adopt.sh moves + symlinks).
 - init-firewall.sh: allowlist egress; codeload.github.com added for non-standard infra domains.
+- Browse the app at WORKTREE_HOST on :80, never rails:3000. The app's development.rb pins
+  default_url_options to DOMAIN but keeps the request's port, so a page on rails:3000 renders
+  *_url links (ActiveStorage images, e.g. the patient photo) as http://<DOMAIN>:3000/… —
+  cross-origin (CSP blocks it) and unrouted. The VNC Chromium starts at http://${WORKTREE_HOST};
+  inside playwright, Chromium resolves *.localhost to loopback itself (ignoring --add-host), and a
+  socat shim forwards loopback :80 to Traefik.

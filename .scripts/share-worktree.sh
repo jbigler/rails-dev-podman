@@ -70,11 +70,11 @@ case "$action" in
     # last EnvironmentFile wins the same way.
     #
     # DEV_HOSTS overrides rather than merges, so it must carry `rails` itself.
-    # The playwright container's Chromium starts at http://rails:3000
-    # (entrypoint-playwright.sh) and claude's chrome-devtools MCP drives that
-    # same browser; dropping the name made config.hosts reject them both for
-    # as long as a share was up. Comma-separated -- development.rb splits on
-    # "," and strips.
+    # The playwright container's Chromium used to start at http://rails:3000
+    # (it now uses WORKTREE_HOST, see entrypoint-playwright.sh) and claude's
+    # chrome-devtools MCP may still navigate there; dropping the name made
+    # config.hosts reject it for as long as a share was up. Comma-separated --
+    # development.rb splits on "," and strips.
     cat > "$SHARE_ENV" <<EOF
 # Written by wt:share. Remove with: mise run wt:unshare
 DOMAIN=$ts_host
