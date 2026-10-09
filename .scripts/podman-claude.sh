@@ -59,9 +59,9 @@ token=--env=CLAUDE_CODE_OAUTH_TOKEN
 # live between them and must stay in the per-worktree bind-mounted home, or
 # claude:template:promote and :apply stop seeing the plugin records.
 #
-# claude-memory is one directory shared by every worktree and by host sessions,
-# which symlink to it. Homes are per-worktree and wt:rm deletes them, so memory
-# kept under .home/<slug> would die with the worktree.
+# claude-memory is one directory shared by every worktree container (host
+# sessions keep their own). Homes are per-worktree and wt:rm deletes them,
+# so memory kept under .home/<slug> would die with the worktree.
 mkdir -p "$ROOT/.container-config/claude-memory" "$ROOT/.container-config/status"
 # The worktree is mounted at its host path, not a container-only one, so the
 # paths git recorded in master/.git/worktrees/<slug>/gitdir resolve in here and

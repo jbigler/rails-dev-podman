@@ -24,7 +24,7 @@ no Docker anywhere in the runtime — the last Compose version is tagged docker-
   <slug>.share.env alongside it is written by wt:share and is empty otherwise.
 - .home/ — (git-ignored) per-worktree container home dirs, seeded from .container-config/home-template/.
 - .container-config/claude-memory/ — (git-ignored) Claude's file memory, shared by every worktree
-  container and by host sessions (which symlink to it); outside .home/ so wt:rm can't delete it.
+  container (host sessions keep their own); outside .home/ so wt:rm can't delete it.
 - mise.local.toml — (root, git-ignored) set PROJECT_PREFIX, GEM_VOLUME_BASE, secrets.
 - ports.registry — slug:WORKTREE_ID; source for port assignment.
 
@@ -111,7 +111,7 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   (browser/MCP + rtk instructions); imports optional CLAUDE.local.md (gitignored  
   .home/<slug>/.claude/) for user-local instructions.  
   File memory: ../.container-config/claude-memory bind-mounted over  
-  ~/.claude/projects/<host-path key>/memory (the old -app-<slug> dir is renamed once) — the one dir every worktree and host session shares.
+  ~/.claude/projects/<host-path key>/memory (the old -app-<slug> dir is renamed once) — the one dir every worktree container shares.
 
 GEM_VOLUME is shared across worktrees on the same ruby; node_modules is per-worktree. Networks:
 <prefix>-<slug>-dev (per worktree, MTU 1400 — aliases db/redis/rustfs would collide on a shared one)
