@@ -14,7 +14,8 @@
 #            Writes only the config set: state (projects/, history, sessions)
 #            and .credentials.json are never touched. .claude.json is merged
 #            (template keys win; the worktree's projects/trust entries
-#            survive).
+#            survive). installed_plugins.json keeps the worktree's own
+#            project-scoped records.
 #
 # The config set: .claude/{agents,hooks,skills}, .claude/settings.json,
 # .claude/keybindings.json, .claude/statusline-command.sh,
@@ -87,6 +88,21 @@ strip_project_scope() {
     .plugins |= with_entries(.value |= map(select(.scope != "project")))
     | .plugins |= with_entries(select(.value | length > 0))
   ' "$1"
+}
+
+# Template records ($1) plus the home's ($2) project-scoped records for its
+# own worktree path ($3). Records for any other path (e.g. the old
+# /app-<slug> mounts) are dropped as dead.
+keep_project_scope() {
+  jq -s --arg path "$3" '
+    .[1] as $home
+    | .[0]
+    | .plugins |= with_entries(.value |= map(select(.scope != "project")))
+    | reduce ($home.plugins // {} | to_entries[] | .key as $k | .value[]
+              | select(.scope == "project" and .projectPath == $path)
+              | {k: $k, v: .}) as $r
+        (.; .plugins[$r.k] += [$r.v])
+  ' "$1" "$2"
 }
 
 sanitize_claude_json() {
@@ -170,7 +186,14 @@ apply)
       backup_replace "$template/.claude/$f" "$dest/$f"
     done
     for record in "${PLUGIN_RECORDS[@]}"; do
-      backup_replace "$template/.claude/plugins/$record" "$dest/plugins/$record"
+      src="$template/.claude/plugins/$record"
+      if [ "$record" = installed_plugins.json ] && [ -f "$src" ] && [ -f "$dest/plugins/$record" ]; then
+        # Keep this worktree's own project-scoped records: they come from the
+        # app repo's enabledPlugins and the template never carries them.
+        keep_project_scope "$src" "$dest/plugins/$record" "$root/$name" > "$work/$record"
+        src="$work/$record"
+      fi
+      backup_replace "$src" "$dest/plugins/$record"
     done
 
     if [ -f "$template/.claude.json" ]; then
