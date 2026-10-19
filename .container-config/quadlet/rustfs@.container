@@ -22,8 +22,7 @@ Environment=RUSTFS_SECRET_KEY=rustfsadmin
 Environment=RUSTFS_CONSOLE_ENABLE=true
 Environment=RUSTFS_ADDRESS=0.0.0.0:9000
 Environment=RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
-# RustFS phones home by default (fw:show caught it: 43.109.70.194:443). Its
-# privacy policy names this switch.
+Environment=RUSTFS_CHECK_UPDATE=false
 Environment=RUSTFS_TELEMETRY=off
 Volume=@@P@@-%i-rustfs-data:/data
 

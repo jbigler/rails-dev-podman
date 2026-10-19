@@ -112,7 +112,8 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   display → same VNC page) with CDP :9222 loopback, socat republish :9223 for claude chrome-devtools MCP.  
   Egress firewalled (init-firewall-playwright.sh, NET_ADMIN): loopback + RFC1918 only — browser can't  
   reach internet (else it bypasses claude's firewall).
-- rustfs — S3 storage, Traefik-routed. RUSTFS_TELEMETRY=off: it phones home otherwise (fw:show caught it).
+- rustfs — S3 storage, Traefik-routed. RUSTFS_CHECK_UPDATE=false (startup request to version.rustfs.com,
+  which fw:show caught) and RUSTFS_TELEMETRY=off; each switch covers only its own outbound call.
 - claude — NOT a unit. `docker compose run --rm` was a one-off interactive container and a systemd unit
   cannot be one (started detached, nothing on its TTY), so .scripts/podman-claude.sh holds the run args
   and starts rails + playwright first. claude target; no added capabilities, no sudo — its firewall is the
