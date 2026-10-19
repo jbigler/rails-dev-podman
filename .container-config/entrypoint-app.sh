@@ -5,8 +5,8 @@ set -e
 # so the pid file survives container restarts and blocks "rails server".
 rm -f tmp/pids/server.pid
 
-bundle install
-npm install
+# Gems and npm packages are installed by deps@ before this container starts
+# (entrypoint-deps.sh); rails@ Requires= it.
 
 if bin/rails runner "ActiveRecord::Base.connection.table_exists?('schema_migrations')" >/dev/null 2>&1; then
   echo "Database already initialized — running migrations..."

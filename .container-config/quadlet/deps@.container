@@ -1,0 +1,59 @@
+[Unit]
+Description=Install gems and npm packages for worktree %i
+# Quadlet names a .network unit <name>-network.service, so net@.network
+# becomes @@P@@-net-network@%i.service -- not @@P@@-net@%i.service. A plain
+# Network= name creates no implicit dependency, so this must be explicit.
+Requires=@@P@@-net-network@%i.service
+After=@@P@@-net-network@%i.service
+
+[Container]
+# The rails image: same ruby, node and bundler as the container that will load
+# what this installs.
+Image=${RAILS_IMAGE}
+ContainerName=@@P@@-%i-deps
+# The dev network only. Nothing here talks to db/redis/rustfs or Traefik; it
+# needs the registries (rubygems.org, github.com for the git-sourced gems,
+# registry.npmjs.org) and nothing else.
+Network=@@P@@-%i-dev
+UserNS=keep-id:uid=1000,gid=1000
+User=1000:1000
+
+# Deliberately not .container-config/.env or .unit-env/%i.env: install scripts
+# run in here, and neither file's contents (POSTGRES_PASSWORD, the GH_TOKEN
+# pass-through) has any business reaching them. The one setting npm needs:
+# playwright-chromium's postinstall would otherwise download a browser that the
+# playwright container already provides.
+Environment=PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+# Only what an install writes. No home directory (Claude's OAuth token lives
+# there), no ~/.ssh, no ssh-agent, no .git.
+Volume=@@ROOT@@/%i:/app:z
+Volume=@@ROOT@@/.container-config/entrypoint-deps.sh:/usr/local/bin/entrypoint-deps.sh:ro,z
+# Same mounts and flags as rails@, so the gems and node_modules land where it
+# loads them from. GEM_VOLUME without :U so image copy-up still populates it.
+Volume=${GEM_VOLUME}:/usr/local/bundle
+Volume=@@P@@-%i-node-modules:/app/node_modules:U
+Volume=@@P@@_npm_cache:/home/appuser/.npm:U
+
+PodmanArgs=--cpus=${CPUS_75}
+# Not k8s-file: the container is removed when it exits, so its log would go
+# with it. Not the default (journald) either: Quadlet runs a oneshot attached,
+# so podman already copies the output into the unit's journal and conmon's
+# journald driver logged every line a second time. passthrough hands the
+# container the unit's own stdout/stderr, so each line lands once. Read it with
+#   journalctl --user -u @@P@@-deps@%i
+LogDriver=passthrough
+Entrypoint=entrypoint-deps.sh
+
+[Service]
+# Quadlet expands ${VAR} in the keys above from the service environment, so the
+# unit env file is loaded here. Not under [Container] -- see the comment there.
+EnvironmentFile=@@ROOT@@/.unit-env/%i.env
+# Runs to completion and then goes inactive. No RemainAfterExit, unlike
+# rustfs-init@: rails@ Requires= this unit, and an inactive oneshot is started
+# afresh by every start job rails gets -- Restart=on-failure restarts included
+# (verified) -- which is the whole mechanism by which a restart picks up a
+# changed Gemfile or package.json.
+Type=oneshot
+# A cold GEM_VOLUME compiles native extensions; the 90s default would kill it.
+TimeoutStartSec=900

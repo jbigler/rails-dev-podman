@@ -10,6 +10,12 @@ After=@@P@@-net-network@%i.service
 # silently degrades to --sdnotify=conmon).
 Requires=@@P@@-db@%i.service @@P@@-redis@%i.service @@P@@-rustfs@%i.service
 After=@@P@@-db@%i.service @@P@@-redis@%i.service @@P@@-rustfs@%i.service
+# Gems and node_modules are installed by deps@, a oneshot that exits instead of
+# staying active, so each start job for rails starts it again: restarting rails
+# is how a changed Gemfile or package.json gets installed. rails itself never
+# fetches packages, which is what lets its egress be restricted.
+Requires=@@P@@-deps@%i.service
+After=@@P@@-deps@%i.service
 # Wants, not Requires: starting a worktree pulls the proxy up, but a Traefik
 # problem must not take the dev server down with it. This replaces the mise
 # `depends=["proxy:up"]`, and works however the unit is started.

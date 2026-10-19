@@ -96,7 +96,7 @@ W="$clean_name"
 # for anything left behind (a container started by hand, or one whose unit was
 # already removed).
 echo "Stopping the units for worktree ${W}..."
-for svc in rails claude nvim playwright rustfs rustfs-init redis db net-network; do
+for svc in rails deps claude nvim playwright rustfs rustfs-init redis db net-network; do
   systemctl --user stop "${P}-${svc}@${W}.service" 2>/dev/null || true
 done
 
@@ -105,7 +105,7 @@ done
 # with this one: removing "api" would have swept "api-v2"'s containers and
 # volumes with it. Enumerating the service names the templates actually set
 # cannot do that. Verified against a list containing api-v2 before and after.
-SERVICES="rails claude nvim playwright rustfs rustfs-init redis db"
+SERVICES="rails deps claude nvim playwright rustfs rustfs-init redis db"
 lingering=""
 for svc in $SERVICES; do
   ct="${P}-${W}-${svc}"

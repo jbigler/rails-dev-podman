@@ -86,6 +86,7 @@ exec podman run --rm -it \
   --env NODE_OPTIONS=--max-old-space-size=4096 \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
+  --env "GITHUB_PERSONAL_ACCESS_TOKEN=${GH_TOKEN}" \
   --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \
   ${token:+"$token"} \
   -v "$ROOT/.home/$W:/home/appuser:z" \

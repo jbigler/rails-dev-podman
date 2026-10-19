@@ -85,10 +85,18 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
 
 - rails — build rails target; mount ../<slug>:/app + base .git (ro); shared volumes; db/redis over TCP  
   (PGHOST=db, REDIS_URL=redis://redis:6379/1 in .env); Traefik route WORKTREE_HOST→:3000; entrypoint  
-  entrypoint-app.sh then bin/dev.  
+  entrypoint-app.sh (db prepare/migrate) then bin/dev. Never fetches packages — that is deps@.  
   rails/nvim/playwright/claude use shared image tags (localhost/${PROJECT_PREFIX}/rails:ruby<ver>-node<ver>
   etc.) — one image per runtime combo across worktrees, never one per worktree. That is why no teardown
   removes images.
+- deps — oneshot, rails image, dev network only; entrypoint-deps.sh runs `bundle check || bundle install`,
+  installs foreman, and `npm install` when node_modules/.deps-stamp (hash of node version + package.json +
+  package-lock.json) is stale. Both checks are offline, so an unchanged worktree starts without the network.
+  rails@ Requires= it and it does NOT RemainAfterExit, so every rails start re-runs it — systemd's own
+  Restart=on-failure restarts included (verified on the host): after a Gemfile or
+  package.json change, `mise run restart`. Mounts only /app, GEM_VOLUME, node_modules and the npm cache — no
+  home, .ssh, agent socket, .git or env files, since install scripts run in here. Output is in
+  `journalctl --user -u <prefix>-deps@<slug>` (the container is --rm'd).
 - db — postgres:16, optimized (fsync off, autovacuum off); port 127.0.0.1:${DB_PORT}:5432; initdb/restore-dump.sh
   run on init.
 - redis — TCP 6379 on the dev network only, not published to the host; no persistence (--save '' --appendonly no).

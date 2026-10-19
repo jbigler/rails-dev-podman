@@ -32,8 +32,8 @@ unit() { printf '%s-%s@%s.service' "$P" "$1" "$W"; }
 # Wants= them, so starting rails brings them up, and stop has to take them
 # down again. No claude entry -- claude is a one-off container from
 # podman-claude.sh, not a unit.
-CORE=(net-network db redis rustfs-init rustfs rails)
-ALL=(rails nvim rustfs rustfs-init redis db playwright net-network)
+CORE=(net-network db redis rustfs-init rustfs deps rails)
+ALL=(rails deps nvim rustfs rustfs-init redis db playwright net-network)
 
 require_units() {
   systemctl --user cat "$(unit rails)" >/dev/null 2>&1 \
@@ -65,7 +65,7 @@ require_home() {
 missing_mount_sources() {
   ( set -a; . "$WT_ENV"; set +a
     local rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" svc f line src
-    for svc in db redis rustfs-init rustfs rails playwright; do
+    for svc in db redis rustfs-init rustfs deps rails playwright; do
       f="$ROOT/.container-config/quadlet/$svc@.container"
       [[ -f "$f" ]] || continue
       while IFS= read -r line; do
@@ -137,7 +137,7 @@ diagnose_failure() {
     esac
   done
   printf '\n' >&2
-  for svc in net-network db redis rustfs-init rustfs playwright rails; do
+  for svc in net-network db redis rustfs-init rustfs deps playwright rails; do
     u="$(unit "$svc")"
     state="$(systemctl --user show -p ActiveState --value "$u" 2>/dev/null)"
     result="$(systemctl --user show -p Result --value "$u" 2>/dev/null)"
@@ -165,7 +165,7 @@ diagnose_failure() {
   # only in `podman logs`. Printing one without the other hides half the
   # failures.
   local ct
-  for svc in rails playwright rustfs rustfs-init redis db net-network; do
+  for svc in rails deps playwright rustfs rustfs-init redis db net-network; do
     u="$(unit "$svc")"
     state="$(systemctl --user show -p ActiveState --value "$u" 2>/dev/null)"
     [[ "$svc" == rails || "$state" == "failed" || "$state" == "activating" ]] || continue
@@ -269,6 +269,9 @@ cmd_up() {
   # One unit; systemd pulls the network, data services and traefik in through
   # Requires=/Wants=, and gates rails on db/redis/rustfs being *healthy*.
   printf 'starting %s (dependencies resolve automatically)...\n' "$(unit rails)"
+  # deps@ runs first and can take minutes on a cold gem volume, during which
+  # systemctl prints nothing. Say where its output goes.
+  printf '  gem/npm installs: journalctl --user -fu %s\n' "$(unit deps)"
   systemctl --user start "$(unit rails)" || { diagnose_failure; exit 1; }
   cmd_status
   check_proxy || exit 1
