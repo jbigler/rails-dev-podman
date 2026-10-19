@@ -306,6 +306,18 @@ run = """
 description = "Install the backed-up git hooks into the base worktree's .git/hooks. A hook that differs from its backup is kept unless FORCE=1."
 run = "{{config_root}}/.scripts/git-guard.sh restore"
 
+[tasks."fw:show"]
+description = "Show the egress firewall of this worktree's running containers (every worktree from the workspace root): profiles, mode, and what was rejected -- or in log mode, what enforce would reject. Flags containers running without it."
+run = "{{config_root}}/.scripts/firewall.sh show"
+
+[tasks."fw:allow"]
+description = "Allow hostnames/IPs in a running container's firewall until its next start, e.g. `mise run fw:allow claude example.com`. To keep it: CLAUDE_FIREWALL_ALLOW, or .container-config/firewall/*.allow."
+usage = '''
+arg "<service>" help="claude, nvim, rails, deps, db, redis, rustfs"
+arg "<hosts>…" var=#true help="hostnames or IPv4 addresses/CIDRs"
+'''
+run = '{{config_root}}/.scripts/firewall.sh allow "$usage_service" $usage_hosts'
+
 [tasks."units:install"]
 description = "Render .container-config/quadlet/ into ~/.config/containers/systemd and reload systemd."
 run = "{{config_root}}/.scripts/quadlet.sh install"

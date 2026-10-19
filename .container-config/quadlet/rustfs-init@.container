@@ -13,8 +13,16 @@ Network=@@P@@-%i-dev
 Volume=@@P@@-%i-rustfs-data:/data
 Volume=@@ROOT@@/.container-config/db-dumps:/db-dumps:ro,z
 Exec=sh -c 'if [ -f /db-dumps/rustfs_data.tar.gz ] && [ ! -d /data/rustfs0 ]; then echo "rustfs-init: Restoring RustFS data from backup..."; tar xzf /db-dumps/rustfs_data.tar.gz -C /data; echo "rustfs-init: Done."; else echo "rustfs-init: No restore needed."; fi'
+# Egress firewall; see rails@.container.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=none
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
 
 [Service]
+# Only for ${FIREWALL_MODE} above, which systemd expands from the service
+# environment. Not under [Container]: the restore needs none of it inside.
+EnvironmentFile=@@ROOT@@/.unit-env/%i.env
 # Runs to completion, then stays "active" so units ordered After= it see a
 # finished restore. This is what replaces compose's
 # `condition: service_completed_successfully`: systemd holds the job until the

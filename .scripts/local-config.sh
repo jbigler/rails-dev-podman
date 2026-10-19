@@ -54,9 +54,13 @@ GEM_VOLUME_BASE = "${name}_shared_gems"
 # PODMAN_PROXY_IP_RANGE = "10.215.0.128/25"
 # PODMAN_TRAEFIK_IP = "10.215.0.2"
 
-# --- claude firewall ----------------------------------------------------
+# --- egress firewall (.container-config/firewall/) -----------------------
+# Worktree units: log (default) records what enforce would reject -- read it
+# with \`mise run fw:show\` -- enforce rejects it, off applies no rules. The
+# claude container always enforces.
+# FIREWALL_MODE = "enforce"
 # Extra hostnames the claude container may reach, space- or comma-separated.
-# Resolved to IPs once, when the container starts.
+# Resolved to IPs by the host each time the container starts.
 # CLAUDE_FIREWALL_ALLOW = "searxng.example.com"
 
 # --- secrets ------------------------------------------------------------

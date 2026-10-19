@@ -22,6 +22,9 @@ Environment=RUSTFS_SECRET_KEY=rustfsadmin
 Environment=RUSTFS_CONSOLE_ENABLE=true
 Environment=RUSTFS_ADDRESS=0.0.0.0:9000
 Environment=RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+# RustFS phones home by default (fw:show caught it: 43.109.70.194:443). Its
+# privacy policy names this switch.
+Environment=RUSTFS_TELEMETRY=off
 Volume=@@P@@-%i-rustfs-data:/data
 
 Label=traefik.enable=true
@@ -47,6 +50,11 @@ HealthRetries=5
 HealthStartPeriod=15s
 LogDriver=k8s-file
 LogOpt=max-size=20m
+# Egress firewall; see rails@.container.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=none
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev,@@P@@_proxy
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
 
 [Service]
 # Quadlet turns a [Container] EnvironmentFile= into `podman run --env-file`, which

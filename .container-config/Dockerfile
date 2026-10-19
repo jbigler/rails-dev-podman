@@ -233,16 +233,12 @@ RUN apt-get update -qq && \
   apt-get install --no-install-recommends -y \
   less \
   procps \
-  sudo \
   fzf \
   man-db \
   unzip \
   gnupg2 \
-  iptables \
-  ipset \
   iproute2 \
   dnsutils \
-  aggregate \
   jq \
   nano \
   socat \
@@ -274,9 +270,10 @@ RUN wget -qO /tmp/rtk-install.sh https://raw.githubusercontent.com/rtk-ai/rtk/re
   rm /tmp/rtk-install.sh && \
   command -v rtk
 
-# entrypoint-claude.sh and init-firewall.sh are volume-mounted by the claude run args (.scripts/podman-claude.sh)
-# (repo convention) so script edits don't require an image rebuild.
-RUN echo "${APP_USER} ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/firewall
+# entrypoint-claude.sh is volume-mounted by the claude run args (.scripts/podman-claude.sh)
+# (repo convention) so script edits don't require an image rebuild. No sudo and
+# no firewall tooling: the egress firewall is applied from outside by the host's
+# OCI hook (.container-config/firewall/hook.sh).
 
 ENTRYPOINT ["/usr/local/bin/entrypoint-claude.sh"]
 

@@ -22,8 +22,16 @@ HealthTimeout=3s
 HealthRetries=5
 LogDriver=k8s-file
 LogOpt=max-size=20m
+# Egress firewall; see rails@.container.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=none
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
 
 [Service]
+# Only for ${FIREWALL_MODE} above, which systemd expands from the service
+# environment. Not under [Container]: redis needs none of it inside.
+EnvironmentFile=@@ROOT@@/.unit-env/%i.env
 Restart=on-failure
 RestartSec=5
 

@@ -1,0 +1,36 @@
+# Coding agents: claude, and nvim (claude-agent-acp, plugin managers, gh).
+# The same set init-firewall.sh gave the claude container. Deliberately no
+# rubygems.org: gems are installed by deps@, not by the agent. nvim, which
+# installs ruby-lsp itself, is given profiles agent,deps.
+# Format as in deps.allow.
+
+# GitHub web, API and git ranges; the hostnames cover the case where the
+# published ranges cannot be fetched. codeload serves tarballs.
+meta:github
+github.com
+api.github.com
+codeload.github.com
+api.githubcopilot.com
+
+# Claude Code
+claude.ai
+api.anthropic.com
+sentry.io
+statsig.com
+
+# npm: npx-launched MCP servers (chrome-devtools-mcp)
+registry.npmjs.org
+
+# Editor extension marketplace
+marketplace.visualstudio.com
+vscode.blob.core.windows.net
+update.code.visualstudio.com
+
+# Datadog MCP, plus the published US5 API ranges.
+mcp.datadoghq.com
+meta:datadog-us5
+
+# importmap pins and Rails API docs
+ga.jspm.io
+cdn.jsdelivr.net
+api.rubyonrails.org

@@ -101,6 +101,22 @@ connects through a local CDP bridge on 127.0.0.1:9222).
 - If the browser gets closed, it relaunches automatically within ~1s;
   just retry.
 
+# Network egress is allowlisted from the host
+
+Outbound traffic is filtered by a firewall the host applies to this container
+from outside (`.container-config/firewall/`, profile `agent`). You cannot
+change it from in here: there is no sudo and no NET_ADMIN.
+
+- A connection to a host that is not on the allowlist fails immediately
+  ("Connection refused" / "No route to host" / "administratively prohibited").
+  That is the firewall, not an outage — do not retry or work around it.
+- If you need a host, name it and ask the human to run
+  `mise run fw:allow claude <host>` (until the next restart), or to add it to
+  `CLAUDE_FIREWALL_ALLOW` or `.container-config/firewall/agent.allow`.
+- rubygems.org is deliberately not reachable from here. Gems are installed
+  by the `deps` unit when rails restarts: edit the Gemfile, then ask the human
+  to run `mise run restart`.
+
 # Git worktrees — NEVER prune from inside this container
 
 You are running inside a container that mounts ONLY this worktree (plus the

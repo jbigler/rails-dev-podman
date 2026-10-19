@@ -22,6 +22,10 @@ fi
 # bin/dev installs foreman on its own when it is missing. Doing it here keeps
 # that fetch out of rails@. Same check bin/dev makes, so bin/dev then skips it.
 gem list foreman -i --silent || gem install foreman --no-document
+# Likewise retest, which test:rails_watcher installs on demand in a transient
+# rails-image container -- one that has no registry access once the firewall
+# enforces. Same check that task makes, so it then skips the install.
+gem list -i retest >/dev/null 2>&1 || gem install retest --no-document
 
 # npm has no offline "already satisfied" check like `bundle check`, so record
 # what the last successful install was for. The node version is part of it: an

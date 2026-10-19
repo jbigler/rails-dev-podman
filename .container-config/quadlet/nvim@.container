@@ -61,6 +61,14 @@ Volume=@@P@@_npm_cache:/home/appuser/.npm:U
 Volume=@@P@@_npm_global:/home/appuser/.npm-global:U
 Volume=@@P@@_nvim_share:/home/appuser/.local/share/nvim:U
 
+# Egress firewall; see rails@.container. nvim hosts an agent
+# (claude-agent-acp) and installs its own tools (npm -g, ruby-lsp, a gh
+# extension, plugins from GitHub), hence agent plus deps.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=agent,deps
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
+
 PodmanArgs=--cpus=${CPUS_25} --tty --interactive
 LogDriver=k8s-file
 LogOpt=max-size=20m

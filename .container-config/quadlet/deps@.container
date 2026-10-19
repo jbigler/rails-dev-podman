@@ -35,6 +35,12 @@ Volume=${GEM_VOLUME}:/usr/local/bundle
 Volume=@@P@@-%i-node-modules:/app/node_modules:U
 Volume=@@P@@_npm_cache:/home/appuser/.npm:U
 
+# Egress firewall; see rails@.container. Registries only: deps.allow.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=deps
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
+
 PodmanArgs=--cpus=${CPUS_75}
 # Not k8s-file: the container is removed when it exits, so its log would go
 # with it. Not the default (journald) either: Quadlet runs a oneshot attached,

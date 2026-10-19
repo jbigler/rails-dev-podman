@@ -43,6 +43,12 @@ set -a; . "$WT_ENV"; set +a
 # identical to nvim@'s. ensure_unit_env above rewrites the file when the agent
 # socket moves, which is the only one of the four that changes under you.
 podman image exists "$CLAUDE_IMAGE" || die "$CLAUDE_IMAGE is not built. Run: mise run build claude"
+# The egress firewall is applied from outside by the OCI hook
+# (.container-config/firewall/hook.sh), always enforcing, profile agent plus
+# CLAUDE_FIREWALL_ALLOW. Without the descriptor podman would run no hook and
+# start claude with no firewall at all, so that is a hard stop.
+HOOKS_DIR="$ROOT/.firewall/hooks.d"
+[ -f "$HOOKS_DIR/$P-firewall.json" ] || die "no firewall hook descriptor in $HOOKS_DIR. Run: mise run units:install"
 
 # Best-effort, like the unit's Wants=.
 systemctl --user start "$P-rails@$W.service" "$P-playwright@$W.service" 2>/dev/null || true
@@ -75,26 +81,28 @@ if [ -d "$projects/-app-$W" ] && [ ! -e "$projects/$projkey" ]; then
 fi
 mkdir -p "$projects/$projkey"
 
-exec podman run --rm -it \
+exec podman --hooks-dir "$HOOKS_DIR" run --rm -it \
   --name "$P-$W-claude" \
   --network "$P-$W-dev" --network-alias claude \
   --userns keep-id:uid=1000,gid=1000 --user 1000:1000 \
-  --cap-add NET_ADMIN --cap-add NET_RAW \
+  --annotation "$P.firewall=agent" \
+  --annotation "$P.firewall.mode=enforce" \
+  --annotation "$P.firewall.networks=$P-$W-dev" \
+  --annotation "$P.firewall.extra=${CLAUDE_FIREWALL_ALLOW:-}" \
   --cpus="$CPUS_50" \
   --label traefik.enable=false \
   --env-file "$ROOT/.container-config/.env" --env-file "$WT_ENV" \
   --env NODE_OPTIONS=--max-old-space-size=4096 \
   --env SSH_AUTH_SOCK=/tmp/ssh-agent.sock \
   --env RUSTFS_ENDPOINT=http://rustfs:9000 \
+  --env CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1 \
   --env "GITHUB_PERSONAL_ACCESS_TOKEN=${GH_TOKEN}" \
-  --env "CLAUDE_FIREWALL_ALLOW=${CLAUDE_FIREWALL_ALLOW:-}" \
   ${token:+"$token"} \
   -v "$ROOT/.home/$W:/home/appuser:z" \
   -v "$WT_DIR:$WT_DIR:z" \
   -v "$ROOT/.container-config/CLAUDE.md:/opt/claude/CLAUDE.md:ro,z" \
   -v "$ROOT/.container-config/claude-memory:/home/appuser/.claude/projects/$projkey/memory:z" \
   -v "$ROOT/.container-config/entrypoint-claude.sh:/usr/local/bin/entrypoint-claude.sh:ro,z" \
-  -v "$ROOT/.container-config/init-firewall.sh:/usr/local/bin/init-firewall.sh:ro,z" \
   -v "$ROOT/.container-config/claude-status-hook.sh:/usr/local/bin/claude-status-hook.sh:ro,z" \
   -v "$ROOT/.container-config/status:/status:z" \
   -v "$MAIN_WORKTREE_PATH/.git:$MAIN_WORKTREE_PATH/.git:z" \

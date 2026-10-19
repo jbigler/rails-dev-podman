@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "hook": {
+    "path": "@@ROOT@@/.container-config/firewall/hook.sh",
+    "args": ["hook.sh", "@@P@@"],
+    "env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "NETWORK_DIR=@@NETWORK_DIR@@"
+    ],
+    "timeout": 60
+  },
+  "when": {
+    "annotations": { "^@@P@@\\.firewall$": ".*" }
+  },
+  "stages": ["createRuntime"]
+}

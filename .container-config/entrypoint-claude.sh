@@ -1,12 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Run firewall setup as root via sudo (allowed by /etc/sudoers.d/firewall).
-# sudo resets the env, so personal extra domains go over as arguments.
-# Split on commas and blanks in a subshell, so IFS and noglob stay local and "$@"
-# (claude's arguments, used below) is untouched.
-# shellcheck disable=SC2086
-(IFS=$(printf ', \t'); set -f; sudo /usr/local/bin/init-firewall.sh ${CLAUDE_FIREWALL_ALLOW:-})
+# No firewall setup in here: the egress firewall is applied from outside by the
+# host's OCI hook (.container-config/firewall/hook.sh) before this runs, and
+# this container holds no NET_ADMIN to change it.
 
 # The home directory is per-worktree (.home/<slug> on the host), so the
 # default ~/.claude is already isolated: credentials, sessions and plugin
@@ -53,9 +50,16 @@ fi
 # The browser itself is watchable/clickable at http://vnc.${DOMAIN}.
 socat TCP-LISTEN:9222,bind=127.0.0.1,fork,reuseaddr TCP:playwright:9223 >/dev/null 2>&1 &
 
-# Configure chrome-devtools MCP server against the bridged browser
-if ! jq -e '.mcpServers["chrome-devtools"]' "$CLAUDE_JSON" >/dev/null 2>&1; then
-  claude mcp add -s user chrome-devtools -- npx chrome-devtools-mcp@latest --browser-url=http://127.0.0.1:9222 2>/dev/null || true
+# Configure chrome-devtools MCP server against the bridged browser. Both opt-outs
+# matter: by default it sends usage statistics to Google and fetches CrUX field
+# data for performance traces, both from *.googleapis.com, which the firewall
+# rejects (fw:show listed them as 172.217.112-119.4:443). Re-registered whenever
+# the stored args differ, so existing homes pick the flags up.
+DEVTOOLS_ARGS="chrome-devtools-mcp@latest --browser-url=http://127.0.0.1:9222 --no-usage-statistics --no-performance-crux"
+if [ "$(jq -r '.mcpServers["chrome-devtools"].args // [] | join(" ")' "$CLAUDE_JSON" 2>/dev/null)" != "$DEVTOOLS_ARGS" ]; then
+  claude mcp remove chrome-devtools -s user 2>/dev/null || true
+  # shellcheck disable=SC2086
+  claude mcp add -s user chrome-devtools -- npx $DEVTOOLS_ARGS 2>/dev/null || true
 fi
 
 # Register the status hook (claude badge on the wt.localhost dashboard)

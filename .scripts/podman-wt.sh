@@ -436,7 +436,15 @@ cmd_exec() {
   # ~25s in the initializer's 5 retries with exponential backoff before giving
   # up -- which is what made the test watcher unusable. A compose `run`
   # inherited the service's networks and extra_hosts and so never hit this.
-  exec podman run --rm -it ${extra[@]+"${extra[@]}"} \
+  # Same egress firewall as rails@ (profile none, FIREWALL_MODE): this runs the
+  # same agent-writable code. Without the hook descriptor podman would start it
+  # unfirewalled and say nothing, hence the hard stop.
+  [[ -f "$ROOT/.firewall/hooks.d/$P-firewall.json" ]] \
+    || die "no firewall hook descriptor in .firewall/hooks.d. Run: mise run units:install"
+  exec podman --hooks-dir "$ROOT/.firewall/hooks.d" run --rm -it ${extra[@]+"${extra[@]}"} \
+    --annotation "$P.firewall=none" \
+    --annotation "$P.firewall.mode=$FIREWALL_MODE" \
+    --annotation "$P.firewall.networks=$P-$W-dev,${P}_proxy" \
     --network "$P-$W-dev" --network "${P}_proxy" \
     --add-host "$WORKTREE_HOST:$PODMAN_TRAEFIK_IP" \
     --add-host "$S3_HOST:$PODMAN_TRAEFIK_IP" \

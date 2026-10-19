@@ -23,6 +23,19 @@ PODMAN_PROXY_GATEWAY="${PODMAN_PROXY_GATEWAY:-${PODMAN_PROXY_SUBNET%.*}.1}"
 
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
 MARKER="# rendered by .scripts/quadlet.sh"
+# The firewall's OCI hook descriptor (.container-config/firewall/). JSON takes no
+# marker comment, so it is identified by path; units point --hooks-dir here.
+HOOKS_DIR="$ROOT/.firewall/hooks.d"
+HOOK_JSON="$HOOKS_DIR/${PROJECT_PREFIX}-firewall.json"
+
+# netavark keeps each network's config, subnets included, as <name>.json here
+# (network_config_dir; for rootless podman it is <graphroot>/networks). The
+# hook reads it to learn what "local" is for a container.
+render_hook() {
+  local graph
+  graph="$(podman info --format '{{.Store.GraphRoot}}')" || die "podman info failed"
+  render "$ROOT/.container-config/firewall/hook.json" | sed "s|@@NETWORK_DIR@@|$graph/networks|g"
+}
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 warn() { printf '  \033[33mwarn\033[0m  %s\n' "$*"; }
@@ -175,6 +188,11 @@ stale_units() {
       printf '%s\tdiffers from the template\n' "${PROJECT_PREFIX}-${b}"
     fi
   done
+  if [[ ! -f "$HOOK_JSON" ]]; then
+    printf '%s\tnot installed\n' "$(basename "$HOOK_JSON")"
+  elif ! diff -q <(render_hook) "$HOOK_JSON" >/dev/null 2>&1; then
+    printf '%s\tdiffers from the template\n' "$(basename "$HOOK_JSON")"
+  fi
 }
 
 cmd_check_stale() {
@@ -282,6 +300,12 @@ cmd_install() {
       render "$src"; } > "$out"
     printf 'installed %s\n' "$(basename "$out")"
   done
+  # Without this file every firewalled container starts with no firewall at
+  # all -- podman runs no hook and says nothing -- so it is installed together
+  # with the units and checked by the same staleness test.
+  mkdir -p "$HOOKS_DIR"
+  render_hook > "$HOOK_JSON"
+  printf 'installed %s\n' "${HOOK_JSON#"$ROOT"/}"
   systemctl --user daemon-reload
   printf '\nInstalled. Now run:\n'
   printf '  mise run doctor    # confirms the socket and the :80 sysctl\n'
@@ -385,6 +409,9 @@ cmd_uninstall() {
     fi
   done
   (( removed )) || printf 'nothing of ours in %s\n' "$DEST"
+  if [[ -f "$HOOK_JSON" ]]; then
+    rm -f "$HOOK_JSON"; printf 'removed %s\n' "${HOOK_JSON#"$ROOT"/}"
+  fi
   systemctl --user daemon-reload
 }
 
@@ -527,6 +554,40 @@ cmd_doctor() {
     fi
   else
     bad "no systemd --user session"
+  fi
+
+  printf '\n== container firewall hook ==\n'
+  # hook.sh runs on the host, in podman's user namespace. Without nft, nsenter
+  # or getent it fails, and so does every firewalled container's start.
+  local tool missing=()
+  for tool in nft nsenter getent; do
+    command -v "$tool" >/dev/null || missing+=("$tool")
+  done
+  if (( ${#missing[@]} )); then
+    bad "missing on the host: ${missing[*]} -- firewalled containers will not start.
+        Arch: pacman -S nftables util-linux   Debian: apt install nftables util-linux"
+  else
+    ok "nft, nsenter, getent present"
+  fi
+  if command -v curl >/dev/null && command -v jq >/dev/null; then
+    ok "curl and jq present (GitHub and Datadog published ranges)"
+  else
+    warn "curl or jq missing: meta:github and meta:datadog-us5 are skipped, so the
+          agent profile reaches GitHub only through the hostnames it lists"
+  fi
+  if [[ -f "$HOOK_JSON" ]]; then
+    ok "hook descriptor installed at ${HOOK_JSON#"$ROOT"/}"
+  else
+    bad "no hook descriptor at ${HOOK_JSON#"$ROOT"/}: containers would start unfirewalled.
+            mise run units:install"
+  fi
+  local netdir
+  netdir="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null)/networks"
+  if [[ -d "$netdir" ]]; then
+    ok "netavark network configs at $netdir"
+  else
+    bad "no $netdir: the hook reads each network's subnets from there, so firewalled
+        containers cannot start. Is a custom network_config_dir set in containers.conf?"
   fi
 
   printf '\n== app repo git hooks, config, worktree pointers ==\n'

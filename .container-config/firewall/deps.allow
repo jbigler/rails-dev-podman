@@ -1,0 +1,17 @@
+# Package registries: what `bundle install` and `npm install` reach.
+# Profile deps: deps@, and nvim (profiles agent,deps) for its own installs.
+#
+# One entry per line: a hostname (resolved to IPv4 by the host when the
+# container starts), an IPv4 address or CIDR, or meta:github (GitHub's
+# published web/api/git ranges). Every port is allowed to a listed address.
+
+rubygems.org
+index.rubygems.org
+# Gemfile git sources and gem/npm postinstall downloads of release assets.
+# github.com covers the case where the published ranges cannot be fetched.
+meta:github
+github.com
+codeload.github.com
+objects.githubusercontent.com
+release-assets.githubusercontent.com
+registry.npmjs.org

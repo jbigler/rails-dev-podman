@@ -2,8 +2,9 @@
 # Egress firewall for the playwright container.
 #
 # The interactive Chromium here is driven by the claude container, whose own
-# egress is allowlisted by init-firewall.sh — an unrestricted browser would be
-# a complete bypass of that firewall (arbitrary fetch + exfil via navigation).
+# egress is allowlisted by the host's firewall hook (.container-config/firewall/)
+# — an unrestricted browser would be a complete bypass of that firewall
+# (arbitrary fetch + exfil via navigation).
 # Everything this container legitimately talks to lives in private address
 # space: the docker dev/proxy subnets, the host-gateway (WORKTREE_HOST / S3
 # routes), published-port clients on the host, and Docker's embedded DNS on

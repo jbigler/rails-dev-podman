@@ -75,6 +75,12 @@ HealthRetries=5
 HealthStartPeriod=30s
 LogDriver=k8s-file
 LogOpt=max-size=20m
+# Egress firewall; see rails@.container. db matters too: rails connects as a
+# superuser, and COPY ... TO PROGRAM runs commands in here.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=none
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
 
 [Service]
 # Quadlet turns a [Container] EnvironmentFile= into `podman run --env-file`, which

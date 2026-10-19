@@ -99,6 +99,17 @@ Label=traefik.http.routers.@@P@@-%i-app.rule=Host(`${WORKTREE_HOST}`)
 Label=traefik.http.routers.@@P@@-%i-app.entrypoints=web
 Label=traefik.http.services.@@P@@-%i-app.loadbalancer.server.port=3000
 
+# Egress firewall, applied from outside the container by the OCI hook
+# .container-config/firewall/hook.sh (rendered descriptor in .firewall/hooks.d,
+# installed by units:install). Profile none: connected subnets only -- rails
+# runs code the agent writes, and its packages come from deps@. The mode comes
+# from FIREWALL_MODE (log by default; see .scripts/units-env.sh).
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=none
+# Must list every Network= above: their subnets are all rails may reach.
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev,@@P@@_proxy
+Annotation=@@P@@.firewall.mode=${FIREWALL_MODE}
+
 PodmanArgs=--cpus=${CPUS_75}
 LogDriver=k8s-file
 LogOpt=max-size=20m
