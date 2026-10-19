@@ -529,6 +529,14 @@ cmd_doctor() {
     bad "no systemd --user session"
   fi
 
+  printf '\n== app repo git hooks, config, worktree pointers ==\n'
+  local guard_out
+  if guard_out="$("$ROOT/.scripts/git-guard.sh" check 2>&1)"; then
+    ok "hooks match .container-config/git-hooks/, config and pointers as expected"
+  else
+    warn "$guard_out"
+  fi
+
   printf '\n'
   return $FAILED
 }

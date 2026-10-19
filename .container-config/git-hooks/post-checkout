@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# 1. Get the absolute path to the main repository's central .git directory
+COMMON_GIT_DIR=$(git rev-parse --git-common-dir 2>/dev/null)
+if [ -z "$COMMON_GIT_DIR" ]; then
+  exit 0
+fi
+
+# 2. Locate the main repository's root folder and master tags file
+MAIN_REPO_ROOT=$(dirname "$COMMON_GIT_DIR")
+MASTER_TAGS="$MAIN_REPO_ROOT/tags"
+
+# 3. Copy the master tags file if it exists and the current worktree lacks one
+if [ -f "$MASTER_TAGS" ] && [ ! -f "tags" ]; then
+  echo "🚀 Automatically found main repo at: $MAIN_REPO_ROOT"
+  echo "🚀 Copying master tags to current worktree root..."
+  cp "$MASTER_TAGS" "tags"
+fi

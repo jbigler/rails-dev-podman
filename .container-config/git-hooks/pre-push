@@ -1,0 +1,104 @@
+#!/bin/sh
+
+remote="$1"
+url="$2"
+
+# Get the current branch
+current_branch=$(git symbolic-ref --short HEAD)
+
+# Check if we're on master branch
+if [ "$current_branch" = "master" ]; then
+    echo "ERROR: Pushing from master branch is not allowed!" >&2
+    exit 1
+fi
+
+# The remote_sha git hands this hook comes from the remote-tracking ref, and --force-with-lease
+# compares against that same value. A plain `git fetch` therefore satisfies the lease while the
+# fetched commits are still unmerged, so a force-push destroys them and git reports success. Ask
+# the remote itself instead. One query, reused for every ref in the push.
+remote_refs=$(git ls-remote "$remote" 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo "ERROR: could not reach $remote to check for unpulled commits." >&2
+    echo "       Refusing to push blind. Use --no-verify only if you are certain." >&2
+    exit 1
+fi
+
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha
+do
+    if [ "$remote_ref" = "refs/heads/master" ]; then
+        echo "ERROR: Pushing to master branch is not allowed!" >&2
+        exit 1
+    fi
+
+    # Deleting a ref: local_sha is all zeros.
+    case "$local_sha" in
+        *[!0]*) ;;
+        *) continue ;;
+    esac
+
+    # No awk exit: it would close the pipe while printf still has refs to write, and the SIGPIPE
+    # prints "Broken pipe" over the hook's own output. ls-remote names each ref once anyway.
+    actual=$(printf '%s\n' "$remote_refs" | awk -v r="$remote_ref" '$2 == r {print $1}')
+
+    [ -z "$actual" ] && continue                 # branch does not exist on the remote yet
+    [ "$actual" = "$local_sha" ] && continue     # already identical
+
+    if ! git cat-file -e "${actual}^{commit}" 2>/dev/null; then
+        echo "" >&2
+        echo "BLOCKED: $remote_ref is at $(printf '%.10s' "$actual") on $remote," >&2
+        echo "         a commit you do not have. Someone pushed since your last fetch." >&2
+        echo "         Run: git fetch $remote" >&2
+        status=1
+        continue
+    fi
+
+    # A rebase rewrites hashes, so the remote head stops being an ancestor even when every
+    # commit it carried is still here. Compare patch ids and count only what has no local
+    # equivalent. --cherry-pick alone would silently skip merge commits (a GitHub "Update
+    # branch" click makes one), so those stay in the count via --right-only.
+    lost=$(git rev-list --cherry-pick --right-only --count "${local_sha}...${actual}" 2>/dev/null)
+
+    if [ "${lost:-1}" -gt 0 ]; then
+        # gh stack drives git itself and has no --no-verify to pass through, so a restack it
+        # performed cannot reach the escape git gives a hand-run push. This var is that escape.
+        # It skips only this check: pushing to master, and a remote commit missing from here
+        # altogether, both still refuse, because neither is ever a rewrite you meant.
+        if [ -n "${GIT_PUSH_ALLOW_REWRITE:-}" ]; then
+            echo "" >&2
+            echo "ALLOWED: $remote_ref drops $lost commit(s) that exist only on $remote." >&2
+            echo "         GIT_PUSH_ALLOW_REWRITE is set, so this push is not checked." >&2
+            continue
+        fi
+
+        echo "" >&2
+        echo "BLOCKED: $remote_ref would discard $lost commit(s) that exist only on $remote:" >&2
+        git log --cherry-pick --right-only --format='           %h  %an  %s' "${local_sha}...${actual}" 2>/dev/null | head -10 >&2
+        if [ "$actual" = "$remote_sha" ]; then
+            echo "         Your remote-tracking ref already matches the remote," >&2
+            echo "         so --force-with-lease would NOT have caught this." >&2
+        fi
+        echo "" >&2
+        echo "         Patch ids cover a plain rebase, but not one onto a newer base: moving a" >&2
+        echo "         commit over a changed neighbour rewrites its context, and the id with it." >&2
+        echo "         So a legitimate restack can land here. Tell the two apart with:" >&2
+        echo "" >&2
+        echo "           git range-diff $remote/${remote_ref#refs/heads/}...${remote_ref#refs/heads/}" >&2
+        echo "" >&2
+        echo "         Every listed commit paired with one of yours, and the differences only" >&2
+        echo "         context, means nothing is lost. A commit shown as dropped means it is." >&2
+        echo "" >&2
+        echo "         Once checked: GIT_PUSH_ALLOW_REWRITE=1 <your push command>" >&2
+        echo "         gh stack takes no --no-verify, so that var is the way through it." >&2
+        status=1
+    fi
+done
+
+if [ "$status" -ne 0 ]; then
+    echo "" >&2
+    echo "Push refused: the remote has work you never pulled down." >&2
+    echo "" >&2
+fi
+
+exit "$status"

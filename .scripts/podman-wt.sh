@@ -275,6 +275,9 @@ cmd_up() {
   systemctl --user start "$(unit rails)" || { diagnose_failure; exit 1; }
   cmd_status
   check_proxy || exit 1
+  # Not a gate: the stack does not need it. Said here because up is the command
+  # run often enough for a tampered hook or config to get noticed.
+  "$ROOT/.scripts/git-guard.sh" check >&2 || true
 }
 
 cmd_stop() {

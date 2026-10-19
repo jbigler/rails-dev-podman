@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Check if ripper-tags is available in the current PATH
+if command -v ripper-tags >/dev/null 2>&1; then
+  # Safe to run in the background
+  ripper-tags -R -f tags.local \
+    --exclude=tmp \
+    --exclude=public \
+    --exclude=log \
+    . 2>/dev/null &
+else
+  echo "⚠️  [Git Hook] ripper-tags not found. Skipping automatic tags.local update."
+  echo "    Run 'gem install ripper-tags' to enable automatic code navigation."
+fi

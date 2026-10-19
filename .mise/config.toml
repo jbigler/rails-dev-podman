@@ -293,6 +293,19 @@ run = "{{config_root}}/.scripts/podman-destroy.sh"
 description = "Check the rootless podman prerequisites: version, socket, privileged-port sysctl, linger."
 run = "{{config_root}}/.scripts/quadlet.sh doctor"
 
+[tasks."hooks:backup"]
+description = "Copy the base worktree's git hooks (default: all) into .container-config/git-hooks/, then commit. Run after reviewing a hook that up/doctor flag."
+usage = 'arg "[hooks]…" var=#true default=""'
+run = """
+  hooks="${usage_hooks:-}"
+  [ "$hooks" = "''" ] && hooks=
+  {{config_root}}/.scripts/git-guard.sh backup $hooks
+"""
+
+[tasks."hooks:restore"]
+description = "Install the backed-up git hooks into the base worktree's .git/hooks. A hook that differs from its backup is kept unless FORCE=1."
+run = "{{config_root}}/.scripts/git-guard.sh restore"
+
 [tasks."units:install"]
 description = "Render .container-config/quadlet/ into ~/.config/containers/systemd and reload systemd."
 run = "{{config_root}}/.scripts/quadlet.sh install"

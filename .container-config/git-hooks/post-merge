@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Verify ripper-tags exists before trying to run anything
+if ! command -v ripper-tags >/dev/null 2>&1; then
+  echo "⚠️  [Git Hook] ripper-tags not found. Skipping tag updates for this pull."
+  echo "    Run 'gem install ripper-tags' to keep your project tags in sync."
+  exit 0
+fi
+
+# 1. Update the local project tags instantly in the background
+ripper-tags -R -f tags.local \
+  --exclude=tmp \
+  --exclude=public \
+  --exclude=log \
+  . 2>/dev/null &
+
+# 2. Check if Gemfile.lock changed during the merge/pull
+if git diff-tree -r --name-only HEAD@{1} HEAD | grep -q "Gemfile.lock"; then
+  echo "📦 Gemfile.lock changed! Regenerating master tags file (Gems/Ruby core)..."
+  
+  # Ensure mise is installed and running before trying to locate Ruby
+  if command -v mise >/dev/null 2>&1; then
+    ripper-tags -R -f tags \
+      $(mise where ruby) \
+      $(bundle exec gem env gemdir)/gems/* 2>/dev/null &
+  else
+    echo "⚠️  [Git Hook] 'mise' execution failed. Could not locate Ruby installation directory."
+  fi
+fi
