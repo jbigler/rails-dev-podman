@@ -154,6 +154,12 @@ FROM base AS rails
 ENV RAILS_LOG_TO_STDOUT="1"
 ENV BINDING="0.0.0.0"
 
+# rails@ and exec's transient container mount no home (.home/<slug> holds agent
+# credentials), so ~ is this image's. The volumes mounted under it need their
+# parents to exist and belong to appuser: a parent the runtime has to create
+# for a nested mount is not owned by appuser, so nothing else could write there.
+RUN mkdir -p /home/${APP_USER}/.npm /home/${APP_USER}/.cache/ms-playwright
+
 EXPOSE 3000
 
 CMD ["bin/dev"]

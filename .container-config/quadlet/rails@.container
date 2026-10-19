@@ -26,14 +26,10 @@ After=@@P@@-traefik.service
 # container, which has no access to the host's systemd and deliberately no
 # podman socket, so it cannot start playwright itself. Wants= rather than
 # Requires= so a playwright failure does not take the dev server down.
+# nvim is deliberately absent: it is your editor, not part of the app stack,
+# and `mise run nvim` starts it on demand.
 Wants=@@P@@-playwright@%i.service
-# And nvim, for the same reason of parity: compose gave the nvim service no
-# profile, so `docker compose up` started it and `mise run nvim` could always
-# attach. Nothing pulled it in here, so the unit existed but never ran and the
-# attach failed on a refused connection. Wants=, so a broken editor server
-# never takes the dev server with it.
-Wants=@@P@@-nvim@%i.service
-After=@@P@@-playwright@%i.service @@P@@-nvim@%i.service
+After=@@P@@-playwright@%i.service
 
 [Container]
 # Shared tag keyed by runtime versions, so one image serves every worktree on
@@ -79,7 +75,9 @@ PublishPort=127.0.0.1:${RUBY_DEBUG_PORT}:38698
 PublishPort=127.0.0.1:${APP_PORT}:3000
 
 Volume=@@ROOT@@/%i:/app:z
-Volume=@@ROOT@@/.home/%i:/home/appuser:z
+# No home bind mount. .home/<slug> is the claude/nvim home and holds a live
+# Claude OAuth refresh token; this container hot-reloads agent-written code, so
+# ~ is the image's own (ephemeral) home instead.
 Volume=${MAIN_WORKTREE_PATH}/.git:${MAIN_WORKTREE_PATH}/.git:ro,z
 Volume=@@ROOT@@/.container-config/entrypoint-app.sh:/usr/local/bin/entrypoint-app.sh:ro,z
 # No :U -- /usr/local/bundle is not under a bind mount, so podman's copy-up

@@ -28,10 +28,10 @@ unit() { printf '%s-%s@%s.service' "$P" "$1" "$W"; }
 
 # Everything that belongs to this worktree. CORE is start order; ALL is
 # teardown order, so stop and down reach every unit including the ones `up`
-# does not start directly. nvim and playwright are here but not in CORE: rails@
-# Wants= them, so starting rails brings them up, and stop has to take them
-# down again. No claude entry -- claude is a one-off container from
-# podman-claude.sh, not a unit.
+# does not start directly. playwright is here but not in CORE: rails@ Wants= it.
+# nvim is not part of the stack at all -- `nvim-up` starts it on demand -- but
+# stop still takes it down with everything else. No claude entry -- claude is a
+# one-off container from podman-claude.sh, not a unit.
 CORE=(net-network db redis rustfs-init rustfs deps rails)
 ALL=(rails deps nvim rustfs rustfs-init redis db playwright net-network)
 
@@ -46,9 +46,9 @@ require_units() {
     || die "the installed units are out of date; see above"
 }
 
-# The docker path calls this from six mise tasks; the podman path called it from
-# none, which is why rails died on `statfs .../.home/master`. Idempotent, so it
-# is cheap to run on every up.
+# .home/<slug> is the claude/nvim home; nothing in the app stack mounts it. Only
+# nvim-up needs it among the commands here, since podman refuses a missing bind
+# source. Idempotent, so it is cheap to run on every start.
 require_home() {
   "$ROOT/.scripts/seed-home.sh" "$W"
 }
@@ -250,12 +250,13 @@ check_proxy() {
 # A .nvmrc or .ruby-version bump changes the image tags, and podman answers a
 # missing localhost/ image by trying to pull it -- the unit then sits in
 # activating until it times out, and only diagnose_failure names the tag. Say it
-# before starting anything instead. rails@ Wants= nvim and playwright, so a
-# missing image there fails a unit too, just not fatally.
+# before starting anything instead. rails@ Wants= playwright, so a missing image
+# there fails a unit too, just not fatally. nvim is not started by up; nvim-up
+# checks its own image.
 require_images() {
   local missing
   missing="$( set -a; . "$WT_ENV"; set +a
-    for img in "$RAILS_IMAGE" "$NVIM_IMAGE" "$PLAYWRIGHT_IMAGE"; do
+    for img in "$RAILS_IMAGE" "$PLAYWRIGHT_IMAGE"; do
       podman image exists "$img" || printf '  %s\n' "$img"
     done )"
   [[ -z "$missing" ]] || die "these images do not exist yet:
@@ -264,7 +265,7 @@ $missing
 }
 
 cmd_up() {
-  require_units; require_env; require_images; require_home; require_mounts
+  require_units; require_env; require_images; require_mounts
   start_proxy || true   # a failure here is reported by check_proxy, with detail
   # One unit; systemd pulls the network, data services and traefik in through
   # Requires=/Wants=, and gates rails on db/redis/rustfs being *healthy*.
@@ -380,6 +381,30 @@ cmd_pull() {
 
 cmd_restart() { require_units; systemctl --user restart "$(unit "${1:-rails}")"; cmd_status; }
 
+# The editor server, on demand. It used to ride along with rails@ through a
+# Wants=, which made every `up` start (and require the image for) a personal
+# tool the app stack does not need. The fast path is one systemctl call, since
+# `mise run nvim` runs this before every attach.
+cmd_nvim_up() {
+  systemctl --user is-active --quiet "$(unit nvim)" && return 0
+  require_units; require_env; require_home
+  set -a; . "$WT_ENV"; set +a
+  podman image exists "$NVIM_IMAGE" || die "$NVIM_IMAGE does not exist yet:
+    mise run build"
+  printf 'starting %s...\n' "$(unit nvim)" >&2
+  systemctl --user start "$(unit nvim)" \
+    || die "$(unit nvim) failed to start: journalctl --user -u $(unit nvim) -n 30 --no-pager"
+  # The unit is active once the container runs, before nvim listens. A TCP
+  # probe cannot tell the difference -- rootless port forwarding accepts on the
+  # host side immediately -- so ask nvim itself.
+  local i
+  for ((i = 0; i < 60; i++)); do
+    nvim --server "localhost:$NVIM_PORT" --remote-expr 1 >/dev/null 2>&1 && return 0
+    sleep 0.5
+  done
+  die "$(unit nvim) is running but nvim is not answering on localhost:$NVIM_PORT: mise run logs nvim"
+}
+
 cmd_status() {
   printf '\n'
   systemctl --user --no-pager --no-legend list-units "$P-*@$W.service" 2>/dev/null \
@@ -427,7 +452,7 @@ cmd_exec() {
      && [[ "$(podman inspect "$ct" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]; then
     exec podman exec -it ${extra[@]+"${extra[@]}"} "$ct" "$@"
   fi
-  require_env; require_home
+  require_env
   # Name the actual reason. EXEC_FRESH is a deliberate choice by the caller
   # (ci, test:rails_watcher), and reporting it as "rails is not running" when
   # rails is running sends you looking at the wrong thing.
@@ -464,7 +489,7 @@ cmd_exec() {
     --userns keep-id:uid=1000,gid=1000 --user 1000:1000 \
     --label traefik.enable=false \
     --env-file "$ROOT/.container-config/.env" --env-file "$WT_ENV" \
-    -v "$WT_DIR:/app:z" -v "$ROOT/.home/$W:/home/appuser:z" \
+    -v "$WT_DIR:/app:z" \
     -v "${GEM_VOLUME}:/usr/local/bundle" \
     -v "$P-$W-node-modules:/app/node_modules:U" \
     -v "${P}_npm_cache:/home/appuser/.npm:U" \
@@ -474,7 +499,7 @@ cmd_exec() {
 }
 
 cmd_test_system() {
-  require_units; require_env; require_home; require_mounts
+  require_units; require_env; require_mounts
   # Ensure playwright is up, but never stop it afterwards. A Claude instance
   # inside the claude container may be running system tests against the same
   # browser server, and it cannot restart one we tore out from under it -- it
@@ -496,6 +521,7 @@ cmd_test_system() {
 
 case "${1:-}" in
   up)          shift; cmd_up ;;
+  nvim-up)     shift; cmd_nvim_up ;;
   stop)        shift; cmd_stop ;;
   down)        shift; cmd_down ;;
   pull)        shift; cmd_pull ;;
@@ -504,5 +530,5 @@ case "${1:-}" in
   logs)        shift; cmd_logs "$@" ;;
   exec)        shift; cmd_exec "$@" ;;
   test:system) shift; cmd_test_system "$@" ;;
-  *) die "usage: $(basename "$0") {up|stop|down|restart [svc]|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
+  *) die "usage: $(basename "$0") {up|nvim-up|stop|down|restart [svc]|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
 esac

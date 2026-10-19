@@ -44,18 +44,19 @@ CPUS_50 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 50') }}"
 CPUS_25 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 25') }}"
 
 [tasks.nvim]
-description = "Connect to Neovim in the container."
+description = "Connect to Neovim in the container, starting its server first if it is not running."
 # No command preview — this task hands the terminal straight to the Neovim UI.
 quiet = true
-# No `depends = ["up"]` and no readiness polling: the `up` dependency added
-# seconds to every attach. This assumes the nvim container is already running —
-# if it isn't, `mise run up` first.
+# No `depends = ["up"]`: nvim is not part of the app stack, and the `up`
+# dependency added seconds to every attach. `podman-wt.sh nvim-up` starts just
+# the nvim unit when it is down (and waits until it answers); when it is up that
+# is a single systemctl call.
 #
 # NVIM_BACKGROUND is baked into the container's environment when it starts, so a
 # server that has been up since before an OS theme flip is stale. Push the
 # freshly detected mode in before attaching — mise re-runs the detector on every
-# invocation, so this value is current. Best effort: if the server isn't up yet
-# the --remote-ui below reports it properly.
+# invocation, so this value is current. Best effort: nvim-up has already waited
+# for the server, so a failure here is reported by the --remote-ui below.
 # KITTY_LISTEN_ON/KITTY_WINDOW_ID get the same treatment, for
 # vim-kitty-navigator's `kitten @` calls. Both are per-attach values the server
 # cannot inherit: the socket name carries the kitty PID, and the window id
@@ -77,6 +78,7 @@ quiet = true
 # (Comments live out here, not inside `run`: mise echoes the script's first line
 # as the command preview, so a leading comment is all you'd see.)
 run = """
+  {{config_root}}/.scripts/podman-wt.sh nvim-up || exit 1
   if [ -n "${NVIM_BACKGROUND:-}" ]; then
     nvim --server localhost:{{ env.NVIM_PORT }} \
       --remote-expr "v:lua.BackgroundSet('$NVIM_BACKGROUND')" >/dev/null 2>&1 || true
