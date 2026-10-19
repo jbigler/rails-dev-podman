@@ -230,7 +230,10 @@ checks it and `mise run allow-ports` lowers it.
 - claude(ai)/claude:newterm(ai:newterm)/claude:rebuild, db:dump/db:dump:clear, tags, proxy:*,
   clean. db:dump writes .container-config/db-dumps/, which is also the restore path: db@'s initdb hook
   restores <dbname>.dump on a first start against an empty volume and rustfs-init@ untars
-  rustfs_data.tar.gz. clean removes artifacts of worktrees that no longer exist, plus image tags no live
+  rustfs_data.tar.gz. clean first offers wt:rm for linked worktrees whose branch is finished — a merged
+  PR (gh) containing the worktree's HEAD, or an upstream deleted on origin (after `fetch --prune`) —
+  skipping any with uncommitted changes; prompts, defaulting to No; branches are kept. It then removes
+  artifacts of worktrees that no longer exist, plus image tags no live
   worktree's .unit-env/<slug>.env references — a worktree missing that file disables the image sweep
   entirely rather than having its images look stale.
 - fw:show/fw:allow → .scripts/firewall.sh; see Egress firewall above.

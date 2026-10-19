@@ -282,7 +282,7 @@ run = """
 """
 
 [tasks.clean]
-description = "Remove podman containers, networks, volumes and image tags belonging to worktrees that no longer exist. Lists what it found and asks before deleting. Leaves live worktrees and the shared base images alone."
+description = "Offer wt:rm for worktrees whose PR merged or whose remote branch was deleted (skips uncommitted work, keeps branches), then remove podman containers, networks, volumes and image tags belonging to worktrees that no longer exist. Lists what it found and asks before deleting either. Leaves live worktrees and the shared base images alone."
 run = "{{config_root}}/.scripts/clean-orphan-podman-artifacts.sh"
 
 [tasks.destroy]

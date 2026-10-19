@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Remove podman artifacts belonging to worktrees that no longer exist on disk,
-# plus image tags no live worktree references any more.
+# Offer wt:rm for worktrees whose branch is finished (merged PR or deleted
+# remote branch), then remove podman artifacts belonging to worktrees that no
+# longer exist on disk, plus image tags no live worktree references any more.
 #
 # `mise run wt:rm` already tears a worktree down, so orphans accumulate only
 # when one leaves some other way: removed by hand with rm -rf, a wt:rm that died
@@ -52,6 +53,105 @@ if [ -n "$missing" ]; then
   echo "Run 'mise run clean' on the host, where all worktrees are present." >&2
   exit 1
 fi
+
+# --- Worktrees whose branch is finished ---------------------------------------
+# Everything below only finds leftovers of worktrees that are already gone. A
+# worktree whose PR merged is still on disk, so its stack, volumes and Claude
+# home (a live OAuth token) stay until someone runs wt:rm. Offer that for every
+# linked worktree whose branch is done:
+#   - a merged PR on the branch contains this worktree's HEAD (gh; squash merges
+#     leave no ancestry, so git alone cannot tell), or
+#   - its upstream branch was deleted on origin (`[gone]` after a pruning fetch).
+# A PR that merged before the worktree gained more commits does not count.
+# wt:rm removes the worktree, never the branch, so committed work survives;
+# uncommitted work makes wt:rm refuse, so those are listed and skipped.
+sweep_finished_worktrees() {
+  local base merged="" wt slug branch remote_branch head track name oid num reason
+  local candidates=() reasons=() dirty=()
+  base="$(find_base_worktree_name)"
+
+  echo "Fetching origin to find deleted and merged branches..."
+  git -C "$git_dir" fetch --prune --quiet origin \
+    || echo "warn: fetch failed; deleted-branch state may be stale" >&2
+  if command -v gh >/dev/null 2>&1; then
+    # Merged PRs come out newest first, so the limit drops only the oldest --
+    # a worktree that old still shows up if its remote branch was deleted.
+    merged="$(cd "$git_dir" && gh pr list --state merged --limit 500 \
+      --json number,headRefName,headRefOid \
+      --jq '.[] | [.headRefName, .headRefOid, (.number | tostring)] | @tsv')" \
+      || { echo "warn: gh pr list failed; going by deleted remote branches only" >&2; merged=""; }
+  else
+    echo "warn: gh not found; going by deleted remote branches only" >&2
+  fi
+
+  while read -r wt; do
+    [ -n "$wt" ] || continue
+    slug="$(basename "$wt")"
+    # Only worktrees this wrapper manages, never the base.
+    [ "$wt" = "$root/$slug" ] && [ "$slug" != "$base" ] || continue
+    branch="$(git -C "$wt" symbolic-ref -q --short HEAD)" || continue   # detached
+    head="$(git -C "$wt" rev-parse HEAD)"
+    # A PR's head is named after the remote branch, which can differ from the
+    # local one (improvement-form-object-docs tracks bugfix/portal_...).
+    remote_branch="$(git -C "$wt" for-each-ref --format='%(upstream:lstrip=3)' "refs/heads/$branch")"
+    [ -n "$remote_branch" ] || remote_branch="$branch"
+    track="$(git -C "$wt" for-each-ref --format='%(upstream:track)' "refs/heads/$branch")"
+
+    reason=""
+    while IFS=$'\t' read -r name oid num; do
+      [ "$name" = "$remote_branch" ] || continue
+      if [ "$oid" = "$head" ] || { git -C "$wt" cat-file -e "$oid^{commit}" 2>/dev/null &&
+           git -C "$wt" merge-base --is-ancestor "$head" "$oid"; }; then
+        reason="PR #$num merged"
+        break
+      fi
+    done <<<"$merged"
+    [ -n "$reason" ] || [ "$track" != "[gone]" ] || reason="origin/$remote_branch deleted"
+    [ -n "$reason" ] || continue
+
+    # The same check wt:rm makes before it will remove anything.
+    if [ -n "$(git -C "$wt" status --porcelain 2>/dev/null || true)" ]; then
+      dirty+=("$slug")
+    else
+      candidates+=("$slug")
+      reasons+=("$branch: $reason")
+    fi
+  done < <(git -C "$git_dir" worktree list --porcelain | sed -n 's/^worktree //p')
+
+  if [ ${#dirty[@]} -gt 0 ]; then
+    echo ""
+    echo "Finished, but skipped for uncommitted changes (commit or stash, then wt:rm):"
+    printf '  %s\n' "${dirty[@]}"
+  fi
+  if [ ${#candidates[@]} -eq 0 ]; then
+    echo "No worktrees with a merged or deleted branch."
+    echo ""
+    return 0
+  fi
+
+  echo ""
+  echo "Worktrees whose branch is finished:"
+  local i
+  for i in "${!candidates[@]}"; do
+    printf '  %-42s %s\n' "${candidates[$i]}" "${reasons[$i]}"
+  done
+  echo ""
+  echo "wt:rm deletes each worktree directory, its database, rustfs and node_modules"
+  echo "volumes, and its home (Claude sessions and login). Branches are kept."
+  printf "Remove these %s worktrees? [y/N] " "${#candidates[@]}"
+  local confirm=""
+  read -r confirm || true
+  case "$confirm" in
+    y|Y|yes|YES) ;;
+    *) echo "Kept them."; echo ""; return 0 ;;
+  esac
+  for slug in "${candidates[@]}"; do
+    echo ""
+    "$root/.scripts/remove-worktree.sh" "$slug" || echo "warn: wt:rm $slug failed; continuing" >&2
+  done
+  echo ""
+}
+sweep_finished_worktrees
 
 # Closed sets, longest first so "rustfs-init" is tried before "rustfs" and
 # "db-data" before "db". Anything not ending in one of these is not ours.

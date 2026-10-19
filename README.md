@@ -111,7 +111,7 @@ _Tip: Set a shell alias for "mise run" to "mr"._
 - `mise run logs [service]` — follow a service's journal (default `rails`)
 - `mise run build` (`b`) — build the rails, nvim, claude and playwright images
 - `mise run pull` (`p`) — refresh the third-party images (postgres, redis, rustfs)
-- `mise run clean` — remove containers, networks, volumes and image tags belonging to worktrees that no longer exist
+- `mise run clean` — offer `wt:rm` for worktrees whose PR merged or whose remote branch was deleted (skips uncommitted work, keeps branches), then remove containers, networks, volumes and image tags belonging to worktrees that no longer exist
 - `mise run destroy` — remove every podman resource for this project, the rendered units and the project folder (type `destroy` to confirm)
 
 ### Host and unit management
