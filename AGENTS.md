@@ -247,7 +247,9 @@ checks it and `mise run allow-ports` lowers it.
   tasks. Container stdout is capped separately by the x-logging anchor (json-file, 20m x 3) in both
   unit templates (LogDriver=k8s-file, LogOpt=max-size=20m). Applies on the next up (recreate), not
   stop/start. Note k8s-file means container stdout is NOT in the journal: `journalctl --user -u <unit>`
-  shows systemd and podman messages, `podman logs` shows the app.
+  shows systemd and podman messages, `podman logs` shows the app. So logs/proxy:logs follow
+  `podman logs -f`, except deps and rustfs-init: oneshots whose output is in the journal (passthrough and
+  podman's default journald driver) and whose --rm'd container is gone once they finish.
 - claude:template:promote/claude:template:apply: sync the Claude config set (agents, hooks, skills,  
   settings, plugin records) between a worktree home and .container-config/home-template — promote pushes  
   this worktree's config to the template (merges plugin records unless --replace); apply copies the  

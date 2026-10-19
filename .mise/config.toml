@@ -351,7 +351,7 @@ description = "Restart the podman proxy stack, recreating its containers."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-restart"
 
 [tasks."proxy:logs"]
-description = "Follow a proxy service's journal (default traefik; e.g. `mise run proxy:logs dozzle`)."
+description = "Follow a proxy container's output (default traefik; e.g. `mise run proxy:logs dozzle`)."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-logs"
 
 [tasks."proxy:pull"]
@@ -396,7 +396,7 @@ description = "Show this worktree's unit and container state plus its URLs. Run 
 run = "{{config_root}}/.scripts/podman-wt.sh status"
 
 [tasks.logs]
-description = "Follow a service's journal for this worktree (default rails; e.g. `mise run logs db`). Run from a worktree."
+description = "Follow a service's container output for this worktree (default rails; e.g. `mise run logs db`; deps and rustfs-init show their journal). Run from a worktree."
 run = "{{config_root}}/.scripts/podman-wt.sh logs"
 
 [tasks.exec]

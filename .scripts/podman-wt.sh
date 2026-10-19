@@ -392,9 +392,20 @@ cmd_status() {
   printf '  dashboard  http://wt.localhost   logs  http://logs.localhost\n'
 }
 
+# Container stdout is k8s-file, not journald, so the unit journal holds only
+# systemd and podman lifecycle lines -- follow the container instead. Not for
+# deps@ (LogDriver=passthrough) or rustfs-init@ (podman's default, journald):
+# both are oneshots whose output is in the journal and whose container is gone
+# once they finish.
 cmd_logs() {
   local svc="${1:-rails}"
-  exec journalctl --user -f -u "$(unit "$svc")"
+  case "$svc" in
+    deps|rustfs-init|net-network) exec journalctl --user -f -u "$(unit "$svc")" ;;
+  esac
+  local ct="$P-$W-$svc"
+  podman container exists "$ct" \
+    || die "no container $ct; see mise run status. Unit messages: journalctl --user -u $(unit "$svc")"
+  exec podman logs -f --tail 100 "$ct"
 }
 
 # Exec into the running rails container, or a throwaway one if the stack is

@@ -387,9 +387,14 @@ cmd_proxy_restart() {
   cmd_proxy_status
 }
 
+# traefik, dozzle and home log with k8s-file, so their output is in podman logs,
+# not the unit journal.
 cmd_proxy_logs() {
-  local svc="${1:-traefik}"
-  exec journalctl --user -f -u "${PROJECT_PREFIX}-${svc}.service"
+  require_prefix
+  local ct="${PROJECT_PREFIX}-${1:-traefik}"
+  podman container exists "$ct" \
+    || die "no container $ct; see mise run proxy:status. Unit messages: journalctl --user -u $ct.service"
+  exec podman logs -f --tail 100 "$ct"
 }
 
 # The three proxy images are registry images, so this is a plain pull plus a
