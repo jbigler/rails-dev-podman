@@ -220,6 +220,16 @@ class AcpReplayTest < Minitest::Test
     assert_equal ["I'll add a migration first.", "The test run needs the migration applied."], s.transcript.select { it.role == :agent }.map(&:text)
   end
 
+  # acp-bridge switches every session to AGENT_MODE with its own session/set_mode,
+  # logged like any relayed message; replay must not read it as a turn or an error.
+  def test_bridge_set_mode_lines_do_not_change_the_replayed_session
+    mode = [
+      %({"ts":"2026-10-20T10:00:00Z","dir":"in","msg":{"jsonrpc":"2.0","id":"bridge-mode-1","method":"session/set_mode","params":{"sessionId":"#{SID}","modeId":"bypassPermissions"}}}),
+      %({"ts":"2026-10-20T10:00:00Z","dir":"out","msg":{"jsonrpc":"2.0","id":"bridge-mode-1","error":{"code":-32603,"message":"nope"}}})
+    ]
+    assert_equal Wt::Acp::Replay.call("tasks", log_lines).session, Wt::Acp::Replay.call("tasks", log_lines + mode).session
+  end
+
   def test_session_load_restarts_the_transcript_because_the_agent_replays_it
     lines = log_lines + [
       %({"ts":"2026-10-20T10:00:00Z","dir":"bridge","event":"session","sessionId":"#{SID}"}),

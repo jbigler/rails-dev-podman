@@ -146,7 +146,9 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   after the usual claude setup. It npm-installs AGENT_PACKAGES (default @agentclientprotocol/claude-agent-acp)
   then runs AGENT_CMD (default claude-agent-acp) once for the container's life; set AGENT_CMD/AGENT_PACKAGES
   (and AGENT_NAME) in mise.local.toml — units-env.sh copies them into .unit-env — to switch ACP agent with no
-  code change. Bridge: socket .run/<slug>/acp.sock (0600), one client at a time (a second gets the holder's
+  code change. It switches every new or loaded session to AGENT_MODE (default bypassPermissions, the ACP
+  equivalent of claude --dangerously-skip-permissions; the container is the sandbox) with session/set_mode;
+  AGENT_MODE=none leaves the adapter asking. Bridge: socket .run/<slug>/acp.sock (0600), one client at a time (a second gets the holder's
   name), initialize cached, unanswered permission requests held and re-sent on reconnect, every message
   appended to .run/<slug>/session.jsonl (never rotated) so wt rebuilds the transcript, and it writes
   status/<slug>.json itself (state, agent, plan, last) — WORKTREE_NAME is removed from the adapter's env so

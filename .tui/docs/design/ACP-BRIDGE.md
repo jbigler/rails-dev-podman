@@ -53,3 +53,11 @@ and the adapter's stdio (the adapter is `AGENT_CMD`, default `claude-agent-acp`)
     `:disconnected` only once the file is gone. `:ended` shows "session ended" and offers `A`. On reconnect, if
     the cached initialize result advertises `agentCapabilities.loadSession` and the log holds a previous
     session id, wt sends `session/load` for it instead of `session/new`.
+11. **Session mode.** The container is the sandbox, so the bridge runs the agent without per-tool approval,
+    as `mise run claude` does with `--dangerously-skip-permissions`. When a `session/new` or `session/load`
+    result lists `AGENT_MODE` (default `bypassPermissions`; `none` disables this) in `modes.availableModes` and
+    `currentModeId` differs, the bridge holds the result, sends its own `session/set_mode` (id
+    `bridge-mode-<n>`, logged as `in`; its response is logged as `out` and never sent to the client), then
+    releases the result with `currentModeId` (and the `mode` config option) set to the new mode. If the switch
+    fails, it logs a warning and releases the result unchanged. Because the result is held, the client
+    cannot prompt before the mode applies.

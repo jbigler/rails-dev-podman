@@ -239,7 +239,7 @@ esac
   # written only when set, so the bridge's own defaults (claude-agent-acp) hold
   # otherwise; an empty AGENT_PACKAGES deliberately disables the npm install.
   printf 'CLAUDE_FIREWALL_ALLOW=%s\n' "${CLAUDE_FIREWALL_ALLOW:-}"
-  for v in AGENT_CMD AGENT_NAME AGENT_PACKAGES; do
+  for v in AGENT_CMD AGENT_NAME AGENT_PACKAGES AGENT_MODE; do
     if [[ -n "${!v+set}" ]]; then printf '%s=%s\n' "$v" "${!v}"; fi
   done
 } > "$OUT"

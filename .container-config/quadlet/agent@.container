@@ -47,7 +47,7 @@ Environment=NODE_OPTIONS=--max-old-space-size=4096
 Environment=SSH_AUTH_SOCK=/tmp/ssh-agent.sock
 Environment=RUSTFS_ENDPOINT=http://rustfs:9000
 Environment=CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
-# AGENT_CMD, AGENT_NAME and AGENT_PACKAGES reach the bridge from the
+# AGENT_CMD, AGENT_NAME, AGENT_PACKAGES and AGENT_MODE reach the bridge from the
 # .unit-env file above, written from mise env (mise.local.toml) by units-env.sh;
 # unset, the bridge runs claude-agent-acp.
 #

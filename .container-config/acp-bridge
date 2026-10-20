@@ -27,6 +27,9 @@
 #                   from the adapter's environment, which keeps
 #                   claude-status-hook.sh (a no-op without it) from writing the
 #                   same file if the adapter runs Claude Code's hooks.
+#   AGENT_MODE      ACP session mode set on every new or loaded session when the
+#                   adapter offers it. Default bypassPermissions (claude-agent-acp's
+#                   --dangerously-skip-permissions); none = leave it alone.
 #   ACP_BRIDGE_DIR  socket and session log directory. Default /run/agent.
 #   ACP_STATUS_DIR  status file directory. Default /status.
 #   ACP_TOKEN_FILE  Claude OAuth token, read into the adapter's
@@ -44,6 +47,10 @@ class AcpBridge
   DEFAULT_CMD = "claude-agent-acp"
   DEFAULT_PACKAGES = "@agentclientprotocol/claude-agent-acp"
   TOKEN_FILE = "/run/secrets/claude-oauth"
+  # The ACP session mode the bridge switches every new or loaded session to
+  # (see set_mode); AGENT_MODE=none leaves the adapter's own choice.
+  DEFAULT_MODE = "bypassPermissions"
+  SET_MODE = "session/set_mode"
   # wt advertises neither capability; an adapter that asks anyway is told the
   # method does not exist rather than being left waiting on a client that will
   # never answer.
@@ -99,6 +106,8 @@ class AcpBridge
     @agent = setting("AGENT_NAME", File.basename(@argv.first))
     default_packages = @argv == [DEFAULT_CMD] ? DEFAULT_PACKAGES : ""
     @packages = Shellwords.split(env.fetch("AGENT_PACKAGES", default_packages))
+    @mode = setting("AGENT_MODE", DEFAULT_MODE)
+    @mode_seq = 0
 
     @lock = Monitor.new
     @done = Queue.new
@@ -284,9 +293,15 @@ class AcpBridge
       @session_id = req[:params]["sessionId"] if !msg.key?("error") && req[:params].is_a?(Hash)
     when "session/prompt"
       flush_agent_text
+    when SET_MODE then return mode_set(req, msg)
     end
     @failed = true if msg["error"] && req[:method].start_with?("session/")
+    return if %w[session/new session/load].include?(req[:method]) && set_mode(req, msg, line)
 
+    deliver(req, line)
+  end
+
+  def deliver(req, line)
     if req[:client] && req[:client].equal?(@client)
       @client.send_line(line)
     elsif @client && req[:method] == "session/prompt"
@@ -294,8 +309,46 @@ class AcpBridge
       # that prompt from the log and shows it running until it sees this.
       @client.send_line(line)
     else
-      warn_line("client for #{req[:method]} #{id.inspect} has gone; response logged and dropped")
+      warn_line("client for #{req[:method]} #{req[:id].inspect} has gone; response logged and dropped")
     end
+  end
+
+  # AGENT_MODE (default bypassPermissions): the container is the sandbox (its
+  # egress firewall always enforces), so the agent runs as `mise run claude`
+  # does (--dangerously-skip-permissions) instead of asking for every tool call. Plain ACP: when a new or loaded session offers the mode
+  # and is not in it, send session/set_mode and hold the result until that is
+  # answered, so the client cannot prompt before the mode applies. true = held.
+  def set_mode(req, msg, line)
+    modes = msg.dig("result", "modes")
+    return false unless modes.is_a?(Hash) && @session_id && @mode != "none"
+    return false if modes["currentModeId"] == @mode
+
+    unless Array(modes["availableModes"]).any? { it.is_a?(Hash) && it["id"] == @mode }
+      warn_line("AGENT_MODE #{@mode} is not offered by #{@agent}; staying in #{modes['currentModeId']}")
+      return false
+    end
+    id = "bridge-mode-#{@mode_seq += 1}"
+    @requests[id] = { method: SET_MODE, held: [req, msg, line] }
+    request = JSON.generate(jsonrpc: "2.0", id:, method: SET_MODE, params: { sessionId: @session_id, modeId: @mode })
+    log("in", request)
+    to_adapter(request)
+    true
+  end
+
+  # The answer to set_mode: release the held session result, showing the new
+  # mode in it when the switch worked.
+  def mode_set(req, msg)
+    held_req, held_msg, line = req[:held]
+    if msg.key?("error")
+      warn_line("session/set_mode #{@mode} failed: #{msg.dig('error', 'message')}")
+    else
+      result = held_msg["result"].merge("modes" => held_msg["result"]["modes"].merge("currentModeId" => @mode))
+      if result["configOptions"].is_a?(Array)
+        result["configOptions"] = result["configOptions"].map { it.is_a?(Hash) && it["id"] == "mode" ? it.merge("currentValue" => @mode) : it }
+      end
+      line = JSON.generate(held_msg.merge("result" => result))
+    end
+    deliver(held_req, line)
   end
 
   def initialized(msg)
@@ -445,7 +498,7 @@ class AcpBridge
     end
 
     if method && request
-      @requests[id] = { method: method, params: msg["params"], client: client }
+      @requests[id] = { id:, method: method, params: msg["params"], client: client }
       case method
       when "session/prompt"
         @failed = false
