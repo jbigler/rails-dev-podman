@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# wt — terminal dashboard for rails-dev-podman worktrees. Started by `mise run tui`
+# (alias w) from the workspace root or any worktree; see .tui/docs/design/SPEC.md.
+
+require "optparse"
+
+OptionParser.new do |o|
+  o.banner = "usage: wt [--theme light|dark] [--accent orange|cyan|purple|blue] [--root DIR]"
+  o.on("--theme NAME", %w[light dark], "colour theme (default: $WT_THEME or light)") { ENV["WT_THEME"] = it }
+  o.on("--accent NAME", %w[orange cyan purple blue], "accent colour (default: $WT_ACCENT or orange)") { ENV["WT_ACCENT"] = it }
+  o.on("--root DIR", "workspace root (default: found above the current directory)") { ENV["WT_ROOT"] = File.expand_path(it) }
+end.parse!
+
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+require "bundler/setup"
+require_relative "../lib/wt"
+
+begin
+  Wt::Config.discover
+rescue Wt::Error => e
+  abort "wt: #{e.message}"
+end
+
+Rooibos.run(Wt::App)
