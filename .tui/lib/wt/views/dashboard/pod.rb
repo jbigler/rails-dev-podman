@@ -12,7 +12,7 @@ module Wt
         TABLE = [[11, "SERVICE"], [12, "STATE"], [7, "PORT"], [6, "CPU"], [6, "MEM"]].freeze
         PORTS = { "rails" => :app_port, "db" => :db_port, "rustfs" => :s3_port, "playwright" => :playwright_port }.freeze
         AGENT_TEXT = { permission: ["awaiting permission", :ac], failed: ["failed", :red], running: ["working", :blu],
-                       done: ["waiting for you", :tx2], offline: ["offline", :tx2] }.freeze
+                       starting: ["starting", :yel], done: ["waiting for you", :tx2], offline: ["offline", :tx2] }.freeze
 
         module_function
 

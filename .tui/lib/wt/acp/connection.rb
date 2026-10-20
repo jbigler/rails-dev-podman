@@ -15,7 +15,8 @@ module Wt
 
       READ_CHUNK = 65_536
 
-      # outcome after run: :busy | :ended | :canceled
+      # outcome after run: :busy | :canceled | :ended (closed after hello: the bridge's
+      # agent went away) | :closed (closed before hello)
       def initialize(slug:, socket:, config:, out:, cwd: nil)
         @slug = slug
         @socket = socket
@@ -28,6 +29,7 @@ module Wt
         @pending = {} # id → method, for wt's own requests
         @hello = nil
         @log_session_id = nil
+        @replayed = nil # the session rebuilt from the log, restored if session/load fails
         @outcome = nil
       end
 
@@ -75,9 +77,9 @@ module Wt
             handle(line) unless line.strip.empty?
           end
         end
-        @outcome = token.canceled? ? :canceled : (@outcome || :ended)
+        finish(token)
       rescue IOError, SystemCallError
-        @outcome = token.canceled? ? :canceled : (@outcome || :ended)
+        finish(token)
       ensure
         Registry.unregister(slug, self)
         close
@@ -101,6 +103,12 @@ module Wt
 
       def put(msg) = @out.put(Ractor.make_shareable(msg))
 
+      def finish(token)
+        @outcome = if token.canceled? then :canceled
+                   else @outcome || (@hello ? :ended : :closed)
+                   end
+      end
+
       def bridge(method, params)
         case method
         when "_bridge/hello"
@@ -110,7 +118,11 @@ module Wt
           session = replay.session.with(agent: params["agent"])
           # Held requests are re-sent right after hello; a logged one the bridge no longer holds is stale.
           session = session.with(permission: nil) unless params["pending"].to_i.positive?
-          put(Msg::AcpReplayed.new(slug:, session:))
+          # A bridge without a session (a fresh start after the adapter died) has no turn
+          # running, whatever prompt the log left unanswered.
+          session = session.with(running: false) unless params["sessionId"]
+          @replayed = Ractor.make_shareable(session)
+          put(Msg::AcpReplayed.new(slug:, session: @replayed))
           Registry.register(slug, self)
           request("initialize", Acp.initialize_params)
         when "_bridge/busy"
@@ -127,22 +139,42 @@ module Wt
         end
       end
 
+      # A `session/update` must carry an object `update`; anything else is skipped.
       def notification(msg)
-        return unless msg["method"] == "session/update" && msg["params"].is_a?(Hash)
+        return unless msg["method"] == "session/update" && msg["params"].is_a?(Hash) && msg["params"]["update"].is_a?(Hash)
 
         put(Msg::AcpUpdate.new(slug:, update: msg["params"]["update"], at: Time.now))
       end
 
+      # A response wt has no id for answers a session/prompt sent by an earlier
+      # connection: the bridge forwards only those (ACP-BRIDGE.md §5). running stays
+      # set while other prompts are still in flight.
       def response(msg)
-        method = @write_lock.synchronize { @pending.delete(msg["id"]) }
+        id = msg["id"]
+        method, in_flight = @write_lock.synchronize do
+          method = @pending.delete(id) || (orphan_prompt?(msg) ? "session/prompt" : nil)
+          [method, @pending.count { |_, m| m == "session/prompt" }]
+        end
         case method
         when nil then nil
         when "initialize" then initialized(msg)
-        when "session/load"
-          put(Msg::AcpResponse.new(slug:, name: method, result: msg["result"], error: msg["error"], at: Time.now))
-          connected(msg["error"] ? nil : @load_id)
-        else put(Msg::AcpResponse.new(slug:, name: method, result: msg["result"], error: msg["error"], at: Time.now))
+        when "session/load" then loaded(msg)
+        else put(Msg::AcpResponse.new(slug:, name: method, result: msg["result"], error: msg["error"], in_flight:, at: Time.now))
         end
+      end
+
+      def orphan_prompt?(msg)
+        return false if msg["id"].nil?
+
+        msg.key?("error") || (msg["result"].is_a?(Hash) && msg["result"].key?("stopReason"))
+      end
+
+      # A failed load leaves the session as the log had it (the agent replayed nothing
+      # worth keeping); Replay skips the failed load the same way.
+      def loaded(msg)
+        put(Msg::AcpReplayed.new(slug:, session: @replayed)) if msg["error"] && @replayed
+        put(Msg::AcpResponse.new(slug:, name: "session/load", result: msg["result"], error: msg["error"], at: Time.now))
+        msg["error"] ? connected(nil, error: Reducer.error_text(msg["error"])) : connected(@load_id)
       end
 
       def initialized(msg)

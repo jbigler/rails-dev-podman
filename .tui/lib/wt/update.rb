@@ -12,8 +12,15 @@ module Wt
       elsif msg.respond_to?(:focus_gained?) && msg.focus_gained? then model.with(ui: model.ui.with(focused: true))
       elsif msg.respond_to?(:focus_lost?) && msg.focus_lost? then model.with(ui: model.ui.with(focused: false))
       elsif msg.respond_to?(:paste?) && msg.paste? then paste(msg, model)
+      elsif msg.is_a?(Rooibos::Message::Error) then command_crashed(msg, model)
       else model
       end
+    end
+
+    # A command raised instead of reporting (Rooibos turns that into Message::Error).
+    def self.command_crashed(msg, model)
+      name = msg.command.class.name.to_s.split("::").last
+      model.notify("#{name} failed: #{msg.exception.class}: #{msg.exception.message.lines.first&.strip}", level: :error)
     end
 
     def self.paste(msg, model)

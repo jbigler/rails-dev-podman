@@ -37,7 +37,8 @@ module Wt
           [W.span(tui, theme, " ^#{i + 1} #{s} ", cur ? :ac : :tx2, bold: cur), W.glyph(tui, theme, model.agent_state(s)), W.span(tui, theme, " ")]
         end
         name = Session.agent_name(model, slug)
-        right = "#{"#{name} · " if name}ACP over .run/#{slug}/acp.sock "
+        # Leading gap: the tab strip is clipped at its edge, so it must not run into this label.
+        right = "  #{"#{name} · " if name}ACP over .run/#{slug}/acp.sock "
         tui.layout(direction: :horizontal, constraints: [tui.constraint_fill(1), tui.constraint_length(right.length)], children: [
           tui.paragraph(text: [W.line(tui, left)]), tui.paragraph(text: [W.line(tui, W.span(tui, theme, right, :tx2))])
         ])
@@ -110,12 +111,33 @@ module Wt
 
       # Soft-wrap `text` at `width` with a marker on the first line and an indent after.
       def wrapped(tui, theme, marker, mcolor, text, color, width)
-        avail = [width - marker.length, 10].max
-        rows = text.to_s.split("\n", -1).flat_map { |para| para.empty? ? [""] : para.scan(/\S.{0,#{avail - 1}}(?=\s|\z)|\S{#{avail}}/) }
+        avail = [width - W.cells(marker), 10].max
+        rows = text.to_s.split("\n", -1).flat_map { wrap(it, avail) }
         rows = [""] if rows.empty?
         rows.each_with_index.map do |row, i|
-          W.line(tui, W.span(tui, theme, i.zero? ? marker : " " * marker.length, mcolor), W.span(tui, theme, row.strip, color))
+          W.line(tui, W.span(tui, theme, i.zero? ? marker : " " * W.cells(marker), mcolor), W.span(tui, theme, row, color))
         end
+      end
+
+      # Greedy word wrap in display cells; a word wider than a row (a CJK run, a URL)
+      # is split at grapheme boundaries.
+      def wrap(para, avail)
+        rows = []
+        row = +""
+        para.split.each do |word|
+          if !row.empty? && W.cells(row) + 1 + W.cells(word) <= avail
+            row << " " << word
+            next
+          end
+          rows << row unless row.empty?
+          while W.cells(word) > avail
+            piece = W.head(word, avail)
+            rows << piece
+            word = word.delete_prefix(piece)
+          end
+          row = +word
+        end
+        rows << row
       end
 
       def relative(model, slug, path)

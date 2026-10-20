@@ -13,7 +13,10 @@ module Wt
         def panel(model, tui, theme, slug, width, height)
           w = D.inner(width)
           rows = [height - 2, 0].max
-          lines = if model.log_lines.empty?
+          stream = model.log_stream
+          lines = if stream&.slug != slug || stream.svc != model.ui.log_service
+                    [W.line(tui, *W.key_hint(tui, theme, "L", "to follow #{model.ui.log_service} logs"))]
+                  elsif model.log_lines.empty?
                     [W.line(tui, W.span(tui, theme, "no #{model.ui.log_service} output yet", :tx2)), W.line(tui),
                      W.line(tui, *W.key_hint(tui, theme, "L", "follow logs"))]
                   else

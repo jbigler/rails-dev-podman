@@ -134,11 +134,13 @@ module Wt
         when "session/load"
           m.error ? s.with(session_id: nil, error: error_text(m.error)) : s
         when "session/prompt"
+          # Another prompt still in flight keeps the turn running.
+          running = m.in_flight.positive?
           if m.error
             text = error_text(m.error)
-            s.with(running: false, error: text, transcript: [*s.transcript, TranscriptEntry.new(role: :system, text: "error: #{text}", at: m.at)])
+            s.with(running:, error: text, transcript: [*s.transcript, TranscriptEntry.new(role: :system, text: "error: #{text}", at: m.at)])
           else
-            s.with(running: false, stop_reason: result["stopReason"]&.to_s)
+            s.with(running:, stop_reason: result["stopReason"]&.to_s)
           end
         else s
         end

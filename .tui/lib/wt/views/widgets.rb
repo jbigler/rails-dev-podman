@@ -40,28 +40,41 @@ module Wt
       def text(tui, lines) = tui.paragraph(text: lines)
 
       # Display width in cells (box glyphs and CJK count correctly).
-      def width(tui, str) = tui.text_width(str.to_s)
+      def width(_tui, str) = cells(str)
+      def cells(str) = RatatuiRuby::Text.width(str.to_s)
 
       # Truncate to `max` cells with a trailing ellipsis.
       def truncate(str, max)
         str = str.to_s
-        return str if str.length <= max
-        return str[0, max] if max < 2
+        return str if cells(str) <= max
+        return head(str, max) if max < 2
 
-        "#{str[0, max - 1]}…"
+        "#{head(str, max - 1)}…"
       end
 
       # Middle-truncate ("intake/…/questionnaire-model") so both ends of a branch stay readable.
       def truncate_middle(str, max)
         str = str.to_s
-        return str if str.length <= max
+        return str if cells(str) <= max
         return truncate(str, max) if max < 5
 
         keep = max - 1
-        "#{str[0, keep / 2]}…#{str[-(keep - keep / 2)..]}"
+        "#{head(str, keep / 2)}…#{tail(str, keep - keep / 2)}"
       end
 
-      def pad(str, width) = truncate(str, width).ljust(width)
+      def pad(str, width)
+        s = truncate(str, width)
+        s + (" " * [width - cells(s), 0].max)
+      end
+
+      # The longest prefix / suffix of `str` at most `max` cells wide.
+      def head(str, max) = within(str.each_grapheme_cluster, max).join
+      def tail(str, max) = within(str.each_grapheme_cluster.reverse_each, max).reverse.join
+
+      def within(graphemes, max)
+        used = 0
+        graphemes.take_while { (used += cells(it)) <= max }
+      end
 
       # "1h40m", "8s", "3d"
       def duration(seconds)

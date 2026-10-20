@@ -27,10 +27,6 @@ module Wt
       Shell.capture(["nvim", "--server", server(port), "--remote-expr", expression], timeout:, stdin: "")
     end
 
-    def self.send_keys(port, keys, timeout:)
-      Shell.capture(["nvim", "--server", server(port), "--remote-send", keys], timeout:, stdin: "")
-    end
-
     # Nothing is listening (E247 "Failed to connect ... connection refused"), or
     # there is no nvim on the host to ask. A hung server (timeout) is not this.
     def self.unreachable?(result)
@@ -66,9 +62,11 @@ module Wt
     end
 
     # Host path of an ACP tool-call location → the same file inside the nvim
-    # container. nil for anything outside $ROOT/<slug> (spec: not opened).
+    # container. nil for anything outside $ROOT/<slug> (spec: not opened), and
+    # for any path holding a control character: the agent chooses these paths.
     def self.container_path(config, slug, host_path)
       return nil unless host_path.is_a?(String) && host_path.start_with?("/")
+      return nil if host_path.match?(/[[:cntrl:]]/)
 
       path = File.expand_path(host_path)
       base = File.expand_path(config.worktree_path(slug))
@@ -83,20 +81,23 @@ module Wt
       path.start_with?("#{MOUNT}/") ? path.delete_prefix("#{MOUNT}/") : path
     end
 
-    # `:drop <file>` then `:<line>`, from whatever mode the UI is in.
-    def self.open_keys(path, line)
-      keys = "<C-\\><C-n>:drop #{keycodes(fnameescape(path))}<CR>"
-      line.is_a?(Integer) && line.positive? ? "#{keys}:#{line}<CR>" : keys
+    # `:drop <file>` then the cursor to `line`, as one expression. The path is
+    # a Vim string literal escaped by fnameescape() inside nvim: no character
+    # of it is ever read as a key or as Ex syntax.
+    def self.open_expr(path, line)
+      "execute([#{[drop_cmd(path), cursor_cmd(line)].compact.join(', ')}])"
     end
 
     # One expression that opens the file and shows its diff against HEAD:
     # `:Gitsigns diffthis` when gitsigns is loaded, else a scratch split holding
-    # `git show HEAD:<path>` diffed with the buffer.
+    # `git show HEAD:<path>` diffed with the buffer. The path only ever appears
+    # inside Vim string literals passed through fnameescape() / shellescape(),
+    # and container_path has rejected newlines (which would end `:read !`).
     def self.diff_expr(path, line)
       head = "HEAD:#{path.delete_prefix("#{MOUNT}/")}"
       cmds = [
-        "'drop ' . fnameescape(#{vim_str(path)})",
-        (vim_str("call cursor(#{line}, 1)") if line.is_a?(Integer) && line.positive?),
+        drop_cmd(path),
+        cursor_cmd(line),
         vim_str("if exists(':Gitsigns') == 2"),
         vim_str("Gitsigns diffthis"),
         vim_str("else"),
@@ -156,12 +157,12 @@ module Wt
       [false, error]
     end
 
-    # Sends keys (mode :send) or evaluates an expression (:expr). While the
-    # server is still starting (refused), retries for `wait` seconds.
-    def self.deliver(port, mode, payload, timeout:, wait: 0.0, canceled: -> { false })
+    # Evaluates an expression. While the server is still starting (refused),
+    # retries for `wait` seconds.
+    def self.deliver(port, expression, timeout:, wait: 0.0, canceled: -> { false })
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
       loop do
-        r = mode == :send ? send_keys(port, payload, timeout:) : expr(port, payload, timeout:)
+        r = expr(port, expression, timeout:)
         return r if r.ok? || !unreachable?(r) || canceled.call
         return r if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
 
@@ -169,9 +170,9 @@ module Wt
       end
     end
 
-    # `o` / `d`: open a new window first when no UI is attached, then deliver.
-    # Reports Msg::CommandFinished(label) like every other action.
-    class Drive < Data.define(:label, :slug, :port, :mode, :payload, :cwd, :launchers, :timeout)
+    # `o` / `d`: open a new window first when no UI is attached, then deliver
+    # the expression. Reports Msg::CommandFinished(label) like every other action.
+    class Drive < Data.define(:label, :slug, :port, :payload, :cwd, :launchers, :timeout)
       include Rooibos::Command::Custom
 
       def call(out, token)
@@ -182,7 +183,7 @@ module Wt
 
           wait = START_WAIT
         end
-        r = Nvim.deliver(port, mode, payload, timeout:, wait:, canceled: -> { token.canceled? })
+        r = Nvim.deliver(port, payload, timeout:, wait:, canceled: -> { token.canceled? })
         return finish(out, 0, "") if r.ok?
 
         finish(out, r.timed_out ? -1 : (r.status || 1), Nvim.unreachable?(r) ? "nvim is not running (#{r.error_line})" : r.error_line)
@@ -206,13 +207,11 @@ module Wt
       end
     end
 
-    # Vim's fnameescape(): what `:drop` needs escaped in a file name. Paths are
-    # always absolute here, so the leading `+` / `>` / `-` cases cannot occur.
-    def self.fnameescape(path) = path.gsub(/[ \t\n*?\[{`$\\%#'"|!<]/) { "\\#{it}" }
+    def self.drop_cmd(path) = "'drop ' . fnameescape(#{vim_str(path)})"
 
-    # Literal `<` in nvim_input keys is `<lt>`.
-    def self.keycodes(text) = text.gsub("<", "<lt>")
+    def self.cursor_cmd(line) = (vim_str("call cursor(#{line}, 1)") if line.is_a?(Integer) && line.positive?)
 
+    # A Vim single-quoted string literal: only `'` is special, doubled.
     def self.vim_str(text) = "'#{text.gsub("'", "''")}'"
 
     # --remote-expr prints the expression's string result. Older clients wrap it

@@ -271,6 +271,10 @@ class AcpBridge
 
     if req[:client] && req[:client].equal?(@client)
       @client.send_line(line)
+    elsif @client && req[:method] == "session/prompt"
+      # The turn of a client that has gone ended: the client attached now replayed
+      # that prompt from the log and shows it running until it sees this.
+      @client.send_line(line)
     else
       warn_line("client for #{req[:method]} #{id.inspect} has gone; response logged and dropped")
     end
@@ -491,7 +495,10 @@ class AcpBridge
       @client = nil
     end
     @server&.close
-    File.unlink(@socket_path) if File.socket?(@socket_path)
+    # Only a stop (signal, code 0) removes the socket. After the adapter died it stays,
+    # so wt still sees the session as ended while systemd restarts the unit; the
+    # unit's ExecStartPre and `listen` remove it before the next bridge listens.
+    File.unlink(@socket_path) if code.zero? && File.socket?(@socket_path)
     stop_adapter
     @log&.close
     exit(code)

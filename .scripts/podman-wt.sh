@@ -409,15 +409,27 @@ cmd_nvim_up() {
   die "$(unit nvim) is running but nvim is not answering on localhost:$NVIM_PORT: mise run logs nvim"
 }
 
+# The socket of the bridge agent@ runs now. acp-bridge leaves its socket behind
+# when the adapter dies (wt keeps showing the session as ended), so after a
+# restart the old one is there until the new bridge listens: it predates the
+# unit's current start. Without unix timestamps (systemd < 248) any socket counts.
+agent_sock_ready() {
+  local sock="$1" since
+  [[ -S "$sock" ]] || return 1
+  since="$(systemctl --user show --timestamp=unix -p ActiveEnterTimestamp --value "$(unit agent)" 2>/dev/null)"
+  [[ "$since" =~ ^@([0-9]+) ]] || return 0
+  (( $(stat -c %Y "$sock") >= BASH_REMATCH[1] ))
+}
+
 # The ACP agent (agent@, .container-config/acp-bridge), on demand like nvim:
 # `up` never starts it. wt calls this through `mise run agent:up` before it
-# connects, so the fast path -- unit active, socket present -- is one systemctl
-# call. Starting it pulls rails and playwright in through Wants=, as
+# connects, so the fast path -- unit active, current socket present -- is two
+# systemctl calls. Starting it pulls rails and playwright in through Wants=, as
 # podman-claude.sh starts them, so a cold stack makes the first start slow.
 cmd_agent_up() {
   local rundir="$ROOT/.run/$W" sock="$ROOT/.run/$W/acp.sock"
   if systemctl --user is-active --quiet "$(unit agent)"; then
-    [[ -S "$sock" ]] && return 0
+    agent_sock_ready "$sock" && return 0
   else
     require_units; require_env; require_home
     set -a; . "$WT_ENV"; set +a
@@ -435,18 +447,24 @@ cmd_agent_up() {
     require_mounts agent
     # A socket left by a bridge that crashed would read as ready below.
     rm -f "$sock"
+    # An explicit start is not refused by the start limit a crash loop ran into.
+    systemctl --user reset-failed "$(unit agent)" 2>/dev/null || true
     printf 'starting %s (rails and playwright come up first)...\n' "$(unit agent)" >&2
     systemctl --user start "$(unit agent)" \
       || die "$(unit agent) failed to start: journalctl --user -u $(unit agent) -n 30 --no-pager"
   fi
   # Active means the container runs, not that the bridge listens: the
-  # entrypoint's claude setup and the adapter's npm install come first.
+  # entrypoint's claude setup and the adapter's npm install come first. A bridge
+  # that exits meanwhile leaves the unit in auto-restart (Restart=on-failure),
+  # not failed, until the start limit is hit: either is a failure here.
   local i state
   for ((i = 0; i < 240; i++)); do
-    [[ -S "$sock" ]] && return 0
-    state="$(systemctl --user show -p ActiveState --value "$(unit agent)" 2>/dev/null)"
-    [[ "$state" == failed ]] \
-      && die "$(unit agent) failed: mise run logs agent; journalctl --user -u $(unit agent) -n 30 --no-pager"
+    agent_sock_ready "$sock" && return 0
+    state="$(systemctl --user show -p ActiveState -p SubState "$(unit agent)" 2>/dev/null | tr '\n' ' ')"
+    case "$state" in
+      *ActiveState=failed* | *SubState=auto-restart*)
+        die "$(unit agent) failed: mise run logs agent; journalctl --user -u $(unit agent) -n 30 --no-pager" ;;
+    esac
     sleep 0.5
   done
   die "$(unit agent) is running but $sock did not appear: mise run logs agent"

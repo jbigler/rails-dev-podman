@@ -10,8 +10,8 @@ module Wt
       COLUMNS = { half: 3, twothirds: 4, full: 6 }.freeze
       CARD_ROWS = 2
       CARD_HEIGHT = 12
-      LABELS = { permission: "PERMISSION", failed: "FAILED", running: "RUNNING", done: "DONE", offline: "OFFLINE" }.freeze
-      WORDS = { permission: "permission", failed: "failed", running: "running", done: "done", offline: "offline" }.freeze
+      LABELS = { permission: "PERMISSION", failed: "FAILED", running: "RUNNING", starting: "STARTING", done: "DONE", offline: "OFFLINE" }.freeze
+      WORDS = { permission: "permission", failed: "failed", running: "running", starting: "starting", done: "done", offline: "offline" }.freeze
 
       module_function
 
@@ -34,7 +34,8 @@ module Wt
       # "Agents 10 · 2 need input · 1 failed · 4 running · 3 done": always every agent.
       def title(model, tui, theme, slugs)
         counts = slugs.map { model.agent_state(it) }.tally
-        parts = [[:permission, "need input", :ac], [:failed, "failed", :red], [:running, "running", :tx2], [:done, "done", :tx2], [:offline, "offline", :tx2]]
+        parts = [[:permission, "need input", :ac], [:failed, "failed", :red], [:running, "running", :tx2], [:starting, "starting", :yel],
+                 [:done, "done", :tx2], [:offline, "offline", :tx2]]
         [W.span(tui, theme, "Agents", :tx, bold: true), W.span(tui, theme, " #{slugs.size}", :tx2),
          *parts.filter_map { |st, word, c| counts[st] && W.span(tui, theme, " · #{counts[st]} #{word}", c) }]
       end

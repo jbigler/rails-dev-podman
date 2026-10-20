@@ -16,7 +16,11 @@ and the adapter's stdio (the adapter is `AGENT_CMD`, default `claude-agent-acp`)
 4. **Session id.** The bridge tracks the current session id from `session/new` / `session/load` results and
    reports it in hello. wt reuses it instead of creating a new session; `A` sends `session/new`.
 5. **Request ids.** The bridge forwards ids unchanged. wt uses string ids `"wt-<random8>-<n>"` (fresh random
-   per connection), so ids never collide across reconnects. Responses whose client has gone are logged and dropped.
+   per connection), so ids never collide across reconnects. A response whose client has gone is logged; if it
+   answers a `session/prompt` and another client is attached, it is sent to that client (which replayed the
+   prompt from the log and shows the turn running), otherwise it is dropped. wt takes a response with an id it
+   did not send, carrying `result.stopReason` or `error`, as the end of such a turn. `running` stays set while
+   any other `session/prompt` of wt's is unanswered, live and in a replay.
 6. **Held requests.** Agent→client requests (notably `session/request_permission`) that arrive while no client is
    attached — or that were sent to a client that disconnected without answering — are held. On the next
    connection the bridge re-sends every held request (original id) right after hello. A client response removes
@@ -31,7 +35,10 @@ and the adapter's stdio (the adapter is `AGENT_CMD`, default `claude-agent-acp`)
    session's history as `session/update` notifications before it answers.
    wt rebuilds transcript, plan and tool calls by replaying from the last `bridge/session` event: `out`
    `session/update` notifications, `in` `session/prompt` requests (user text), and `out` responses carrying
-   `stopReason`.
+   `stopReason`. A `session/load` the adapter answered with an error changes nothing: its marker does not count
+   as the latest, and `session/update`s logged before that error are skipped; live, wt restores the session it
+   replayed before the load. A turn left unanswered in the log is not running if hello's `sessionId` is null
+   (a bridge that has no session has no turn in flight).
 9. **Status file.** The bridge writes `/status/<WORKTREE_NAME>.json` (the existing status bind mount; temp file +
    rename, dotfile temp name) on every state change:
    `{"state":"working|waiting|permission|failed|offline","ts":"<ISO8601>","agent":"<name>","plan":{"done":N,"total":M}|null,"last":"<one line: latest tool call title or agent message, ≤120 chars>"}`.
@@ -40,6 +47,9 @@ and the adapter's stdio (the adapter is `AGENT_CMD`, default `claude-agent-acp`)
    before the bridge exits). This file supersedes the claude hook's for that worktree; extra keys (e.g. `rtk`)
    from the hook format are optional.
 10. **Adapter death.** If the adapter exits, the bridge writes offline status and exits non-zero (systemd
-    restarts the unit). wt sees the socket close, marks the session `:ended`, shows "session ended", and offers
-    `A`. On reconnect, if the cached initialize result advertises `agentCapabilities.loadSession` and the log
-    holds a previous session id, wt sends `session/load` for it instead of `session/new`.
+    restarts the unit). It leaves `acp.sock` in place (a stop by signal removes it); the next bridge's `listen`
+    replaces it, and `agent-up` ignores a socket older than the unit's current start. wt marks the session
+    `:ended` when the socket closes after hello, whether or not the file is still there; it reports
+    `:disconnected` only once the file is gone. `:ended` shows "session ended" and offers `A`. On reconnect, if
+    the cached initialize result advertises `agentCapabilities.loadSession` and the log holds a previous
+    session id, wt sends `session/load` for it instead of `session/new`.

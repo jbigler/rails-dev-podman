@@ -44,6 +44,7 @@ class DashboardViewTest < Minitest::Test
       agents: { "tasks-filtering" => Wt::AgentStatus.new(state: :permission, agent: "claude", last: "permission: bin/rails db:migrate"),
                 "hipaa-logoff" => Wt::AgentStatus.new(state: :working, agent: "codex", last: "execute bin/rails test:system") },
       nvim: { "tasks-filtering" => Wt::NvimStatus.new(running: true, ui_count: 1, buffers: 7) },
+      log_stream: Wt::Commands::LogStream.new(config: m.config, slug: "tasks-filtering", svc: "rails"),
       log_lines: ["Started GET \"/tasks?bucket=overdue\" for 10.88.0.1", "Completed 200 OK in 418ms"],
       failures: { "stack:intake-forms" => "gh: timeout" }
     )
@@ -259,4 +260,41 @@ class DashboardViewTest < Minitest::Test
     assert_match(/▌ wt-40/, text)
     refute_includes text, " wt-1 "
   end
+
+  def test_log_panel_shows_lines_only_for_the_followed_worktree
+    m = dashboard(width: 282)
+    m = m.with(ui: m.ui.with(selected: "hipaa-logoff"))
+    text = render(m, width: 282, height: 70)
+    refute_includes text, "Completed 200 OK in 418ms"
+    assert_includes text, "L  to follow rails logs"
+  end
+
+  def test_full_width_drops_nvim_then_last_when_the_list_is_narrow
+    _, text = screen(width: 220)
+    header = text.lines.find { it.include?("WORKTREE") }
+    refute_includes header, "NVIM"
+    refute_includes header, "LAST"
+    assert_includes header, "AGENT"
+    assert_includes row_of(text, "tasks-filtering"), "◆ claude"
+
+    _, text = screen(width: 228)
+    header = text.lines.find { it.include?("WORKTREE") }
+    assert_includes header, "NVIM"
+    refute_includes header, "LAST"
+    assert_includes row_of(text, "tasks-filtering"), "● 1"
+  end
+
+  def test_cjk_pr_title_is_cut_by_display_width_so_badges_stay_visible
+    title = "日本語のタイトルがとても長いプルリクエストの説明文です" * 3
+    m = dashboard(width: 187)
+    m = m.with(prs: m.prs.merge("tasks-filtering" => Wt::PrStatus.new(number: 1421, title:, draft: true, ci: :pass)))
+    text = render(m, width: 187, height: 70)
+    line = text.lines.find { it.include?("#1421 日本") } || flunk("no PR title line:\n#{text}")
+    assert_match(/…\s+DRAFT /, line)
+    assert_equal "日本語のタ…", W.truncate("日本語のタイトル", 11)
+    assert_equal 9, W.cells(W.pad("日本語のタイトル", 9))
+    assert_equal "日…ル", W.truncate_middle("日本語のタイトル", 7)
+  end
+
+  W = Wt::Views::Widgets
 end

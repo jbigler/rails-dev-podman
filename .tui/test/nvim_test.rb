@@ -5,7 +5,7 @@ require "minitest/mock"
 require "tmpdir"
 
 # nvim and kitten are not installed where these run: Shell.capture is stubbed
-# with stdout/stderr in the shape `nvim --remote-expr` / `--remote-send` print
+# with stdout/stderr in the shape `nvim --remote-expr` prints
 # (fixtures/nvim: --remote-expr writes the string result with no newline; a
 # refused port is E247 on stderr).
 module NvimTestHelpers
@@ -206,9 +206,21 @@ class NvimPathTest < Minitest::Test
     assert_nil Wt::Nvim.container_path(config, "api", "app/models/x.rb")
   end
 
-  def test_open_keys_escape_the_file_name
-    assert_equal "<C-\\><C-n>:drop /app/a\\ b.rb<CR>:7<CR>", Wt::Nvim.open_keys("/app/a b.rb", 7)
-    assert_equal "<C-\\><C-n>:drop /app/\\%\\<lt>x>.rb<CR>", Wt::Nvim.open_keys("/app/%<x>.rb", nil)
+  def test_paths_with_control_characters_are_not_opened
+    ["x\u0012=system(nr2char(105))\r", "x\r", "x\ny", "x\e", "x\u007f"].each do |tail|
+      assert_nil Wt::Nvim.container_path(config, "api", "/ws/api/#{tail}"), tail.inspect
+    end
+  end
+
+  def test_open_expr_passes_the_path_as_a_vim_string_literal
+    assert_equal "execute(['drop ' . fnameescape('/app/a b.rb'), 'call cursor(7, 1)'])", Wt::Nvim.open_expr("/app/a b.rb", 7)
+    assert_equal "execute(['drop ' . fnameescape('/app/it''s|x\".rb')])", Wt::Nvim.open_expr("/app/it's|x\".rb", nil)
+  end
+
+  def test_diff_expr_keeps_quotes_and_bars_inside_string_literals
+    e = Wt::Nvim.diff_expr("/app/a'|\"b.rb", nil)
+    assert_includes e, "fnameescape('/app/a''|\"b.rb')"
+    assert_includes e, "shellescape('HEAD:a''|\"b.rb', 1)"
   end
 end
 
@@ -284,19 +296,31 @@ class NvimActionsTest < Minitest::Test
     _, cmd = Wt::Actions.open_tool_call(m)
     assert_empty cmd.launchers
     calls = capturing(res) { run_command(cmd) }
-    assert_equal ["nvim", "--server", "127.0.0.1:17001", "--remote-send", "<C-\\><C-n>:drop /app/app/b.rb<CR>:42<CR>"], calls.first[0]
+    assert_equal ["nvim", "--server", "127.0.0.1:17001", "--remote-expr", "execute(['drop ' . fnameescape('/app/app/b.rb'), 'call cursor(42, 1)'])"], calls.first[0]
   end
 
   def test_o_follows_the_selected_tool_call
     m = attached(with_calls([[[{ "path" => "/ws/tasks/app/a.rb", "line" => 3 }]], [[{ path: "/ws/tasks/app/b.rb" }]]], tool_index: 0))
     _, cmd = Wt::Actions.open_tool_call(m)
-    assert_equal "<C-\\><C-n>:drop /app/app/a.rb<CR>:3<CR>", cmd.payload
+    assert_equal "execute(['drop ' . fnameescape('/app/app/a.rb'), 'call cursor(3, 1)'])", cmd.payload
   end
 
   def test_o_refuses_paths_outside_the_worktree
     m, = Wt::Actions.open_tool_call(attached(with_calls([[[{ path: "/ws/tasks-old/app/a.rb", line: 1 }]]])))
     assert_equal :error, m.ui.toasts.last.level
     assert_match(/outside/, m.ui.toasts.last.text)
+  end
+
+  def test_o_never_sends_a_path_with_control_characters
+    ["\r", "\u0012", "\n"].each do |c|
+      m = attached(with_calls([[[{ path: "/ws/tasks/x#{c}=system(nr2char(105))#{c}", line: 1 }]]]))
+      calls = capturing do
+        m, cmd = Wt::Actions.open_tool_call(m)
+        refute_kind_of Wt::Nvim::Drive, cmd
+      end
+      assert_empty calls
+      assert_match(/outside/, m.ui.toasts.last.text)
+    end
   end
 
   def test_o_without_located_tool_call_toasts
@@ -309,29 +333,36 @@ class NvimActionsTest < Minitest::Test
       _, cmd = Wt::Actions.open_tool_call(attached(with_calls([[[{ path: "/ws/tasks/app/a.rb", line: 1 }]]]), 0))
       assert_equal :capture, cmd.launchers.first.first
       msgs = nil
-      calls = capturing(res, refused("send"), res) { msgs = run_command(cmd) }
+      calls = capturing(res, refused, res) { msgs = run_command(cmd) }
       assert_equal "kitten", calls[0][0].first
-      assert_equal "--remote-send", calls[2][0][3]
+      assert_equal "--remote-expr", calls[2][0][3]
       assert_equal 0, msgs.last.status
     end
   end
 
-  def test_o_with_no_ui_and_no_window_sends_then_attaches_here
+  def test_o_with_no_ui_and_no_window_attaches_here_then_sends_from_a_command
     order = []
+    m = cmd = nil
     with_launch_env do
-      Wt::Shell.stub(:capture, ->(argv, **) { order << argv[3]; res }) do
+      calls = capturing do
         Wt::Terminal.stub(:handover, ->(*, **) { order << :handover; 0 }) do
-          Wt::Actions.open_tool_call(with_calls([[[{ path: "/ws/tasks/app/a.rb", line: 1 }]]]))
+          m, cmd = Rooibos.normalize_init(Wt::Actions.open_tool_call(with_calls([[[{ path: "/ws/tasks/app/a.rb", line: 1 }]]])))
         end
       end
+      assert_empty calls, "no nvim call on the main thread"
     end
-    assert_equal ["--remote-send", :handover], order
+    assert_equal [:handover], order
+    assert_match(/press n/, m.ui.toasts.last.text)
+    drive = cmd.commands.find { it.is_a?(Wt::Nvim::Drive) }
+    assert_empty drive.launchers
+    calls = capturing(res) { run_command(drive) }
+    assert_equal "--remote-expr", calls.first[0][3]
   end
 
   def test_d_diffs_the_latest_edit_with_gitsigns_or_git_show
     m = attached(with_calls([[[{ path: "/ws/tasks/app/a.rb", line: 5 }], "edit"], [[{ path: "/ws/tasks/app/b.rb" }], "read"]]))
     _, cmd = Wt::Actions.show_diff(m)
-    assert_equal :expr, cmd.mode
+    assert_kind_of Wt::Nvim::Drive, cmd
     assert_includes cmd.payload, "fnameescape('/app/app/a.rb')"
     assert_includes cmd.payload, "Gitsigns diffthis"
     assert_includes cmd.payload, "shellescape('HEAD:app/a.rb', 1)"

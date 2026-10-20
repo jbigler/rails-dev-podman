@@ -83,19 +83,39 @@ module Wt
         layers
       end
 
-      # Generated from Keymap::BINDINGS, so it lists exactly what the keys do.
+      # Generated from Keymap::BINDINGS, so it lists exactly what the keys do. Groups
+      # are packed into as many columns as the height needs (a group never splits);
+      # when that is too wide, the "(screens)" notes go first.
       def self.help(model, tui, theme)
-        lines = Keymap.groups.flat_map do |group, bindings|
-          [W.line(tui, W.span(tui, theme, group, :ac, bold: true)),
-           *bindings.map do |b|
-             where = b.screens == :all ? "" : "  (#{b.screens.join(', ')})"
-             W.line(tui, W.span(tui, theme, "  #{b.key_label.ljust(8)}", :tx, bold: true), W.span(tui, theme, b.label), W.span(tui, theme, where, :tx2))
-           end,
-           W.line(tui)]
+        ui = model.ui
+        rows = [ui.height - 4, 1].max
+        columns, col_w = help_columns(tui, rows, notes: true)
+        columns, col_w = help_columns(tui, rows, notes: false) if columns.size * col_w + 4 > ui.width - 2
+        paragraphs = columns.map do |col|
+          tui.paragraph(text: col.map { |row| W.line(tui, row.map { |text, fg, bold| W.span(tui, theme, text, fg, bold:) }) },
+                        style: theme.style(:tx, bg: :bg))
         end
-        height = [lines.size + 2, model.ui.height - 4].min
-        W.centered(tui, width: 64, height:, child: W.panel(tui, theme, title: "Keys", accent: true,
-                                                            child: tui.paragraph(text: lines, style: theme.style(:tx, bg: :bg))))
+        body = tui.layout(direction: :horizontal, constraints: columns.map { tui.constraint_length(col_w) }, children: paragraphs)
+        width = (columns.size * col_w + 4).clamp(1, [ui.width - 2, 1].max)
+        height = (columns.map(&:size).max + 2).clamp(1, [ui.height - 2, 1].max)
+        W.centered(tui, width:, height:, child: W.panel(tui, theme, title: "Keys", accent: true, child: body))
+      end
+
+      # [[rows of [text, fg, bold]] per column], column width
+      def self.help_columns(tui, rows, notes:)
+        blocks = Keymap.groups.map do |group, bindings|
+          [[[group, :ac, true]],
+           *bindings.map do |b|
+             where = notes && b.screens != :all ? " (#{b.screens.join(', ')})" : ""
+             [["  #{b.key_label.ljust(7)} ", :tx, true], [b.label, :tx, false], [where, :tx2, false]]
+           end]
+        end
+        col_w = blocks.flatten(1).map { |row| tui.text_width(row.sum("") { it[0] }) }.max + 2
+        columns = blocks.each_with_object([[]]) do |block, cols|
+          cols << [] if !cols.last.empty? && cols.last.size + 1 + block.size > rows
+          cols.last.concat(cols.last.empty? ? block : [[], *block])
+        end
+        [columns, col_w]
       end
 
       def self.confirm(model, tui, theme)
@@ -103,8 +123,8 @@ module Wt
         body = tui.paragraph(text: [W.line(tui, W.span(tui, theme, c.prompt)), W.line(tui),
                                     W.line(tui, *W.key_hint(tui, theme, "y", "yes"), *W.key_hint(tui, theme, "n", "no"))],
                              wrap: true, style: theme.style(:tx, bg: :bg))
-        W.centered(tui, width: [c.prompt.length + 6, 60].max.clamp(30, model.ui.width - 4), height: 6,
-                   child: W.panel(tui, theme, title: "Confirm", accent: true, child: body))
+        width = [[c.prompt.length + 6, 60].max, model.ui.width - 4].min.clamp(1, 1000)
+        W.centered(tui, width:, height: 6, child: W.panel(tui, theme, title: "Confirm", accent: true, child: body))
       end
 
       def self.prompt(model, tui, theme)

@@ -230,6 +230,29 @@ class AcpReplayTest < Minitest::Test
     assert_equal [[:user, "Run the migration"]], s.transcript.map { [it.role, it.text] }
   end
 
+  def test_overlapping_prompts_keep_running_until_the_last_one_answers
+    marker = %({"ts":"2026-10-20T10:00:00Z","dir":"bridge","event":"session","sessionId":"#{SID}"})
+    prompt = ->(id, text) { %({"ts":"2026-10-20T10:00:01Z","dir":"in","msg":{"jsonrpc":"2.0","id":"#{id}","method":"session/prompt","params":{"sessionId":"#{SID}","prompt":[{"type":"text","text":"#{text}"}]}}}) }
+    stop = ->(id) { %({"ts":"2026-10-20T10:00:03Z","dir":"out","msg":{"jsonrpc":"2.0","id":"#{id}","result":{"stopReason":"end_turn"}}}) }
+    lines = [marker, prompt.("wt-9-1", "one"), prompt.("wt-9-2", "do this instead"), stop.("wt-9-1")]
+    assert Wt::Acp::Replay.call("tasks", lines).session.running, "the second prompt is still running"
+    refute Wt::Acp::Replay.call("tasks", lines + [stop.("wt-9-2")]).session.running
+  end
+
+  def test_a_refused_session_load_keeps_the_logged_session
+    before = Wt::Acp::Replay.call("tasks", log_lines).session
+    lines = log_lines + [
+      %({"ts":"2026-10-20T10:00:00Z","dir":"bridge","event":"session","sessionId":"#{SID}"}),
+      %({"ts":"2026-10-20T10:00:00Z","dir":"in","msg":{"jsonrpc":"2.0","id":"wt-9-1","method":"session/load","params":{"sessionId":"#{SID}","cwd":"/ws/tasks","mcpServers":[]}}}),
+      %({"ts":"2026-10-20T10:00:01Z","dir":"out","msg":{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"#{SID}","update":{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"half a replay"}}}}}),
+      %({"ts":"2026-10-20T10:00:01Z","dir":"out","msg":{"jsonrpc":"2.0","id":"wt-9-1","error":{"code":-32002,"message":"Session not found"}}})
+    ]
+    r = Wt::Acp::Replay.call("tasks", lines)
+    assert_equal SID, r.session_id, "the earlier marker still names the session to load"
+    assert_equal comparable(before).merge(session_id: nil), comparable(r.session)
+    assert_equal "Session not found", r.session.error
+  end
+
   def test_missing_or_garbage_log_gives_an_empty_session
     assert_empty Wt::Acp::Replay.read("tasks", "/nonexistent/session.jsonl").session.transcript
     r = Wt::Acp::Replay.call("tasks", ["not json\n", "[1,2]\n", %({"dir":"out","msg":"nope"}\n)])
@@ -339,10 +362,44 @@ class AcpActionsTest < Minitest::Test
     assert_equal "tasks", m.ui.chat_slug
     assert m.ui.input_focus
     assert_equal :connecting, m.sessions["tasks"].connection
-    assert_kind_of Wt::Commands::MiseTask, cmd
-    assert_equal %w[agent:up], cmd.args
+    assert_kind_of Wt::Acp::Up, cmd
     assert_equal "/ws/tasks", cmd.cwd
-    refute cmd.refresh
+    assert Ractor.shareable?(cmd)
+  end
+
+  def test_agent_up_runs_the_mise_task_and_reports_its_outcome
+    seen = nil
+    capture = lambda do |argv, chdir:, **|
+      seen = [argv, chdir]
+      Wt::Shell::Result.new(stdout: "", stderr: "starting...\nwt-agent@tasks failed: mise run logs agent\n", status: 1, timed_out: false)
+    end
+    out = Outlet.new
+    Wt::Shell.stub(:capture, capture) { Wt::Acp.up(model, "tasks").call(out, Token.new) }
+    assert_equal [%w[mise run agent:up], "/ws/tasks"], seen
+    assert_equal [Wt::Msg::AgentUpFinished.new(slug: "tasks", status: 1, stderr: "starting...\nwt-agent@tasks failed: mise run logs agent\n")], out.drain
+  end
+
+  def test_a_failed_agent_up_ends_connecting_with_the_reason
+    m, = step(model(selected: "tasks"), "a")
+    m, = step(m, Wt::Msg::AgentUpFinished.new(slug: "tasks", status: 1, stderr: "starting...\nwt-agent@tasks failed: mise run logs agent\n"))
+    s = m.sessions["tasks"]
+    assert_equal :disconnected, s.connection
+    assert_equal "agent:up failed: wt-agent@tasks failed: mise run logs agent", s.error
+    assert_equal [:error, "agent:up: wt-agent@tasks failed: mise run logs agent"], [m.ui.toasts.last.level, m.ui.toasts.last.text]
+  end
+
+  def test_a_successful_agent_up_keeps_connecting_until_the_socket_answers
+    m, = step(model(selected: "tasks"), "a")
+    m, = step(m, Wt::Msg::AgentUpFinished.new(slug: "tasks", status: 0, stderr: ""))
+    assert_equal :connecting, m.sessions["tasks"].connection
+    _, cmd = step(m, Wt::Msg::AcpConnection.new(slug: "tasks", state: :connected))
+    assert_equal ["session/new"], sends(cmd).map { it["method"] }
+  end
+
+  def test_agent_up_failing_after_the_agent_connected_changes_nothing
+    m, = step(connected, Wt::Msg::AgentUpFinished.new(slug: "tasks", status: -1, stderr: "timed out"))
+    assert_equal :connected, m.sessions["tasks"].connection
+    assert_nil m.sessions["tasks"].error
   end
 
   def test_chat_connected_without_a_session_creates_one_in_the_host_path
@@ -433,6 +490,95 @@ class AcpNotifyTest < Minitest::Test
     out = Outlet.new
     Wt::Acp::Notify.new(argv: ["wt-no-such-notify-send", "x"], timeout: 1).call(out, Token.new)
     assert_empty out.drain
+  end
+end
+
+# One Connection on a socket pair, the bridge side driven by hand.
+class AcpConnectionTest < Minitest::Test
+  include AcpTestHelpers
+
+  def setup
+    @root = Dir.mktmpdir("wt-acp")
+    %w[tasks .run/tasks].each { FileUtils.mkdir_p(File.join(@root, it)) }
+    FileUtils.cp(fixture_path("acp", "session.jsonl"), File.join(@root, ".run/tasks/session.jsonl"))
+    @a, @b = UNIXSocket.pair
+    @out = Outlet.new
+    @conn = Wt::Acp::Connection.new(slug: "tasks", socket: @a, config: config(root: @root), out: @out)
+  end
+
+  def teardown
+    Wt::Acp::Registry.clear
+    [@a, @b].each { it.close unless it.closed? }
+    FileUtils.rm_rf(@root)
+  end
+
+  # Hand the connection a hello (fixture, with `params` overridden); → wt's initialize request.
+  def hello(**params)
+    h = JSON.parse(fixture("acp", "hello.json"))
+    h["params"].merge!(params.transform_keys(&:to_s))
+    @conn.handle(JSON.generate(h))
+    JSON.parse(line_from(@b))
+  end
+
+  def reply(id, **body) = @conn.handle(JSON.generate({ "jsonrpc" => "2.0", "id" => id, **body.transform_keys(&:to_s) }))
+
+  def prompt(m, text)
+    m, cmd = Wt::Actions.send_input(m.with(ui: m.ui.with(input: text)))
+    cmd.call(@out, Token.new)
+    [m, JSON.parse(line_from(@b))["id"]]
+  end
+
+  def test_session_update_without_an_object_update_is_skipped
+    [{ "update" => nil }, { "update" => "plan" }, { "update" => [1] }, {}].each do |params|
+      @conn.handle(JSON.generate({ "jsonrpc" => "2.0", "method" => "session/update", "params" => { "sessionId" => SID, **params } }))
+    end
+    assert_empty @out.drain
+    m = connected
+    assert_equal m, step(m, Wt::Msg::AcpUpdate.new(slug: "tasks", update: nil)).first
+  end
+
+  def test_overlapping_prompts_keep_running_until_both_answer
+    Wt::Acp::Registry.register("tasks", @conn)
+    m, first = prompt(connected, "one")
+    m, second = prompt(m, "do this instead")
+    reply(first, result: { "stopReason" => "cancelled" })
+    m, = step(m, *@out.drain)
+    assert m.sessions["tasks"].running, "the second prompt is still running"
+    reply(second, result: { "stopReason" => "end_turn" })
+    m, = step(m, *@out.drain)
+    refute m.sessions["tasks"].running
+    assert_equal "end_turn", m.sessions["tasks"].stop_reason
+  end
+
+  # wt quit mid-turn and came back: the bridge forwards the old connection's answer.
+  def test_a_turn_started_by_an_earlier_connection_ends_when_its_answer_arrives
+    hello
+    m, = step(connected, *@out.drain)
+    assert m.sessions["tasks"].running, "replayed: the logged prompt has no answer yet"
+    reply("wt-5a6b7c8d-4", result: { "stopReason" => "end_turn" })
+    m, = step(m, *@out.drain)
+    refute m.sessions["tasks"].running
+    assert_equal "end_turn", m.sessions["tasks"].stop_reason
+  end
+
+  def test_a_bridge_without_a_session_has_no_turn_running
+    hello("sessionId" => nil, "pending" => 0)
+    refute @out.drain.grep(Wt::Msg::AcpReplayed).last.session.running
+  end
+
+  def test_a_refused_session_load_keeps_the_replayed_transcript
+    init = hello("sessionId" => nil, "initialized" => false, "initializeResult" => nil, "pending" => 0)
+    reply(init["id"], result: JSON.parse(fixture("acp", "initialize_result.json")))
+    load = JSON.parse(line_from(@b))
+    assert_equal "session/load", load["method"]
+    @conn.handle(JSON.generate({ "jsonrpc" => "2.0", "method" => "session/update",
+                                 "params" => { "sessionId" => SID, "update" => { "sessionUpdate" => "user_message_chunk", "content" => { "type" => "text", "text" => "half a replay" } } } }))
+    reply(load["id"], error: { "code" => -32_002, "message" => "Session not found" })
+    m, = step(model(selected: "tasks"), *@out.drain)
+    s = m.sessions["tasks"]
+    logged = Wt::Acp::Replay.call("tasks", log_lines).session
+    assert_equal logged.transcript.map { [it.role, it.text] }, s.transcript.map { [it.role, it.text] }
+    assert_equal [:connected, nil, "Session not found"], [s.connection, s.session_id, s.error]
   end
 end
 
@@ -573,5 +719,22 @@ class AcpWatchTest < Minitest::Test
     assert_equal SID, seen.last.session_id
     replayed = seen.grep(Wt::Msg::AcpReplayed).last
     assert_nil replayed.session.permission, "the bridge holds nothing, so the logged permission is stale"
+  end
+
+  # A bridge that removes its socket file as it goes (old acp-bridge did, on adapter
+  # death) must still read as ended. Removing it before the close makes the race certain.
+  def test_a_socket_closed_after_hello_is_ended_even_if_its_file_is_gone
+    bridge("tasks") do |server|
+      c = server.accept
+      c.write(fixture("acp", "hello.json"))
+      init = JSON.parse(c.gets)
+      c.write("#{JSON.generate({ jsonrpc: '2.0', id: init['id'], result: {} })}\n")
+      server.close
+      File.unlink(@config.acp_socket("tasks"))
+      c.close
+    end
+    start_watch
+    states = @out.wait_for { it.is_a?(Wt::Msg::AcpConnection) && it.state != :connected }.grep(Wt::Msg::AcpConnection).map(&:state)
+    assert_equal %i[connected ended], states
   end
 end

@@ -73,12 +73,13 @@ module Wt
     def permission_for(slug) = slug && sessions[slug]&.permission
 
     # One display state per worktree's agent, ACP session first, status file second:
-    #   :permission ◆ | :failed ✗ | :running ● | :done · | :offline ○ | nil (no agent at all)
+    #   :permission ◆ | :failed ✗ | :running ● | :starting ◐ | :done · | :offline ○ | nil (no agent at all)
     def agent_state(slug)
       if (s = sessions[slug]) && s.connection != :disconnected
         return :permission if s.permission
         return :failed if s.error || s.tool_calls.last&.status == :failed
         return :running if s.running
+        return :starting if s.connection == :connecting
         return s.connection == :ended ? :offline : :done
       end
       case agents[slug]&.state
@@ -90,10 +91,10 @@ module Wt
       end
     end
 
-    URGENCY = %i[permission failed running done offline].freeze
+    URGENCY = %i[permission failed running starting done offline].freeze
 
-    # Slugs that have an agent, permission → failed → running → done → offline,
-    # then worktree list order. ^1–^9 and the Agents screen follow this order.
+    # Slugs that have an agent, permission → failed → running → starting → done →
+    # offline, then worktree list order. ^1–^9 and the Agents screen follow this order.
     def agents_by_urgency
       worktrees.each_with_index
                .filter_map { |wt, i| (st = agent_state(wt.slug)) && [URGENCY.index(st), i, wt.slug] }

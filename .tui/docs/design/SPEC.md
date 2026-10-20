@@ -126,7 +126,7 @@ No container changes are needed: `nvim@` already runs `nvim --headless --listen 
 | --- | --- | --- |
 | `n` | Attach here | suspend wt, run `mise run nvim` in the worktree, redraw on exit; closing the UI leaves the server running |
 | `N` | Attach in a new window | `kitten @ launch --type=os-window --cwd <wt> mise run nvim` (kitty remote control is already used by `nvim@`); fall back to `$TERMINAL -e`, then to `n` |
-| `o` / `^o` | Open the selected tool call's file at its line | `nvim --server 127.0.0.1:${NVIM_PORT} --remote-send '<C-\><C-n>:drop /app/<path><CR>:<line><CR>'`; if no UI is attached, also do `N` |
+| `o` / `^o` | Open the selected tool call's file at its line | `nvim --server 127.0.0.1:${NVIM_PORT} --remote-expr "execute(['drop ' . fnameescape('/app/<path>'), 'call cursor(<line>, 1)'])"` (path as a Vim string literal, never keystrokes; paths with control characters are refused); if no UI is attached, also do `N`, else `n` then send |
 | `d` | Show the edit's diff | `:drop` the file, then `:Gitsigns diffthis` or plain `:diffsplit` against `git show HEAD:<path>` |
 
 **Path mapping:** the agent sees the worktree at its host path (`$ROOT/<wt>`), but nvim mounts it at `/app`. wt rewrites the `$ROOT/<wt>/` prefix of every ACP tool-call location to `/app/` before sending it to nvim. Paths outside the worktree are not opened.

@@ -22,6 +22,12 @@ After=@@P@@-net-network@%i.service
 # neither failing should take the agent down.
 Wants=@@P@@-rails@%i.service @@P@@-playwright@%i.service
 After=@@P@@-rails@%i.service @@P@@-playwright@%i.service
+# Restart=on-failure (below) brings a dead adapter back; a bridge that cannot
+# start at all (npm, a broken AGENT_CMD) would otherwise rerun its npm install
+# every RestartSec for good. 5 starts in 5 minutes, then the unit is failed;
+# `mise run agent:up` resets it. Start limits only take effect in [Unit].
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Container]
 Image=${CLAUDE_IMAGE}

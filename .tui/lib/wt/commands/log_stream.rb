@@ -30,12 +30,14 @@ module Wt
             end
             yield nil
           end
-          if token.canceled?
-            Shell.kill_group(thr.pid)
-            next :canceled
-          end
+          next :canceled if token.canceled?
+
           yield line(buf) unless buf.empty?
           thr.value.exitstatus
+        ensure
+          # Canceled, the thread killed (wt quitting) or yield raised: popen2e's own
+          # ensure would join a child that never ends, so kill its group first.
+          Shell.kill_group(thr.pid) if thr&.alive? || token.canceled?
         end
       rescue Errno::ENOENT, Errno::EACCES
         :missing

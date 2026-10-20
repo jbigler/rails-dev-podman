@@ -23,4 +23,4 @@ rescue Wt::Error => e
   abort "wt: #{e.message}"
 end
 
-Rooibos.run(Wt::App)
+Wt::App.run

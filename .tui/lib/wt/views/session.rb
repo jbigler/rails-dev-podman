@@ -47,6 +47,7 @@ module Wt
           when :permission then "needs input"
           when :failed then "failed"
           when :running then "running"
+          when :starting then "starting"
           when :offline then "ended"
           else "idle"
           end
@@ -69,7 +70,7 @@ module Wt
         return "" unless total&.positive?
 
         n = [total, cells].min
-        filled = (done.to_f / total * n).round
+        filled = (done.to_f / total * n).round.clamp(0, n)
         ("▰" * filled) + ("▱" * (n - filled))
       end
 

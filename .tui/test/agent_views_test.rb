@@ -249,4 +249,17 @@ class AgentViewsTest < Minitest::Test
     assert_includes out, "session ended"
     assert_match(/A +for a new one/, out)
   end
+
+  def test_plan_bar_clamps_out_of_range_progress
+    assert_equal "▰▰▰▰", Wt::Views::Session.bar(7, 4)
+    assert_equal "▱▱▱▱", Wt::Views::Session.bar(-2, 4)
+    assert_equal "", Wt::Views::Session.bar(3, 0)
+  end
+
+  def test_chat_wraps_cjk_by_display_width
+    rows = Wt::Views::Chat.wrap("日本語の文章" * 5, 10)
+    assert(rows.all? { RatatuiRuby::Text.width(it) <= 10 }, rows.inspect)
+    assert_equal "日本語の文章" * 5, rows.join
+    assert_equal ["hello", "world foo"], Wt::Views::Chat.wrap("hello world foo", 10)
+  end
 end

@@ -45,7 +45,7 @@ module Wt
       B.new(keys: %w[esc], action: :back, label: "back", group: "Navigate"),
       B.new(keys: %w[/], action: :start_filter, label: "filter", group: "Navigate", screens: W),
       B.new(keys: %w[v], action: :toggle_agents_view, label: "cards / list", group: "Navigate", screens: %i[agents], hint: true),
-      B.new(keys: %w[ctrl+1 ctrl+2 ctrl+3 ctrl+4 ctrl+5 ctrl+6 ctrl+7 ctrl+8 ctrl+9], action: :jump_agent, label: "agent by urgency", group: "Navigate", screens: %i[agents]),
+      B.new(keys: %w[ctrl+1 ctrl+2 ctrl+3 ctrl+4 ctrl+5 ctrl+6 ctrl+7 ctrl+8 ctrl+9], action: :jump_agent, label: "agent by urgency", group: "Navigate", screens: %i[agents chat]),
       B.new(keys: ["{", "}"], action: :move_tool_call, label: "prev / next tool call", group: "Navigate", screens: WC),
       # agent
       B.new(keys: %w[a], action: :chat, label: "chat", group: "Agent", hint: true, screens: WA),

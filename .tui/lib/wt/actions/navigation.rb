@@ -70,9 +70,15 @@ module Wt
       model.with(ui: model.ui.with(agents_view: model.ui.agents_view == :cards ? :list : :cards))
     end
 
+    # ^1–^9 follow urgency order: select that card on Agents, switch session on Chat.
     def self.jump_agent(model, key:)
-      i = key.delete_prefix("ctrl+").to_i - 1
-      i < model.agents_by_urgency.size ? model.with(ui: model.ui.with(agents_index: i)) : model
+      slug = model.agents_by_urgency[key.delete_prefix("ctrl+").to_i - 1]
+      return model unless slug
+
+      ui = model.ui
+      if ui.screen == :chat then model.with(ui: ui.with(chat_slug: slug, tool_index: nil))
+      else model.with(ui: ui.with(agents_index: model.agents_by_urgency.index(slug)))
+      end
     end
 
     def self.focus_input(model) = model.focus_slug ? model.with(ui: model.ui.with(input_focus: true)) : model

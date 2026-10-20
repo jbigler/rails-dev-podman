@@ -139,7 +139,8 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   network (alias agent), keep-id, CPU cap and firewall (profile agent, always enforce, CLAUDE_FIREWALL_ALLOW)
   as podman-claude.sh; ExecStartPre refuses to start without the hook descriptor and creates .run/<slug>
   (0700), mounted at /run/agent. Wants= rails + playwright. Not pulled in by `up`: `mise run agent:up`
-  (podman-wt.sh agent-up — preflights, starts, waits ≤120 s for the socket) or wt's `a`; `agent:stop`, wt's
+  (podman-wt.sh agent-up — preflights, reset-failed, starts, waits ≤120 s for a socket newer than the unit's
+  start, gives up at once on auto-restart; the unit has StartLimitBurst=5 per 300 s) or wt's `a`; `agent:stop`, wt's
   `K`, and `stop` stop it. Main process: .container-config/acp-bridge (Ruby, stdlib; MOUNTED like every
   entrypoint, not baked — the spec said baked, the repo convention wins), started by entrypoint-claude.sh
   after the usual claude setup. It npm-installs AGENT_PACKAGES (default @agentclientprotocol/claude-agent-acp)
@@ -332,7 +333,10 @@ worktree; that worktree starts selected. `--theme dark` / WT_THEME, `--accent` /
   timed-out source dims its cell to `?`, never crashes. Model, messages and commands must be Ractor-shareable
   (deep-frozen Data); the test suite runs in RatatuiRuby debug mode, which enforces it.
 - Interactive programs (n nvim attach, L logs below full width) go through Wt::Terminal.handover: restore the
-  terminal, run, re-init. A crash restores the terminal too (RatatuiRuby.run's ensure).
+  terminal, run, re-init; ^C there reaches only the child (wt holds a no-op INT handler meanwhile).
+- Exit: Wt::App.run. q, TERM and HUP unwind to Rooibos' quit point (commands cancelled, terminal restored);
+  a crash restores the terminal via RatatuiRuby.run's ensure; then exit! — a normal exit waited on the
+  command threads' Open3 children and left the process running. fps 8 is the idle redraw rate only.
 - Tests: `mise run tui:test` (= `cd .tui && bundle exec rake test`). Minitest; sources are tested on fixtures
   in test/fixtures/ captured from real command output, so no podman, systemd, gh auth or nvim is needed.
   Gems are vendored into .tui/vendor/bundle (git-ignored); the tui tasks run `bundle install` when needed.

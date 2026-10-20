@@ -21,6 +21,8 @@ module Wt
       end
 
       def apply(model)
+        return model unless update.is_a?(Hash)
+
         before = session_of(model)
         model = fold(model)
         id = update["toolCallId"]
@@ -50,11 +52,12 @@ module Wt
     # The response to one of wt's own requests. name: the request's method, or nil
     # when the payload was not a request (e.g. a permission answer that could not be sent).
     # error: the JSON-RPC error object ({"code", "message"}) or nil.
-    class AcpResponse < Data.define(:slug, :name, :result, :error, :at)
+    # in_flight: for session/prompt, how many other prompts are still unanswered.
+    class AcpResponse < Data.define(:slug, :name, :result, :error, :in_flight, :at)
       include Message
       include AcpSession
 
-      def initialize(slug:, name:, result: nil, error: nil, at: nil)
+      def initialize(slug:, name:, result: nil, error: nil, in_flight: 0, at: nil)
         super
       end
 
@@ -107,7 +110,8 @@ module Wt
     # The socket's state changed.
     #   state: :connected (handshake done; session_id is the session to talk to, or nil)
     #          :busy (another client holds the socket; holder describes it)
-    #          :ended (socket closed: adapter exited) | :disconnected (socket file gone)
+    #          :ended (the bridge closed the socket after hello: its agent went away, or it was stopped)
+    #          :disconnected (socket file gone, or it closed before hello and its file went with it)
     class AcpConnection < Data.define(:slug, :state, :agent, :session_id, :holder, :error)
       include Message
 
@@ -137,6 +141,24 @@ module Wt
           end
           model.put(:sessions, slug, Ractor.make_shareable(s))
         end
+      end
+    end
+
+    # `mise run agent:up` finished (Acp::Up), reported like any mise task. A failure
+    # also ends the "connecting…" that a / A started, with the reason; on success the
+    # session stays :connecting until Watch connects, which then opens the session.
+    class AgentUpFinished < Data.define(:slug, :status, :stderr)
+      include Message
+
+      def apply(model)
+        finished = CommandFinished.new(label: "agent:up", slug:, status:, stderr:, refresh: false)
+        model, cmd = finished.apply(model)
+        s = model.sessions[slug]
+        if status != 0 && s&.connection == :connecting
+          s = s.with(connection: :disconnected, error: "agent:up failed: #{finished.stderr_line}")
+          model = model.put(:sessions, slug, Ractor.make_shareable(s))
+        end
+        [model, cmd]
       end
     end
   end

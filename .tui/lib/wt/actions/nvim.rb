@@ -34,14 +34,14 @@ module Wt
     def self.open_tool_call(model)
       nvim_tool_call_target(model, "open") do |wt, path, line|
         label = "open #{Nvim.display_path(path)}#{":#{line}" if line}"
-        nvim_drive(model, wt, label, :send, Nvim.open_keys(path, line))
+        nvim_drive(model, wt, label, Nvim.open_expr(path, line))
       end
     end
 
     # d (chat) — the selected edit's file, diffed against HEAD.
     def self.show_diff(model)
       nvim_tool_call_target(model, "diff", prefer_kind: "edit") do |wt, path, line|
-        nvim_drive(model, wt, "diff #{Nvim.display_path(path)}", :expr, Nvim.diff_expr(path, line))
+        nvim_drive(model, wt, "diff #{Nvim.display_path(path)}", Nvim.diff_expr(path, line))
       end
     end
 
@@ -79,25 +79,22 @@ module Wt
       path.is_a?(String) && !path.empty? ? [path, line.is_a?(Integer) ? line : nil] : nil
     end
 
-    # Delivers keys / an expression to the worktree's nvim. With no UI attached
-    # the file would open unseen, so a window opens too (Drive waits for its
-    # server); with no way to open a window, it is sent now and wt attaches here.
-    def self.nvim_drive(model, wt, label, mode, payload)
+    # Delivers an expression to the worktree's nvim. With no UI attached the
+    # file would open unseen, so a window opens too (Drive waits for its
+    # server); with no way to open a window, wt attaches here first and the
+    # expression is sent by a command afterwards — never blocking update — so
+    # the file is waiting the next time nvim is attached.
+    def self.nvim_drive(model, wt, label, expression)
       attached = model.nvim[wt.slug]&.ui_count.to_i.positive?
       launchers = attached ? [] : Nvim.window_launchers(wt.path)
-      if attached || !launchers.empty?
-        return [model, Nvim::Drive.new(label: label.freeze, slug: wt.slug, port: wt.nvim_port, mode:, payload: payload.freeze,
-                                       cwd: wt.path.dup.freeze, launchers: Ractor.make_shareable(launchers),
-                                       timeout: model.config.timeout)]
-      end
+      drive = Nvim::Drive.new(label: label.freeze, slug: wt.slug, port: wt.nvim_port, payload: expression.freeze,
+                              cwd: wt.path.dup.freeze, launchers: Ractor.make_shareable(launchers),
+                              timeout: model.config.timeout)
+      return [model, drive] if attached || !launchers.empty?
 
-      sent = Nvim.deliver(wt.nvim_port, mode, payload, timeout: model.config.timeout)
-      result = nvim_here(model)
-      return result if sent.ok?
-
-      model, cmd = Rooibos.normalize_init(result)
-      model, toast = model.notify("#{label}: nvim was not running, try again now it is (#{sent.error_line})", level: :error)
-      [model, Rooibos::Command.batch(*[cmd, toast].compact)]
+      model, cmd = Rooibos.normalize_init(nvim_here(model))
+      model, toast = model.notify("#{label}: sent to nvim; press n to see it")
+      [model, Rooibos::Command.batch(*[cmd, drive, toast].compact)]
     end
 
     def self.nvim_status_spec(model, wt)

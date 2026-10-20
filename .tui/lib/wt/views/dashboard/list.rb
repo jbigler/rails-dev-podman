@@ -19,7 +19,7 @@ module Wt
         NARROW_HEAD = 26
         MAX_HEAD = 30
         LAST_MIN = 16
-        AGENT_COLORS = { permission: :ac, failed: :red, running: :blu, done: :tx2, offline: :tx2 }.freeze
+        AGENT_COLORS = { permission: :ac, failed: :red, running: :blu, starting: :yel, done: :tx2, offline: :tx2 }.freeze
         SEVERITY = %i[failed exited starting running healthy stopped].freeze
 
         module_function
@@ -44,8 +44,7 @@ module Wt
         # [[key, width, label]] for an inner width.
         def columns(tier, width)
           if %i[twothirds full].include?(tier)
-            fixed = WIDE.sum { it[1] + 1 }
-            [*WIDE, [:last, [width - fixed, 0].max, "LAST"]]
+            wide_columns(width)
           else
             fixed = NARROW.sum { it[1] + 1 } # each column plus the gap before HEAD
             room = width - fixed
@@ -55,6 +54,19 @@ module Wt
               [*NARROW[0, 2], [:head, room.clamp(1, MAX_HEAD), "HEAD"], *NARROW[2..]]
             end
           end
+        end
+
+        # WIDE by actual width: NVIM and LAST are dropped first; past that HEAD shrinks.
+        def wide_columns(width)
+          no_nvim = WIDE.reject { it[0] == :nvim }
+          [[WIDE, true], [no_nvim, true], [WIDE, false], [no_nvim, false]].each do |cols, last|
+            used = cols.sum { it[1] + 1 } - 1
+            next unless width >= used + (last ? LAST_MIN + 1 : 0)
+
+            return last ? [*cols, [:last, width - used - 1, "LAST"]] : cols
+          end
+          room = width - (no_nvim.sum { it[1] + 1 } - 1 - MAX_HEAD)
+          no_nvim.map { it[0] == :head ? [:head, room.clamp(1, MAX_HEAD), "HEAD"] : it }
         end
 
         def filter_line(model, tui, theme, width)

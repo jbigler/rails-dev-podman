@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "tmpdir"
 require "minitest/mock"
 
 # Fixtures in fixtures/gh/ are live captures from this workspace's repo (gh 2.102,
@@ -145,8 +146,43 @@ class GhTest < Minitest::Test
     assert_kind_of Wt::Commands::ExpireToast, cmd
     assert_match(/no PR for feature\/tasks/, m.ui.toasts.last.text)
 
-    _, cmd = step(tasks_model.put(:prs, "tasks", Wt::PrStatus.new(number: 3)), "p")
-    assert_equal [%w[gh pr view --web], "/ws/tasks"], [cmd.argv, cmd.cwd]
+    m, cmd = step(tasks_model.put(:prs, "tasks", Wt::PrStatus.new(number: 3)), "p")
+    open, fetch = cmd.commands
+    assert_kind_of Wt::Commands::OpenPr, open
+    assert_equal ["tasks", "/ws/tasks"], [open.slug, open.cwd]
+    assert Ractor.shareable?(open)
+    assert_equal "pr:tasks", fetch.key, "p refreshes that PR (SPEC: PR + CI on p)"
+    assert_includes m.inflight, "pr:tasks"
+  end
+
+  # gh hands the URL to a browser that inherits its stdout/stderr and outlives it.
+  def run_open_pr(gh_body)
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "gh"), "#!/bin/sh\nPATH=/usr/bin:/bin\n#{gh_body}\n")
+      File.chmod(0o755, File.join(dir, "gh"))
+      old = ENV["PATH"]
+      ENV["PATH"] = dir
+      out = Out.new
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      Wt::Commands::OpenPr.new(slug: "tasks", cwd: dir, timeout: 5).call(out, nil)
+      [out.messages.first, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started]
+    ensure
+      ENV["PATH"] = old
+    end
+  end
+
+  def test_open_pr_does_not_wait_for_the_browser_holding_its_output
+    msg, took = run_open_pr("sleep 3 &\necho opening")
+    assert_operator took, :<, 1.5
+    assert_equal [0, "open PR", "tasks"], [msg.status, msg.label, msg.slug]
+    assert Ractor.shareable?(msg)
+  end
+
+  def test_open_pr_failure_is_reported_with_gh_stderr
+    msg, = run_open_pr("echo 'no pull requests found for branch' >&2\nexit 1")
+    assert_equal 1, msg.status
+    m, = step(model, msg)
+    assert_equal "open PR: no pull requests found for branch", m.ui.toasts.last.text
   end
 
   def test_stack_op_refuses_when_nvim_write_fails

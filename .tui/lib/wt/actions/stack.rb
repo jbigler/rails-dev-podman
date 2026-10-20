@@ -26,14 +26,16 @@ module Wt
       [model, Ractor.make_shareable(Commands::StackOp.new(config: model.config, worktree: wt, label:, argv:))]
     end
 
-    # Opens the branch's PR in the browser. A branch known to have none gets a
-    # toast instead of gh's error.
+    # Opens the branch's PR in the browser and refreshes its PR + CI (SPEC: "on
+    # `p`/push"). A branch known to have none gets a toast instead of gh's error.
     def self.open_pr(model)
       wt = model.worktree(model.focus_slug)
       return model unless wt
       return model.notify("#{wt.slug}: no PR for #{wt.branch || 'this checkout'}") if model.prs[wt.slug] == :none
 
-      [model, Commands.exec(model, "open PR", wt.slug, %w[gh pr view --web], cwd: wt.path)]
+      open = Commands::OpenPr.new(slug: -wt.slug, cwd: -wt.path, timeout: model.config.timeout)
+      model, refresh = Refresh.schedule(model, [Refresh.pr(model, wt)], requeue: true)
+      [model, Rooibos::Command.batch(open, *refresh&.commands)]
     end
   end
 end

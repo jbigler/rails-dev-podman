@@ -83,12 +83,58 @@ class UpdateCoreTest < Minitest::Test
     assert_equal m.inflight, m2.inflight
   end
 
+  def test_explicit_refresh_of_an_inflight_key_is_requeued_after_it_reports
+    m, = Wt::Refresh.on_tick(model, :gh)
+    assert_includes m.inflight, "stack:tasks"
+    m, = Wt::Refresh.all(m) # a restack finished while the 60 s fetch is still running
+    assert_includes m.inflight, "stack:tasks+"
+
+    m, cmd = Wt::Refresh.on_tick(m, :fast)
+    refute_includes Array(cmd&.commands).map(&:key), "stack:tasks", "not while the old fetch is in flight"
+
+    m, = step(m, Wt::Msg::Fetched.new(key: "stack:tasks", message: Wt::Msg::SourceFailed.new(key: "stack:tasks", error: "x")))
+    m, cmd = Wt::Refresh.on_tick(m, :fast)
+    assert_includes Array(cmd&.commands).map(&:key), "stack:tasks"
+    assert_includes m.inflight, "stack:tasks"
+    refute_includes m.inflight, "stack:tasks+"
+  end
+
+  def test_tick_refresh_of_an_inflight_key_is_not_requeued
+    m, = Wt::Refresh.on_tick(model, :gh)
+    m, = Wt::Refresh.on_tick(m, :gh)
+    refute(m.inflight.any? { it.end_with?("+") })
+  end
+
   def test_agents_sort_by_urgency
     wts = %w[a b c d].each_with_index.map { |s, i| worktree(s, id: i) }
     agents = { "a" => Wt::AgentStatus.new(state: :waiting), "b" => Wt::AgentStatus.new(state: :working),
                "c" => Wt::AgentStatus.new(state: :permission), "d" => Wt::AgentStatus.new(state: :failed) }
     m = model(worktrees: wts).with(agents:)
     assert_equal %w[c d b a], m.agents_by_urgency
+  end
+
+  def test_ctrl_digit_switches_chat_session_in_urgency_order
+    wts = %w[a b].each_with_index.map { |s, i| worktree(s, id: i) }
+    agents = { "a" => Wt::AgentStatus.new(state: :waiting), "b" => Wt::AgentStatus.new(state: :permission) }
+    m, = step(model(worktrees: wts).with(agents:), "f3", "ctrl+2")
+    assert_equal "a", m.ui.chat_slug, "^2 is the second most urgent agent"
+    assert m.ui.input_focus, "switching session keeps the reply focused"
+  end
+
+  def test_command_that_raised_becomes_an_error_toast
+    err = Rooibos::Message::Error.new(command: Wt::Commands::Ticker.new(kind: :fast, interval: 2.0), exception: RuntimeError.new("boom"))
+    m, = step(model, err)
+    assert_equal [:error, "Ticker failed: RuntimeError: boom"], [m.ui.toasts.last.level, m.ui.toasts.last.text]
+  end
+
+  def test_a_session_still_connecting_is_starting_and_renders_on_every_screen
+    m = model.with(sessions: { "tasks" => Wt::AgentSession.new(slug: "tasks", connection: :connecting) })
+    assert_equal :starting, m.agent_state("tasks")
+    assert_equal %w[tasks], m.agents_by_urgency
+    %i[worktrees agents chat].each do |screen|
+      screen_text = render(m.with(ui: m.ui.with(screen:, chat_slug: "tasks", selected: "tasks")), width: 187, height: 40)
+      assert_includes screen_text, "◐", "#{screen} shows the starting glyph"
+    end
   end
 end
 
@@ -100,10 +146,19 @@ class RootViewTest < Minitest::Test
     assert_includes screen, "quit"
   end
 
-  def test_help_lists_every_binding_label
-    m = model.with(ui: model.ui.with(help: true))
-    screen = render(m, width: 187, height: 70)
-    assert_includes screen, "remove worktree"
-    assert_includes screen, "restack"
+  def test_help_lists_every_binding_even_on_a_short_terminal
+    labels = Wt::Keymap::BINDINGS.map(&:label).uniq
+    [[187, 70], [120, 30], [90, 40]].each do |w, h|
+      screen = render(model(width: w, height: h, help: true), width: w, height: h)
+      missing = labels.reject { screen.include?(it) }
+      assert_empty missing, "#{w}×#{h} help is missing bindings"
+    end
+  end
+
+  def test_overlays_survive_tiny_terminals
+    confirm = Wt::Confirm.new(prompt: "Remove worktree tasks?", action: :quit)
+    [[20, 3], [33, 5], [1, 1]].each do |w, h|
+      render(model(width: w, height: h, help: true, confirm:), width: w, height: h)
+    end
   end
 end

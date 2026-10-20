@@ -287,6 +287,23 @@ class LogStreamTest < Minitest::Test
     end
   end
 
+  def test_follow_kills_its_child_when_the_thread_is_killed_or_yield_raises
+    with_fake_bin("follower" => "echo $$ > \"$(dirname \"$0\")/pid\"\necho hi\nexec sleep 30") do |dir|
+      pid_file = File.join(dir, "pid")
+      thread = Thread.new { Wt::Commands::Follow.run(["follower"], Token.new) { nil } }
+      sleep 0.3 until File.exist?(pid_file) && !File.read(pid_file).empty?
+      pid = File.read(pid_file).to_i
+      thread.kill
+      assert thread.join(1.5), "killed thread did not unwind"
+      assert_raises(Errno::ESRCH) { Process.kill(0, pid) }
+
+      File.delete(pid_file)
+      assert_raises(RuntimeError) { Wt::Commands::Follow.run(["follower"], Token.new) { raise "boom" if it } }
+      pid = File.read(pid_file).to_i
+      assert_raises(Errno::ESRCH) { Process.kill(0, pid) }
+    end
+  end
+
   def test_oneshot_units_follow_the_journal_like_cmd_logs
     assert_equal %w[journalctl --user -f -u filial-deps@tasks.service -o cat -n 200], stream("deps").argv
     assert_equal "podman", stream("rustfs").argv.first

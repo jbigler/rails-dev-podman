@@ -98,10 +98,11 @@ module Wt
       [model, Acp.send_to(slug, Acp.request("session/new", Acp.new_session_params(cwd)))]
     end
 
+    # :connecting until Watch connects; Msg::AgentUpFinished undoes it if agent:up fails.
     def self.start_agent(model, slug)
       s = model.sessions[slug] || AgentSession.new(slug:)
       model = model.put(:sessions, slug, Ractor.make_shareable(s.with(connection: :connecting, error: nil)))
-      [model, agent_task(model, "agent:up", slug, refresh: false)]
+      [model, Acp.up(model, slug)]
     end
 
     # Commands.mise leaves its default cwd unfrozen, which a batch rejects as not shareable.

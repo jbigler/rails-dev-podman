@@ -5,9 +5,11 @@ require "socket"
 module Wt
   module Acp
     # Long-running command (Refresh.start): every second, find `.run/<slug>/acp.sock`
-    # of existing worktrees and keep one Connection per socket. A closed socket is
-    # reported as :ended (file still there) or :disconnected (file gone), and is
-    # retried while the file exists; a busy socket is retried less often.
+    # of existing worktrees and keep one Connection per socket. A socket closed after
+    # hello is :ended (the bridge leaves its file behind when the adapter dies); one
+    # closed before hello is :ended if its file is still there, else :disconnected.
+    # A gone file reports :disconnected. Retried while the file exists; a busy socket
+    # is retried less often.
     class Watch < Data.define(:config)
       include Rooibos::Command::Custom
 
@@ -76,7 +78,7 @@ module Wt
           slot[:retry_at] = Process.clock_gettime(Process::CLOCK_MONOTONIC) + RETRY[:busy]
           return
         end
-        state = File.exist?(path) ? :ended : :disconnected
+        state = outcome == :ended || File.exist?(path) ? :ended : :disconnected
         slot[:state] = state
         slot[:retry_at] = Process.clock_gettime(Process::CLOCK_MONOTONIC) + RETRY[:ended]
         out.put(Ractor.make_shareable(Msg::AcpConnection.new(slug:, state:)))
