@@ -38,7 +38,13 @@ module Wt
     end
 
     def self.restart_service_named(model, svc, slug)
-      return pod_unknown_service(model, svc, Service::NAMES) unless Service::NAMES.include?(svc)
+      # The agent restarts through agent:stop + agent:up, not `restart agent`: a bare
+      # systemctl restart skips agent-up's token refresh, socket wait and failure check.
+      if svc == "agent"
+        return [model, Commands::MiseChain.new(tasks: [Commands.mise(model, "agent:stop", slug, "agent:stop", refresh: false),
+                                                       Commands.mise(model, "agent:up", slug, "agent:up")])]
+      end
+      return pod_unknown_service(model, svc, [*Service::NAMES, "agent"]) unless Service::NAMES.include?(svc)
 
       [model, Commands.mise(model, "restart #{svc}", slug, "restart", svc)]
     end

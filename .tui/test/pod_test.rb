@@ -352,6 +352,15 @@ class PodActionsTest < Minitest::Test
     assert_includes m.ui.toasts.last.text, "unknown service x"
   end
 
+  def test_restart_agent_stops_then_starts_it_through_agent_up
+    m, = step(tasks_model, "r", *(["backspace"] * 5), *"agent".chars)
+    m, cmd = step(m, "enter")
+    assert_kind_of Wt::Commands::MiseChain, cmd
+    assert_equal [["agent:stop"], ["agent:up"]], cmd.tasks.map(&:args)
+    assert_equal %w[/ws/tasks /ws/tasks], cmd.tasks.map(&:cwd)
+    assert_equal "agent:stop → agent:up", m.busy["tasks"].label
+  end
+
   def test_logs_full_tier_starts_a_stream
     m, cmd = step(tasks_model(width: 240), "L", "enter")
     stream = Wt::Commands::LogStream.new(config:, slug: "tasks", svc: "rails")

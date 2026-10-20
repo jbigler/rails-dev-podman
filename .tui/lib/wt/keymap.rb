@@ -62,7 +62,7 @@ module Wt
       B.new(keys: %w[d], action: :show_diff, label: "diff", group: "nvim", screens: C, hint: true),
       # pod
       B.new(keys: %w[s], action: :toggle_pod, label: "pod up/down", group: "Pod", hint: true, screens: WA),
-      B.new(keys: %w[r], action: :restart_service, label: "restart service", group: "Pod", screens: WA),
+      B.new(keys: %w[r], action: :restart_service, label: "restart service (or agent)", group: "Pod", screens: WA),
       B.new(keys: %w[L], action: :logs, label: "logs", group: "Pod", hint: true, screens: WA),
       B.new(keys: %w[U], action: :install_units, label: "install units", group: "Pod"),
       # stack
