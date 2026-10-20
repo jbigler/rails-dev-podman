@@ -131,7 +131,10 @@ module Wt
           end
           rows << row unless row.empty?
           while W.cells(word) > avail
+            # A single grapheme cluster can itself be wider than the row (agent text is
+            # untrusted); take it whole rather than loop forever on an empty head.
             piece = W.head(word, avail)
+            piece = word.each_grapheme_cluster.first if piece.empty?
             rows << piece
             word = word.delete_prefix(piece)
           end

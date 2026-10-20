@@ -262,4 +262,11 @@ class AgentViewsTest < Minitest::Test
     assert_equal "日本語の文章" * 5, rows.join
     assert_equal ["hello", "world foo"], Wt::Views::Chat.wrap("hello world foo", 10)
   end
+
+  def test_chat_wrap_terminates_on_a_grapheme_wider_than_the_row
+    cluster = "क#{"्क" * 100}" # one Devanagari conjunct chain: a single grapheme cluster, ~200 cells
+    assert_equal 1, cluster.each_grapheme_cluster.count
+    rows = Timeout.timeout(2) { Wt::Views::Chat.wrap("hi #{cluster} there", 80) }
+    assert_equal ["hi", cluster, "there"], rows
+  end
 end

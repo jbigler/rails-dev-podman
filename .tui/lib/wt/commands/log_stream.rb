@@ -11,11 +11,18 @@ module Wt
     # :missing when the program cannot start.
     module Follow
       POLL = 0.1
+      # Process groups of every follower still running. App.run kills them before
+      # exit!, which skips the ensure below in threads Rooibos' shutdown did not reach.
+      LIVE = {} # rubocop:disable Style/MutableConstant -- guarded by LOCK, never in the model
+      LOCK = Mutex.new
+
+      def self.kill_all = LOCK.synchronize { LIVE.keys }.each { Shell.kill_group(it) }
 
       def self.run(argv, token, chdir: nil)
         opts = { pgroup: true }
         opts[:chdir] = chdir if chdir
         Open3.popen2e(*argv, **opts) do |stdin, out, thr|
+          LOCK.synchronize { LIVE[thr.pid] = true }
           stdin.close
           buf = +""
           until token.canceled?
@@ -38,6 +45,7 @@ module Wt
           # Canceled, the thread killed (wt quitting) or yield raised: popen2e's own
           # ensure would join a child that never ends, so kill its group first.
           Shell.kill_group(thr.pid) if thr&.alive? || token.canceled?
+          LOCK.synchronize { LIVE.delete(thr.pid) } if thr
         end
       rescue Errno::ENOENT, Errno::EACCES
         :missing

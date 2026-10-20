@@ -497,7 +497,7 @@ class AcpBridge
     @server&.close
     # Only a stop (signal, code 0) removes the socket. After the adapter died it stays,
     # so wt still sees the session as ended while systemd restarts the unit; the
-    # unit's ExecStartPre and `listen` remove it before the next bridge listens.
+    # next bridge's `listen` (and `agent-up`, for a stale file) removes it before it listens.
     File.unlink(@socket_path) if code.zero? && File.socket?(@socket_path)
     stop_adapter
     @log&.close
