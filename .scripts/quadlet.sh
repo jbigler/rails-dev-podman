@@ -43,9 +43,15 @@ bad()  { printf '  \033[31mfail\033[0m  %s\n' "$*"; FAILED=1; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 FAILED=0
 
+# Claude keys per-project state on the cwd with every non-alphanumeric turned
+# into '-'. agent@ mounts the shared memory dir under that key, and a worktree's
+# key is this plus "-<slug>" (slugs are already [a-z0-9-]).
+ROOTKEY="$(printf '%s' "$ROOT" | tr -c 'a-zA-Z0-9' '-')"
+
 render() {
   sed -e "s|@@P@@|$PROJECT_PREFIX|g" \
       -e "s|@@ROOT@@|$ROOT|g" \
+      -e "s|@@ROOTKEY@@|$ROOTKEY|g" \
       -e "s|@@TRAEFIK_IP@@|$PODMAN_TRAEFIK_IP|g" \
       -e "s|@@PROXY_SUBNET@@|$PODMAN_PROXY_SUBNET|g" \
       -e "s|@@PROXY_GATEWAY@@|$PODMAN_PROXY_GATEWAY|g" \

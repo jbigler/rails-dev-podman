@@ -1,0 +1,5 @@
+# branch.oid 10cdbbbc8cf093d7daeb8867b982a9c13c31e685
+# branch.head bugfix/server_side_idle_lock
+# branch.upstream origin/bugfix/server_side_idle_lock
+# branch.ab +0 -0
+1 .M N... 100644 100644 100644 8693948a9e23ff56939a4545a2f21e180dddd0d6 8693948a9e23ff56939a4545a2f21e180dddd0d6 db/schema.rb

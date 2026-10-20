@@ -86,7 +86,11 @@ module Wt
         end
       else
         ch = printable(event)
-        ch ? model.with(ui: ui.with(input: ui.input + ch)) : model
+        return model.with(ui: ui.with(input: ui.input + ch)) if ch
+
+        # Non-text keys (F1–F3, Tab, ^b, ^o, arrows…) keep working while typing.
+        binding = Keymap.lookup(key, ui.screen)
+        binding ? dispatch(model, binding.action, *binding.args, key:) : model
       end
     end
 

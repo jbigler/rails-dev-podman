@@ -1,0 +1,86 @@
+[
+ {
+  "id": "aaaaaaaaaaaa",
+  "name": "filial-traefik",
+  "cpu_time": "41.07s",
+  "cpu_percent": "0.05%",
+  "avg_cpu": "0.04%",
+  "mem_usage": "48.15MB / 33.4GB",
+  "mem_percent": "0.14%",
+  "net_io": "2.31MB / 4.05MB",
+  "block_io": "0B / 0B",
+  "pids": "14"
+ },
+ {
+  "id": "b1c2d3e4f5a6",
+  "name": "filial-tasks-rails",
+  "cpu_time": "3m48.2s",
+  "cpu_percent": "3.80%",
+  "avg_cpu": "2.11%",
+  "mem_usage": "598.2MB / 33.4GB",
+  "mem_percent": "1.79%",
+  "net_io": "12.4MB / 30.1MB",
+  "block_io": "0B / 0B",
+  "pids": "34"
+ },
+ {
+  "id": "c2d3e4f5a6b7",
+  "name": "filial-tasks-db",
+  "cpu_time": "22.9s",
+  "cpu_percent": "0.40%",
+  "avg_cpu": "0.31%",
+  "mem_usage": "152.1MB / 33.4GB",
+  "mem_percent": "0.46%",
+  "net_io": "3.2MB / 8.7MB",
+  "block_io": "0B / 0B",
+  "pids": "9"
+ },
+ {
+  "id": "d3e4f5a6b7c8",
+  "name": "filial-tasks-redis",
+  "cpu_time": "4.1s",
+  "cpu_percent": "0.10%",
+  "avg_cpu": "0.08%",
+  "mem_usage": "9.437MB / 33.4GB",
+  "mem_percent": "0.03%",
+  "net_io": "220.4kB / 180.2kB",
+  "block_io": "0B / 0B",
+  "pids": "6"
+ },
+ {
+  "id": "e4f5a6b7c8d9",
+  "name": "filial-tasks-nvim",
+  "cpu_time": "1m2.3s",
+  "cpu_percent": "0.00%",
+  "avg_cpu": "0.12%",
+  "mem_usage": "212.6MB / 33.4GB",
+  "mem_percent": "0.64%",
+  "net_io": "1.1kB / 0B",
+  "block_io": "0B / 0B",
+  "pids": "21"
+ },
+ {
+  "id": "f5a6b7c8d9e0",
+  "name": "filial-api-v2-rails",
+  "cpu_time": "2m10s",
+  "cpu_percent": "12.50%",
+  "avg_cpu": "4.02%",
+  "mem_usage": "1.2GB / 33.4GB",
+  "mem_percent": "3.59%",
+  "net_io": "8.1MB / 9.9MB",
+  "block_io": "0B / 0B",
+  "pids": "40"
+ },
+ {
+  "id": "a6b7c8d9e0f1",
+  "name": "filial-tasks-v2-db",
+  "cpu_time": "1.0s",
+  "cpu_percent": "0.20%",
+  "avg_cpu": "0.20%",
+  "mem_usage": "80MB / 33.4GB",
+  "mem_percent": "0.24%",
+  "net_io": "0B / 0B",
+  "block_io": "0B / 0B",
+  "pids": "7"
+ }
+]

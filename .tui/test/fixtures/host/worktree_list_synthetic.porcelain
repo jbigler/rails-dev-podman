@@ -1,0 +1,13 @@
+worktree /ws/master
+HEAD 4b4dfe322edd5d16c47e65dd19ddcc41af062cbc
+branch refs/heads/master
+
+worktree /ws/bisect
+HEAD 1234567890abcdef1234567890abcdef12345678
+detached
+
+worktree /ws/gone
+HEAD ffb58c7e8aed8bc566fefd23f95f9bf8c6dfe43a
+branch refs/heads/feature/gone
+prunable gitdir file points to non-existent location
+

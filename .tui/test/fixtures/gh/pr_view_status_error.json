@@ -1,0 +1,46 @@
+{
+  "isDraft": false,
+  "number": 10415,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T11:28:17Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38727433235/job/116396943893",
+      "name": "resolve_images",
+      "startedAt": "2026-10-15T11:28:01Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T11:27:56Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38727433358/job/116396662328",
+      "name": "rubocop",
+      "startedAt": "2026-10-15T11:27:16Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "StatusContext",
+      "context": "ci/circleci: build",
+      "state": "ERROR",
+      "targetUrl": "https://circleci.com/gh/example/2",
+      "startedAt": "2026-10-19T08:00:00Z"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38727433358/job/116396662351",
+      "name": "system_tests",
+      "startedAt": "2026-10-15T11:27:16Z",
+      "status": "IN_PROGRESS",
+      "workflowName": "linters"
+    }
+  ],
+  "title": "[Refactor] Generate Vitest HTML fixtures from real controller responses"
+}

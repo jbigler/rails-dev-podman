@@ -1,0 +1,60 @@
+worktree /home/jbigler/workspace/filial/master
+HEAD 4b4dfe322edd5d16c47e65dd19ddcc41af062cbc
+branch refs/heads/master
+
+worktree /home/jbigler/workspace/filial/bugfix-dosespot-patient-sync-invalid-dat
+HEAD ffb58c7e8aed8bc566fefd23f95f9bf8c6dfe43a
+branch refs/heads/bugfix/dosespot_patient_sync_invalid_data
+
+worktree /home/jbigler/workspace/filial/bugfix-form-submit-raises-on-failure
+HEAD b9f8e9caf0da3d27c9e6cb107ff43e76b16ebda6
+branch refs/heads/bugfix/form_submit_raises_on_failure
+
+worktree /home/jbigler/workspace/filial/bugfix-server-side-idle-lock
+HEAD 10cdbbbc8cf093d7daeb8867b982a9c13c31e685
+branch refs/heads/bugfix/server_side_idle_lock
+
+worktree /home/jbigler/workspace/filial/bugfix-validation-error-in-partner-regis
+HEAD ae4a56c374501564a8628cb2a168a943ff3d6968
+branch refs/heads/bugfix/validation_error_in_partner_registration
+
+worktree /home/jbigler/workspace/filial/claude-adoring-newton-3p64gp
+HEAD af9599364b6a74a877d5ff247d0a336662085a60
+branch refs/heads/claude/adoring-newton-3p64gp
+
+worktree /home/jbigler/workspace/filial/claude-issue-9780-stim-cell-component
+HEAD d1c43742eed1f342c7463e9eb52adca51e1d4e12
+branch refs/heads/improvement/stim_sheet_note_cell_components
+
+worktree /home/jbigler/workspace/filial/claude-js-fixtures-framework
+HEAD 63bdee1f171d6cb9c6325bfec180290405045ecd
+branch refs/heads/claude/js-fixtures-framework
+
+worktree /home/jbigler/workspace/filial/feature-skip-own-broadcast
+HEAD edc011e07b5e4242881c768436fd9347a13b2cd6
+branch refs/heads/feature/skip_own_broadcast
+
+worktree /home/jbigler/workspace/filial/general-work
+HEAD 3958c17761226f903bee2bf1f66939656ead4c62
+branch refs/heads/general_work
+
+worktree /home/jbigler/workspace/filial/improvement-apply-require-active-scope
+HEAD eaf824b3ddb34ea4214a93d794901a6f393825af
+branch refs/heads/improvement/apply_require_active_scope
+
+worktree /home/jbigler/workspace/filial/improvement-form-object-docs
+HEAD bbd51b939e2e616dac7cafe4672918109785bb1e
+branch refs/heads/bugfix/portal_questionnaire_authorize_before_build
+
+worktree /home/jbigler/workspace/filial/improvement-memoize-user-options
+HEAD 336cd8a1d920d16a24b8bb8e5948ac45710f87d4
+branch refs/heads/improvement/memoize_user_options
+
+worktree /home/jbigler/workspace/filial/improvement-questionnaire-desired-additi
+HEAD f093c478cdb136d0567d83cf8e6c957346f83640
+branch refs/heads/improvement/questionnaire_desired_additional_children
+
+worktree /home/jbigler/workspace/filial/improvement-validate-facility-appointmen
+HEAD def5cccee8258a525dc1a68b6f3a8a2c0d1d39bf
+branch refs/heads/improvement/validate_facility_appointment_types
+

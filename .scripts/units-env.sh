@@ -233,6 +233,15 @@ esac
   printf 'POSTGRES_PASSWORD=%s\n'     "$PGPASSWORD"
   printf 'HEADLESS_SYSTEM_TESTS=%s\n' "${HEADLESS_SYSTEM_TESTS:-0}"
   printf 'FIREWALL_MODE=%s\n'         "$firewall_mode"
+  # agent@ reads these: the allow list is the unit's firewall.extra annotation,
+  # as podman-claude.sh passes it, and is always written (empty = none) so the
+  # unit never expands an unset name. The AGENT_* keys are acp-bridge's and are
+  # written only when set, so the bridge's own defaults (claude-agent-acp) hold
+  # otherwise; an empty AGENT_PACKAGES deliberately disables the npm install.
+  printf 'CLAUDE_FIREWALL_ALLOW=%s\n' "${CLAUDE_FIREWALL_ALLOW:-}"
+  for v in AGENT_CMD AGENT_NAME AGENT_PACKAGES; do
+    if [[ -n "${!v+set}" ]]; then printf '%s=%s\n' "$v" "${!v}"; fi
+  done
 } > "$OUT"
 
 

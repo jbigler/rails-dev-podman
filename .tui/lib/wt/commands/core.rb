@@ -36,11 +36,13 @@ module Wt
 
     # `mise run <args...>` in a worktree (or the root). Reports Msg::CommandFinished.
     # Never interactive: anything that needs the terminal goes through Terminal.handover.
+    # stdin is empty, so a task that prompts (or an untrusted mise config) fails with
+    # its stderr in a toast instead of hanging; MISE_YES is deliberately not set.
     class MiseTask < Data.define(:label, :slug, :cwd, :args, :timeout, :refresh)
       include Rooibos::Command::Custom
 
       def call(out, _token)
-        r = Shell.capture(["mise", "run", *args], chdir: cwd, env: { "MISE_YES" => "1", "NO_COLOR" => "1" }, timeout:, stdin: "")
+        r = Shell.capture(["mise", "run", *args], chdir: cwd, env: { "NO_COLOR" => "1" }, timeout:, stdin: "")
         msg = Msg::CommandFinished.new(label:, slug:, status: r.timed_out ? -1 : r.status, stderr: r.timed_out ? "timed out" : r.stderr, refresh:)
         out.put(Ractor.make_shareable(msg))
       end
@@ -70,17 +72,19 @@ module Wt
       end
     end
 
+    # Fields are frozen copies (String#-@), so commands are Ractor-shareable even
+    # when callers pass interpolated or path-built strings.
     def self.fetch(model, key, source, *args)
-      Fetch.new(key: key.freeze, source:, args: Ractor.make_shareable(args), timeout: model.config.timeout * 2)
+      Fetch.new(key: -key, source:, args: Ractor.make_shareable(args), timeout: model.config.timeout * 2)
     end
 
     def self.mise(model, label, slug, *args, cwd: nil, refresh: true)
-      MiseTask.new(label: label.freeze, slug:, cwd: cwd || (slug ? model.config.worktree_path(slug) : model.config.root),
+      MiseTask.new(label: -label, slug: slug && -slug, cwd: -(cwd || (slug ? model.config.worktree_path(slug) : model.config.root)),
                    args: Ractor.make_shareable(args.map(&:to_s)), timeout: model.config.action_timeout, refresh:)
     end
 
     def self.exec(model, label, slug, argv, cwd: nil, refresh: false, timeout: nil)
-      Exec.new(label: label.freeze, slug:, cwd: cwd || model.config.root, argv: Ractor.make_shareable(argv.map(&:to_s)),
+      Exec.new(label: -label, slug: slug && -slug, cwd: -(cwd || model.config.root), argv: Ractor.make_shareable(argv.map(&:to_s)),
                timeout: timeout || model.config.timeout, refresh:)
     end
 

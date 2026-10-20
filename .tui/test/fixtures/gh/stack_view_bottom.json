@@ -1,0 +1,34 @@
+{
+  "trunk": "master",
+  "currentBranch": "claude/js-fixtures-framework",
+  "branches": [
+    {
+      "name": "claude/js-fixtures-framework",
+      "head": "984906cfb48872e6cf61ce803753496293f76e87",
+      "base": "4e3b9567259b49dc9221061311ac6387070b77ee",
+      "isCurrent": true,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": true,
+      "pr": {
+        "number": 10415,
+        "url": "https://github.com/Filial-Health/rails-core/pull/10415",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "claude/js-fixtures-inline-edit",
+      "head": "ef88f0168d2a475a94df33d93362b8c2650769c1",
+      "base": "984906cfb48872e6cf61ce803753496293f76e87",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": true,
+      "pr": {
+        "number": 10416,
+        "url": "https://github.com/Filial-Health/rails-core/pull/10416",
+        "state": "OPEN"
+      }
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+[Unit]
+Description=ACP agent (acp-bridge) for worktree %i
+# The headless counterpart of `mise run claude`: the same container
+# podman-claude.sh runs, with acp-bridge as its main process instead of an
+# interactive claude. The bridge keeps one ACP adapter (AGENT_CMD, default
+# claude-agent-acp) alive and serves it on .run/%i/acp.sock, so a session
+# outlives the client attached to it and needs no TTY -- the reason a
+# claude@ unit could not work does not apply to ACP's JSON-RPC over stdio.
+#
+# No [Install] and nothing Wants= it: `mise run up` does not start an agent.
+# It starts on first use from wt or `mise run agent:up`, and stops with
+# `mise run agent:stop` (or K in wt) and with `mise run stop`.
+#
+# Quadlet names a .network unit <name>-network.service, so net@.network
+# becomes @@P@@-net-network@%i.service -- not @@P@@-net@%i.service. A plain
+# Network= name creates no implicit dependency, so this must be explicit.
+Requires=@@P@@-net-network@%i.service
+After=@@P@@-net-network@%i.service
+# The test path is agent -> playwright -> rails, as for podman-claude.sh,
+# which starts both first: the agent drives the browser server and the browser
+# visits the rails dev server by its `rails` alias. Wants=, not Requires=:
+# neither failing should take the agent down.
+Wants=@@P@@-rails@%i.service @@P@@-playwright@%i.service
+After=@@P@@-rails@%i.service @@P@@-playwright@%i.service
+
+[Container]
+Image=${CLAUDE_IMAGE}
+ContainerName=@@P@@-%i-agent
+# Dev network only, like podman-claude.sh: the agent reaches rails, playwright
+# and rustfs by alias there and has no business on the proxy network.
+Network=@@P@@-%i-dev:alias=agent
+UserNS=keep-id:uid=1000,gid=1000
+User=1000:1000
+# PID 1 is catatonit rather than the bridge, so the processes an agent's tools
+# orphan are reaped over a container lifetime of days.
+RunInit=yes
+
+EnvironmentFile=@@ROOT@@/.container-config/.env
+EnvironmentFile=@@ROOT@@/.unit-env/%i.env
+Environment=NODE_OPTIONS=--max-old-space-size=4096
+Environment=SSH_AUTH_SOCK=/tmp/ssh-agent.sock
+Environment=RUSTFS_ENDPOINT=http://rustfs:9000
+Environment=CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
+# AGENT_CMD, AGENT_NAME and AGENT_PACKAGES reach the bridge from the
+# .unit-env file above, written from mise env (mise.local.toml) by units-env.sh;
+# unset, the bridge runs claude-agent-acp. Deliberately absent: the host's
+# CLAUDE_CODE_OAUTH_TOKEN and GH_TOKEN, which podman-claude.sh forwards from the
+# calling shell. A unit has no calling shell, and copying the tokens into
+# .unit-env would leave them in a file per worktree; the agent uses this home's
+# own Claude login, as nvim@'s claude-agent-acp does.
+
+Label=traefik.enable=false
+
+# The worktree is mounted at its host path, not /app, so the gitdir paths
+# master/.git/worktrees/<slug> records resolve in here -- see podman-claude.sh.
+WorkingDir=@@ROOT@@/%i
+Volume=@@ROOT@@/.home/%i:/home/appuser:z
+Volume=@@ROOT@@/%i:@@ROOT@@/%i:z
+Volume=@@ROOT@@/.container-config/CLAUDE.md:/opt/claude/CLAUDE.md:ro,z
+# One memory dir shared by every worktree container, at the per-project key
+# claude derives from the cwd (every non-alphanumeric turned into '-').
+# @@ROOTKEY@@ is the workspace root in that form; a slug is already [a-z0-9-].
+Volume=@@ROOT@@/.container-config/claude-memory:/home/appuser/.claude/projects/@@ROOTKEY@@-%i/memory:z
+Volume=@@ROOT@@/.container-config/entrypoint-claude.sh:/usr/local/bin/entrypoint-claude.sh:ro,z
+Volume=@@ROOT@@/.container-config/claude-status-hook.sh:/usr/local/bin/claude-status-hook.sh:ro,z
+# Mounted like the entrypoints rather than baked into the image, so an edit
+# applies on the next start without a rebuild.
+Volume=@@ROOT@@/.container-config/acp-bridge:/usr/local/bin/acp-bridge:ro,z
+Volume=@@ROOT@@/.container-config/status:/status:z
+# The bridge socket and session.jsonl. Host side is git-ignored and 0700;
+# ExecStartPre below creates it.
+Volume=@@ROOT@@/.run/%i:/run/agent:z
+Volume=${MAIN_WORKTREE_PATH}/.git:${MAIN_WORKTREE_PATH}/.git:z
+Volume=${SSH_PATH}:/home/appuser/.ssh:ro,z
+Volume=${SSH_AGENT_SOCK}:/tmp/ssh-agent.sock:ro,z
+Volume=${GITIGNORE_PATH}:/home/appuser/.config/git/ignore:ro,z
+Volume=${GITCONFIG_PATH}:/home/appuser/.gitconfig:ro,z
+Volume=${GEM_VOLUME}:/usr/local/bundle
+Volume=@@P@@-%i-node-modules:@@ROOT@@/%i/node_modules:U
+Volume=@@P@@_npm_cache:/home/appuser/.npm:U
+Volume=@@P@@_npm_global:/home/appuser/.npm-global:U
+# Separate payload volumes, not one at ~/.claude/plugins: the plugin records
+# between them stay in the per-worktree home (see podman-claude.sh).
+Volume=@@P@@_claude_plugins_cache:/home/appuser/.claude/plugins/cache:U
+Volume=@@P@@_claude_plugins_marketplaces:/home/appuser/.claude/plugins/marketplaces:U
+
+# Egress firewall, as podman-claude.sh applies it: profile agent (which has
+# registry.npmjs.org, so the bridge can install its adapter, and deliberately
+# no rubygems), plus CLAUDE_FIREWALL_ALLOW, always enforcing -- FIREWALL_MODE
+# does not apply to an agent. ${VAR} inside a word expands to exactly one
+# argument, so a space-separated allow list survives.
+GlobalArgs=--hooks-dir=@@ROOT@@/.firewall/hooks.d
+Annotation=@@P@@.firewall=agent
+Annotation=@@P@@.firewall.networks=@@P@@-%i-dev
+Annotation=@@P@@.firewall.mode=enforce
+Annotation=@@P@@.firewall.extra=${CLAUDE_FIREWALL_ALLOW}
+
+PodmanArgs=--cpus=${CPUS_50}
+LogDriver=k8s-file
+LogOpt=max-size=20m
+# entrypoint-claude.sh does the claude setup (trust, MCP servers, status hook
+# registration, CLAUDE.md, rtk, gh-stack) and then execs any argument that does
+# not start with '-'.
+Entrypoint=entrypoint-claude.sh
+Exec=/usr/local/bin/acp-bridge
+
+[Service]
+# Quadlet turns a [Container] EnvironmentFile= into `podman run --env-file`, which
+# puts the values *inside* the container and leaves the systemd service
+# environment empty -- so every ${VAR} above expanded to nothing. The keys are
+# expanded by systemd from the service environment, so the same file has to be
+# loaded here too. Both lines are needed and neither is redundant: this one
+# resolves the unit's own keys, the [Container] one gives the process its env.
+EnvironmentFile=@@ROOT@@/.unit-env/%i.env
+# Without the hook descriptor podman runs no hook and starts the agent with no
+# firewall at all, without a word. podman-claude.sh refuses to; so does this.
+ExecStartPre=/usr/bin/test -f @@ROOT@@/.firewall/hooks.d/@@P@@-firewall.json
+# podman refuses a missing bind source. 0700: the socket gives full control of
+# the agent (the bridge also makes it 0600).
+ExecStartPre=/usr/bin/mkdir -p @@ROOT@@/.run/%i
+ExecStartPre=/usr/bin/chmod 0700 @@ROOT@@/.run/%i
+# The bridge exits non-zero when the adapter dies; this brings both back.
+Restart=on-failure
+RestartSec=5

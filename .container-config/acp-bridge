@@ -1,0 +1,519 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# acp-bridge: the agent@ container's main process. It keeps one ACP agent
+# adapter alive for the container's lifetime and relays newline-delimited
+# JSON-RPC between the adapter's stdio and a unix socket, so a session outlives
+# whatever client (wt) is attached to it and needs no TTY.
+#
+# The wire protocol between this bridge and wt -- hello, busy, the cached
+# initialize, held requests, the session log and the status file -- is fixed in
+# .tui/docs/design/ACP-BRIDGE.md (with SPEC.md "Agent container and ACP
+# bridge"); change both sides together.
+#
+# Stdlib only: it runs on the image's own ruby, under GEM_VOLUME, with no
+# bundle of its own.
+#
+# Environment:
+#   AGENT_CMD       adapter command line (shell words, no shell). Default
+#                   claude-agent-acp.
+#   AGENT_NAME      name reported in hello and the status file. Default: the
+#                   basename of AGENT_CMD's first word.
+#   AGENT_PACKAGES  npm packages installed globally before the adapter starts,
+#                   on every start (as entrypoint-nvim.sh does). Unset with the
+#                   default AGENT_CMD means @agentclientprotocol/claude-agent-acp;
+#                   unset with another AGENT_CMD, or empty, installs nothing.
+#   WORKTREE_NAME   names the status file, /status/<WORKTREE_NAME>.json. Removed
+#                   from the adapter's environment, which keeps
+#                   claude-status-hook.sh (a no-op without it) from writing the
+#                   same file if the adapter runs Claude Code's hooks.
+#   ACP_BRIDGE_DIR  socket and session log directory. Default /run/agent.
+#   ACP_STATUS_DIR  status file directory. Default /status.
+
+require "fileutils"
+require "json"
+require "monitor"
+require "shellwords"
+require "socket"
+require "time"
+
+class AcpBridge
+  DEFAULT_CMD = "claude-agent-acp"
+  DEFAULT_PACKAGES = "@agentclientprotocol/claude-agent-acp"
+  # wt advertises neither capability; an adapter that asks anyway is told the
+  # method does not exist rather than being left waiting on a client that will
+  # never answer.
+  UNSUPPORTED = %r{\A(?:fs|terminal)/}
+  PERMISSION = "session/request_permission"
+  LAST_MAX = 120
+
+  # One attached client. Writes go through a queue and a writer thread so a slow
+  # reader can never block the bridge while it holds the state lock.
+  class Client
+    attr_reader :holder
+
+    def initialize(sock, holder)
+      @sock = sock
+      @holder = holder
+      @queue = Queue.new
+      @writer = Thread.new { drain }
+    end
+
+    def send_line(line)
+      @queue << line
+    end
+
+    def close
+      @queue << :close
+      @sock.close unless @sock.closed?
+    rescue IOError
+      nil
+    end
+
+    private
+
+    def drain
+      while (line = @queue.pop) != :close
+        @sock.write(line, "\n")
+      end
+    rescue IOError, SystemCallError
+      # The reader thread sees the same broken socket and detaches the client.
+      @sock.close unless @sock.closed?
+    end
+  end
+
+  def initialize(env = ENV)
+    @env = env
+    dir = setting("ACP_BRIDGE_DIR", "/run/agent")
+    @socket_path = File.join(dir, "acp.sock")
+    @log_path = File.join(dir, "session.jsonl")
+    @status_dir = setting("ACP_STATUS_DIR", "/status")
+    @worktree = env.fetch("WORKTREE_NAME", "")
+    @argv = Shellwords.split(setting("AGENT_CMD", DEFAULT_CMD))
+    raise ArgumentError, "AGENT_CMD is empty" if @argv.empty?
+
+    @agent = setting("AGENT_NAME", File.basename(@argv.first))
+    default_packages = @argv == [DEFAULT_CMD] ? DEFAULT_PACKAGES : ""
+    @packages = Shellwords.split(env.fetch("AGENT_PACKAGES", default_packages))
+
+    @lock = Monitor.new
+    @done = Queue.new
+    @client = nil
+    @init_result = nil
+    @init_inflight = false
+    @init_waiters = []
+    @session_id = nil
+    @requests = {}  # client->adapter request id => {method:, params:, client:}
+    @held = {}      # adapter->client request id => [method, raw line]
+    @plan = nil
+    @last = ""
+    @agent_text = +""
+    @failed = false
+    @offline = false
+    @written = nil
+  end
+
+  def run
+    FileUtils.mkdir_p(File.dirname(@log_path))
+    install_packages
+    @log = File.open(@log_path, "a")
+    @log.sync = true
+    spawn_adapter
+    @server = listen
+    %w[TERM INT].each { |sig| trap(sig) { Thread.new { @done << [0, "SIG#{sig}"] } } }
+    @lock.synchronize { update_status }
+    Thread.new { accept_loop }
+    code, why = @done.pop
+    shutdown(code, why)
+  rescue StandardError
+    # Failed before the adapter ran (npm, a missing AGENT_CMD): still say so.
+    @lock.synchronize do
+      @offline = true
+      update_status
+    end
+    raise
+  end
+
+  private
+
+  def setting(name, default)
+    value = @env.fetch(name, "")
+    value.empty? ? default : value
+  end
+
+  def warn_line(text)
+    $stderr.puts("acp-bridge: #{text}")
+  end
+
+  def now
+    Time.now.utc.iso8601(3)
+  end
+
+  # --- startup ---------------------------------------------------------------
+
+  def install_packages
+    return if @packages.empty?
+
+    warn_line("npm install -g #{@packages.join(' ')}")
+    ok = system("npm", "install", "-g", "--no-fund", "--no-audit", *@packages, out: :err)
+    return if ok
+
+    # A failed upgrade is not fatal while an installed copy is still there (the
+    # npm-global volume is shared with nvim@, which installs the same adapter).
+    raise "npm install failed and #{@argv.first} is not on PATH" unless executable?(@argv.first)
+
+    warn_line("npm install failed; using the installed #{@argv.first}")
+  end
+
+  def executable?(cmd)
+    return File.executable?(cmd) if cmd.include?("/")
+
+    @env.fetch("PATH", "").split(File::PATH_SEPARATOR).any? { |d| File.executable?(File.join(d, cmd)) }
+  end
+
+  def spawn_adapter
+    in_r, @adapter_in = IO.pipe
+    @adapter_out, out_w = IO.pipe
+    @adapter_pid = Process.spawn({ "WORKTREE_NAME" => nil }, *@argv, in: in_r, out: out_w, err: :err)
+    in_r.close
+    out_w.close
+    @adapter_queue = Queue.new
+    Thread.new { adapter_writer }
+    Thread.new { adapter_reader }
+  end
+
+  def listen
+    File.unlink(@socket_path) if File.exist?(@socket_path) || File.symlink?(@socket_path)
+    old = File.umask(0o177)
+    begin
+      server = UNIXServer.new(@socket_path)
+    ensure
+      File.umask(old)
+    end
+    File.chmod(0o600, @socket_path)
+    server
+  end
+
+  # --- adapter side ----------------------------------------------------------
+
+  def adapter_writer
+    while (line = @adapter_queue.pop)
+      @adapter_in.write(line, "\n")
+    end
+  rescue IOError, SystemCallError
+    nil # the reader notices the adapter is gone
+  end
+
+  def adapter_reader
+    while (line = @adapter_out.gets)
+      line = line.chomp.force_encoding(Encoding::UTF_8)
+      next if line.strip.empty?
+
+      @lock.synchronize { from_adapter(line) }
+    end
+    _, status = Process.wait2(@adapter_pid)
+    @done << [1, "adapter #{@argv.first} exited (#{status})"]
+  rescue StandardError => e
+    @done << [1, "adapter reader failed: #{e.class}: #{e.message}"]
+  end
+
+  def to_adapter(line)
+    @adapter_queue << line
+  end
+
+  def from_adapter(line)
+    msg = parse(line, "adapter") or return
+    log("out", line)
+    method = msg["method"]
+    id = msg["id"]
+    if method && msg.key?("id")
+      return refuse(id, method) if method.match?(UNSUPPORTED)
+
+      @held[id] = [method, line]
+      @client&.send_line(line)
+    elsif method
+      track_update(msg["params"]) if method == "session/update"
+      @client&.send_line(line)
+    else
+      response(id, msg, line)
+    end
+    update_status
+  end
+
+  def refuse(id, method)
+    reply = JSON.generate(jsonrpc: "2.0", id: id,
+                          error: { code: -32_601, message: "Method not found: #{method} (client has no #{method.split('/').first} capability)" })
+    log("in", reply)
+    to_adapter(reply)
+  end
+
+  def response(id, msg, line)
+    req = @requests.delete(id)
+    unless req
+      warn_line("dropping response to unknown request id #{id.inspect}")
+      return
+    end
+
+    result = msg["result"]
+    case req[:method]
+    when "initialize" then initialized(msg)
+    when "session/new"
+      if result.is_a?(Hash) && result["sessionId"]
+        @session_id = result["sessionId"]
+        mark_session(@session_id)
+      end
+    when "session/load"
+      @session_id = req[:params]["sessionId"] if !msg.key?("error") && req[:params].is_a?(Hash)
+    when "session/prompt"
+      flush_agent_text
+    end
+    @failed = true if msg["error"] && req[:method].start_with?("session/")
+
+    if req[:client] && req[:client].equal?(@client)
+      @client.send_line(line)
+    else
+      warn_line("client for #{req[:method]} #{id.inspect} has gone; response logged and dropped")
+    end
+  end
+
+  def initialized(msg)
+    @init_inflight = false
+    waiters = @init_waiters
+    @init_waiters = []
+    @init_result = msg["result"] if msg.key?("result")
+    waiters.each do |client, wid|
+      next unless client.equal?(@client)
+
+      reply = msg.key?("result") ? { result: @init_result } : { error: msg["error"] }
+      client.send_line(JSON.generate({ jsonrpc: "2.0", id: wid }.merge(reply)))
+    end
+  end
+
+  # Appended to the log so a replay can start at the latest session. For
+  # session/new it follows the result that carries the id. For session/load it
+  # precedes the request: the adapter replays the loaded conversation as
+  # session/update notifications before it answers, so a marker written with
+  # the answer would skip exactly the history a replay needs.
+  def mark_session(session_id)
+    @plan = nil
+    @last = ""
+    @agent_text = +""
+    @failed = false
+    @log.write(JSON.generate(ts: now, dir: "bridge", event: "session", sessionId: session_id), "\n")
+  end
+
+  def track_update(params)
+    update = params.is_a?(Hash) && params["update"]
+    return unless update.is_a?(Hash)
+
+    case update["sessionUpdate"]
+    when "plan"
+      entries = Array(update["entries"])
+      @plan = { done: entries.count { |e| e.is_a?(Hash) && e["status"] == "completed" }, total: entries.size }
+    when "agent_message_chunk"
+      text = update.dig("content", "text")
+      @agent_text << text if text.is_a?(String)
+    when "tool_call", "tool_call_update"
+      flush_agent_text
+      @last = one_line(update["title"]) if update["title"].is_a?(String) && !update["title"].strip.empty?
+      case update["status"]
+      when "failed" then @failed = true
+      when "completed" then @failed = false
+      end
+    end
+  end
+
+  def flush_agent_text
+    line = @agent_text.lines.map(&:strip).reject(&:empty?).last
+    @last = one_line(line) if line
+    @agent_text = +""
+  end
+
+  def one_line(text)
+    text = text.gsub(/\s+/, " ").strip
+    text.length > LAST_MAX ? "#{text[0, LAST_MAX - 1]}…" : text
+  end
+
+  # --- client side -----------------------------------------------------------
+
+  def accept_loop
+    loop do
+      begin
+        sock = @server.accept
+      rescue Errno::ECONNABORTED, Errno::EMFILE, Errno::ENFILE, Errno::EINTR => e
+        warn_line("accept: #{e.message}")
+        sleep 0.1
+        next
+      end
+      attach(sock)
+    end
+  rescue IOError, SystemCallError
+    nil # server closed during shutdown
+  end
+
+  def attach(sock)
+    client = @lock.synchronize do
+      if @client
+        busy = JSON.generate(jsonrpc: "2.0", method: "_bridge/busy", params: { holder: @client.holder })
+        begin
+          sock.write(busy, "\n")
+        rescue IOError, SystemCallError
+          nil
+        end
+        sock.close
+        next nil
+      end
+
+      @client = Client.new(sock, holder(sock))
+      @client.send_line(JSON.generate(jsonrpc: "2.0", method: "_bridge/hello", params: {
+                                        agent: @agent, initialized: !@init_result.nil?,
+                                        initializeResult: @init_result, sessionId: @session_id,
+                                        pending: @held.size
+                                      }))
+      @held.each_value { |_method, line| @client.send_line(line) }
+      @client
+    end
+    Thread.new { client_reader(client, sock) } if client
+  end
+
+  def holder(sock)
+    pid, uid = sock.getsockopt(Socket::SOL_SOCKET, Socket::SO_PEERCRED).data.unpack("iI")
+    who = [("pid #{pid}" if pid.to_i.positive?), "uid #{uid}"].compact.join(" ")
+    "#{who}, connected #{now}"
+  rescue StandardError
+    "connected #{now}"
+  end
+
+  def client_reader(client, sock)
+    while (line = sock.gets)
+      line = line.chomp.force_encoding(Encoding::UTF_8)
+      next if line.strip.empty?
+
+      @lock.synchronize { from_client(client, line) if client.equal?(@client) }
+    end
+  rescue IOError, SystemCallError
+    nil
+  ensure
+    @lock.synchronize do
+      if client.equal?(@client)
+        @client = nil
+        update_status
+      end
+    end
+    client.close
+  end
+
+  def from_client(client, line)
+    msg = parse(line, "client") or return
+    method = msg["method"]
+    request = msg.key?("id")
+    id = msg["id"]
+    return if method&.start_with?("_bridge/")
+
+    if method == "initialize" && request
+      if @init_result
+        client.send_line(JSON.generate(jsonrpc: "2.0", id: id, result: @init_result))
+        return
+      end
+      if @init_inflight
+        @init_waiters << [client, id]
+        return
+      end
+      @init_inflight = true
+    end
+
+    if method && request
+      @requests[id] = { method: method, params: msg["params"], client: client }
+      case method
+      when "session/prompt"
+        @failed = false
+        @agent_text = +""
+      when "session/load"
+        mark_session(msg["params"]["sessionId"]) if msg["params"].is_a?(Hash)
+      end
+    elsif request
+      @held.delete(id)
+    end
+    log("in", line)
+    to_adapter(line)
+    update_status
+  end
+
+  # --- shared ----------------------------------------------------------------
+
+  def parse(line, from)
+    msg = JSON.parse(line)
+    return msg if msg.is_a?(Hash)
+
+    warn_line("ignoring non-object JSON from #{from}: #{line[0, 200]}")
+    nil
+  rescue JSON::ParserError
+    warn_line("ignoring non-JSON line from #{from}: #{line[0, 200]}")
+    nil
+  end
+
+  # The message is embedded as received: it parsed as an object, so the record
+  # is valid JSON and keeps the adapter's exact bytes.
+  def log(dir, line)
+    @log.write(%({"ts":"#{now}","dir":"#{dir}","msg":#{line}}), "\n")
+  end
+
+  def state
+    return "offline" if @offline
+    return "permission" if @held.each_value.any? { |method, _| method == PERMISSION }
+    return "working" if @requests.each_value.any? { |r| r[:method] == "session/prompt" }
+    return "failed" if @failed
+
+    "waiting"
+  end
+
+  def update_status
+    return if @worktree.empty? || !File.directory?(@status_dir)
+
+    body = { state: state, agent: @agent, plan: @plan, last: @last }
+    return if body == @written
+
+    status = { state: body[:state], ts: now, agent: @agent, plan: @plan, last: @last }
+    tmp = File.join(@status_dir, ".#{@worktree}.tmp")
+    File.write(tmp, "#{JSON.generate(status)}\n")
+    File.rename(tmp, File.join(@status_dir, "#{@worktree}.json"))
+    @written = body
+  rescue SystemCallError => e
+    warn_line("status file: #{e.message}")
+  end
+
+  def shutdown(code, why)
+    warn_line("stopping: #{why}")
+    @lock.synchronize do
+      @offline = true
+      update_status
+      @client&.close
+      @client = nil
+    end
+    @server&.close
+    File.unlink(@socket_path) if File.socket?(@socket_path)
+    stop_adapter
+    @log&.close
+    exit(code)
+  end
+
+  def stop_adapter
+    Process.kill("TERM", @adapter_pid)
+    50.times do
+      return if Process.wait(@adapter_pid, Process::WNOHANG)
+
+      sleep 0.1
+    end
+    Process.kill("KILL", @adapter_pid)
+    Process.wait(@adapter_pid)
+  rescue Errno::ESRCH, Errno::ECHILD
+    nil
+  end
+end
+
+begin
+  AcpBridge.new.run
+rescue StandardError => e
+  $stderr.puts("acp-bridge: #{e.class}: #{e.message}")
+  exit 1
+end

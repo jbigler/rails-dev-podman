@@ -1,0 +1,209 @@
+{
+  "isDraft": false,
+  "number": 10365,
+  "reviewDecision": "REVIEW_REQUIRED",
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:06Z",
+      "conclusion": "FAILURE",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742737/job/116424463583",
+      "name": "check-boxes",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "misc"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:34:59Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742704/job/116424528871",
+      "name": "deploy",
+      "startedAt": "2026-10-15T12:35:08Z",
+      "status": "COMPLETED",
+      "workflowName": "Fly Review App on Label"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:12Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742770/job/116424463868",
+      "name": "resolve_images",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:36:50Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735738835/job/116424457680",
+      "name": "Analyze (javascript-typescript)",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL - Code Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:38Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464563",
+      "name": "rubocop",
+      "startedAt": "2026-10-15T12:35:02Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:49Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742768/job/116424464234",
+      "name": "brakeman",
+      "startedAt": "2026-10-15T12:35:02Z",
+      "status": "COMPLETED",
+      "workflowName": "security"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:37:51Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735738835/job/116424457307",
+      "name": "Analyze (ruby)",
+      "startedAt": "2026-10-15T12:35:00Z",
+      "status": "COMPLETED",
+      "workflowName": "CodeQL - Code Quality"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:34:59Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742704/job/116424465602",
+      "name": "destroy",
+      "startedAt": "2026-10-15T12:35:00Z",
+      "status": "COMPLETED",
+      "workflowName": "Fly Review App on Label"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:37:04Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742770/job/116424464210",
+      "name": "seeds_and_annotations",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:34Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464463",
+      "name": "erblint",
+      "startedAt": "2026-10-15T12:35:02Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:36:13Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742770/job/116424464147",
+      "name": "migrations",
+      "startedAt": "2026-10-15T12:35:02Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:29Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464778",
+      "name": "archspec",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:40:00Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742770/job/116424554907",
+      "name": "tests",
+      "startedAt": "2026-10-15T12:35:14Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:36:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464647",
+      "name": "herb",
+      "startedAt": "2026-10-15T12:35:02Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:41:03Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742770/job/116424555252",
+      "name": "system_tests",
+      "startedAt": "2026-10-15T12:35:14Z",
+      "status": "COMPLETED",
+      "workflowName": "CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:44Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464544",
+      "name": "eslint",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464722",
+      "name": "stylelint",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:37Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424464299",
+      "name": "prettier",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:36:43Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/Filial-Health/rails-core/actions/runs/38735742735/job/116424465702",
+      "name": "js_tests",
+      "startedAt": "2026-10-15T12:35:01Z",
+      "status": "COMPLETED",
+      "workflowName": "linters"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-15T12:35:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://docs.gitstream.cm/examples/",
+      "name": "gitStream.cm",
+      "startedAt": "2026-10-15T12:34:59Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    }
+  ],
+  "title": "[Improvement] Keep team and rotation calendar types within the facility types"
+}

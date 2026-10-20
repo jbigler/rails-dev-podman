@@ -1,0 +1,538 @@
+[
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-traefik.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa584",
+    "Image": "docker.io/library/traefik:v3.7",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-traefik.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-traefik"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-proxy"
+    ],
+    "Pid": 4412,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 80,
+        "host_port": 80,
+        "range": 1,
+        "protocol": "tcp"
+      },
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 8080,
+        "host_port": 8080,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799994000,
+    "State": "running",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-tasks-rails.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa70c",
+    "Image": "localhost/filial-rails:latest",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-rails@tasks.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-tasks-rails"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-tasks-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4804,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 38698,
+        "host_port": 33001,
+        "range": 1,
+        "protocol": "tcp"
+      },
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 3000,
+        "host_port": 13001,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799994000,
+    "State": "running",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-tasks-db.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5b7",
+    "Image": "docker.io/library/postgres:16",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-db@tasks.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-tasks-db"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-tasks-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4463,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 5432,
+        "host_port": 55433,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799994060,
+    "State": "running",
+    "Status": "healthy",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-tasks-redis.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa708",
+    "Image": "docker.io/library/redis:8-alpine",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-redis@tasks.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-tasks-redis"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-tasks-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4800,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799994000,
+    "State": "running",
+    "Status": "unhealthy",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-tasks-rustfs.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa798",
+    "Image": "docker.io/rustfs/rustfs:1.0.0-alpha.83",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-rustfs@tasks.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-tasks-rustfs"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-tasks-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4944,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 9000,
+        "host_port": 19001,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799999992,
+    "State": "running",
+    "Status": "starting",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-tasks-playwright.cid",
+    "Exited": true,
+    "ExitedAt": 1799997000,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa93c",
+    "Image": "mcr.microsoft.com/playwright:v1.55.0",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-playwright@tasks.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-tasks-playwright"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-tasks-dev",
+      "filial-proxy"
+    ],
+    "Pid": 0,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 8888,
+        "host_port": 18889,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799990100,
+    "State": "exited",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-api-rails.cid",
+    "Exited": true,
+    "ExitedAt": 1799997000,
+    "ExitCode": 1,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa620",
+    "Image": "localhost/filial-rails:latest",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-rails@api.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-api-rails"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-api-dev",
+      "filial-proxy"
+    ],
+    "Pid": 0,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 38698,
+        "host_port": 33002,
+        "range": 1,
+        "protocol": "tcp"
+      },
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 3000,
+        "host_port": 13002,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799990200,
+    "State": "exited",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-api-db.cid",
+    "Exited": true,
+    "ExitedAt": 1799997000,
+    "ExitCode": 137,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4cb",
+    "Image": "docker.io/library/postgres:16",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-db@api.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-api-db"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-api-dev",
+      "filial-proxy"
+    ],
+    "Pid": 0,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 5432,
+        "host_port": 55434,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799990200,
+    "State": "exited",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-api-rustfs.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa6ac",
+    "Image": "docker.io/rustfs/rustfs:1.0.0-alpha.83",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-rustfs@api.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-api-rustfs"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-api-dev",
+      "filial-proxy"
+    ],
+    "Pid": 0,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 9000,
+        "host_port": 19002,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": -62135596800,
+    "State": "created",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-api-v2-rails.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa6f5",
+    "Image": "localhost/filial-rails:latest",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-rails@api-v2.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-api-v2-rails"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-api-v2-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4781,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 38698,
+        "host_port": 33003,
+        "range": 1,
+        "protocol": "tcp"
+      },
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 3000,
+        "host_port": 13003,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799995000,
+    "State": "running",
+    "Status": "",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  },
+  {
+    "AutoRemove": false,
+    "Command": [
+      "/bin/sh",
+      "-c",
+      "bin/dev"
+    ],
+    "CreatedAt": "2 hours ago",
+    "CIDFile": "/run/user/1000/filial-api-v2-db.cid",
+    "Exited": false,
+    "ExitedAt": -62135596800,
+    "ExitCode": 0,
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5a0",
+    "Image": "docker.io/library/postgres:16",
+    "ImageID": "9f3c000000000000000000000000000000000000000000000000000000000000",
+    "IsInfra": false,
+    "Labels": {
+      "PODMAN_SYSTEMD_UNIT": "filial-db@api-v2.service"
+    },
+    "Mounts": [],
+    "Names": [
+      "filial-api-v2-db"
+    ],
+    "Namespaces": {},
+    "Networks": [
+      "filial-api-v2-dev",
+      "filial-proxy"
+    ],
+    "Pid": 4440,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "127.0.0.1",
+        "container_port": 5432,
+        "host_port": 55435,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1799995000,
+    "State": "running",
+    "Status": "healthy",
+    "Created": "2027-01-15T05:13:20.000000000Z"
+  }
+]

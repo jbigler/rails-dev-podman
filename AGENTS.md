@@ -31,6 +31,8 @@ no Docker anywhere in the runtime — the last Compose version is tagged docker-
   container (host sessions keep their own); outside .home/ so wt:rm can't delete it.
 - mise.local.toml — (root, git-ignored) set PROJECT_PREFIX, GEM_VOLUME_BASE, secrets.
 - ports.registry — slug:WORKTREE_ID; source for port assignment.
+- .tui/ — wt, the terminal dashboard (Ruby + Rooibos); see the TUI section. docs/design/ holds its spec.
+- .run/ — (git-ignored) <slug>/ per worktree for the agent@ unit: the ACP bridge socket and session.jsonl.
 
 ## Worktree lifecycle
 
@@ -50,7 +52,8 @@ reject dirty worktree unless FORCE=1; stop the worktree's units (systemd owns th
 volumes and its network **by exact name** — a `name=^<prefix>-<slug>-` filter is an unanchored regex  
 and would sweep a sibling whose slug extends this one (api → api-v2); never images, which are shared  
 across worktrees by runtime tag (that is `clean`'s job); delete .home/<slug>  
-(guarded — holds a live Claude OAuth token, not just clutter); delete ports.registry line;  
+(guarded — holds a live Claude OAuth token, not just clutter) and .run/<slug> (same guard; stops the
+agent@ unit first); delete ports.registry line;  
 remove mise trust symlinks; scoped `git worktree remove --force`  
 (never a blanket `git worktree prune` — see Gotchas). Aborts up front if any registered worktree  
 dir is missing (partial filesystem view, e.g. the container).
@@ -131,6 +134,24 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   .home/<slug>/.claude/) for user-local instructions.  
   File memory: ../.container-config/claude-memory bind-mounted over  
   ~/.claude/projects/<host-path key>/memory (the old -app-<slug> dir is renamed once) — the one dir every worktree container shares.
+- agent — `<prefix>-agent@<slug>.service`, the ACP agent wt talks to (SPEC "Agent container and ACP bridge").
+  ACP is JSON-RPC over stdio, so unlike claude it needs no TTY and can be a unit. Same image, mounts,
+  network (alias agent), keep-id, CPU cap and firewall (profile agent, always enforce, CLAUDE_FIREWALL_ALLOW)
+  as podman-claude.sh; ExecStartPre refuses to start without the hook descriptor and creates .run/<slug>
+  (0700), mounted at /run/agent. Wants= rails + playwright. Not pulled in by `up`: `mise run agent:up`
+  (podman-wt.sh agent-up — preflights, starts, waits ≤120 s for the socket) or wt's `a`; `agent:stop`, wt's
+  `K`, and `stop` stop it. Main process: .container-config/acp-bridge (Ruby, stdlib; MOUNTED like every
+  entrypoint, not baked — the spec said baked, the repo convention wins), started by entrypoint-claude.sh
+  after the usual claude setup. It npm-installs AGENT_PACKAGES (default @agentclientprotocol/claude-agent-acp)
+  then runs AGENT_CMD (default claude-agent-acp) once for the container's life; set AGENT_CMD/AGENT_PACKAGES
+  (and AGENT_NAME) in mise.local.toml — units-env.sh copies them into .unit-env — to switch ACP agent with no
+  code change. Bridge: socket .run/<slug>/acp.sock (0600), one client at a time (a second gets the holder's
+  name), initialize cached, unanswered permission requests held and re-sent on reconnect, every message
+  appended to .run/<slug>/session.jsonl (never rotated) so wt rebuilds the transcript, and it writes
+  status/<slug>.json itself (state, agent, plan, last) — WORKTREE_NAME is removed from the adapter's env so
+  claude-status-hook.sh cannot overwrite it. No CLAUDE_CODE_OAUTH_TOKEN/GH_TOKEN: a unit has no calling shell,
+  and copying them into .unit-env would leave a token per worktree; it uses the worktree home's own login.
+  Protocol between bridge and wt (hello, busy, held requests, log and status formats): .tui/docs/design/ACP-BRIDGE.md.
 
 ## Egress firewall (.container-config/firewall/)
 
@@ -149,7 +170,7 @@ hot-reloads, an npm postinstall — can change its rules. A failing hook fails t
   descriptor is part of the stale-unit check (`up` refuses), doctor checks it, and podman-claude.sh /
   podman-wt.sh exec refuse to start without it. fw:show names any container that runs without a firewall.
 - Profiles (comma list): none (rails, db, redis, rustfs, rustfs-init, transient exec), deps (deps@),
-  agent (claude), agent,deps (nvim). Each but none is a <profile>.allow file: hostnames (resolved to IPv4 by
+  agent (claude, agent@), agent,deps (nvim). Each but none is a <profile>.allow file: hostnames (resolved to IPv4 by
   the HOST at every start — no DNS from inside reaches the allowlist), IPv4/CIDRs, meta:github /
   meta:datadog-us5 (published ranges; need curl + jq on the host, skipped otherwise). claude adds
   CLAUDE_FIREWALL_ALLOW through the <prefix>.firewall.extra annotation. agent deliberately lacks rubygems.
@@ -209,7 +230,7 @@ checks it and `mise run allow-ports` lowers it.
 
 - up(u)/stop(s)/down/restart/status/logs/exec/destroy: lifecycle. up starts rails and systemd resolves
   the rest through Requires=/Wants=, gated on db/redis/rustfs being *healthy*; it neither starts nvim nor
-  requires its image. stop (which does stop nvim) keeps volumes; down
+  requires its image. stop (which does stop nvim and agent) keeps volumes; down
   deletes this worktree's three and prompts, defaulting to No. destroy nukes all <prefix>[-_]* resources,
   the rendered units and the folder (type 'destroy' to confirm).
 - units:install/units:uninstall/units:env, doctor, verify, verify:spike, allow-ports: unit and host
@@ -233,6 +254,7 @@ checks it and `mise run allow-ports` lowers it.
   plus NVIM_CONFIG_SOURCE, which the entrypoint reports. Plugins are a separate
   volume, <prefix>_nvim_share.
 - claude(ai)/claude:newterm(ai:newterm)/claude:rebuild, db:dump/db:dump:clear, tags, proxy:*,
+  agent:up/agent:stop (the agent@ unit, see Worktree stack), tui(w)/tui:test (see TUI),
   clean. db:dump writes .container-config/db-dumps/, which is also the restore path: db@'s initdb hook
   restores <dbname>.dump on a first start against an empty volume and rustfs-init@ untars
   rustfs_data.tar.gz. clean first offers wt:rm for linked worktrees whose branch is finished — a merged
@@ -291,6 +313,29 @@ noVNC; watch at http://vnc.<worktree>.localhost.
   image tag v<ver>-noble + npm playwright-core). Gem bump → next `up` builds the matching image. `up` warns  
   when PLAYWRIGHT_VERSION is empty (stale mise.local.toml).
 - Infra changes require build & up for playwright.
+
+## TUI (.tui/)
+
+wt: one terminal screen for every worktree, its pod, its gh stack/PR and its agent. Spec, mockups and the
+phase plan are in .tui/docs/design/ (SPEC.md is binding). `mise run tui` (alias w) from the root or any
+worktree; that worktree starts selected. `--theme dark` / WT_THEME, `--accent` / WT_ACCENT.
+
+- Rule: wt never duplicates logic a mise task or .scripts/*.sh owns. It READS state directly (git, podman,
+  systemctl, gh, status files, nvim and ACP sockets) and CHANGES it only through mise tasks — the exceptions
+  are the ones SPEC names (nvim over its socket, ACP over the bridge socket, gh stack, kitten, notify-send).
+  A new action is a new mise task first.
+- Layout: bin/wt (entry), lib/wt.rb (load order by layer), lib/wt/{model,messages,sources,commands,actions,
+  views,acp,nvim}/, keymap.rb (the ONE key table — the bottom bar and the `?` overlay are generated from it),
+  refresh.rb (which source runs when), keys.rb (modal input: confirm, prompt, filter, reply).
+- Elm architecture (Rooibos): Update/View are pure and never block; every external call is a command through
+  Wt::Shell.capture with a timeout (WT_TIMEOUT, default 5 s; mise actions WT_ACTION_TIMEOUT). A failed or
+  timed-out source dims its cell to `?`, never crashes. Model, messages and commands must be Ractor-shareable
+  (deep-frozen Data); the test suite runs in RatatuiRuby debug mode, which enforces it.
+- Interactive programs (n nvim attach, L logs below full width) go through Wt::Terminal.handover: restore the
+  terminal, run, re-init. A crash restores the terminal too (RatatuiRuby.run's ensure).
+- Tests: `mise run tui:test` (= `cd .tui && bundle exec rake test`). Minitest; sources are tested on fixtures
+  in test/fixtures/ captured from real command output, so no podman, systemd, gh auth or nvim is needed.
+  Gems are vendored into .tui/vendor/bundle (git-ignored); the tui tasks run `bundle install` when needed.
 
 ## Conventions
 

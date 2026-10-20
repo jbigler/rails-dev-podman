@@ -29,11 +29,12 @@ unit() { printf '%s-%s@%s.service' "$P" "$1" "$W"; }
 # Everything that belongs to this worktree. CORE is start order; ALL is
 # teardown order, so stop and down reach every unit including the ones `up`
 # does not start directly. playwright is here but not in CORE: rails@ Wants= it.
-# nvim is not part of the stack at all -- `nvim-up` starts it on demand -- but
-# stop still takes it down with everything else. No claude entry -- claude is a
-# one-off container from podman-claude.sh, not a unit.
+# nvim and agent are not part of the stack at all -- `nvim-up` and `agent-up`
+# start them on demand -- but stop still takes them down with everything else.
+# No claude entry -- claude is a one-off container from podman-claude.sh, not a
+# unit.
 CORE=(net-network db redis rustfs-init rustfs deps rails)
-ALL=(rails deps nvim rustfs rustfs-init redis db playwright net-network)
+ALL=(agent rails deps nvim rustfs rustfs-init redis db playwright net-network)
 
 require_units() {
   systemctl --user cat "$(unit rails)" >/dev/null 2>&1 \
@@ -59,13 +60,16 @@ require_home() {
 # seed-home.sh exists to prevent. That difference is invisible until first boot,
 # and podman reports one path per attempt, so check them all at once.
 #
-# Only the services `up` starts are checked. nvim@ mounts things (the kitty
-# socket, /usr/bin/kitten) that are legitimately absent until you run it, and
-# claude is a script rather than a unit, checking its own mounts as it goes.
+# By default only the services `up` starts are checked. nvim@ mounts things
+# (the kitty socket, /usr/bin/kitten) that are legitimately absent until you run
+# it, and claude is a script rather than a unit, checking its own mounts as it
+# goes. agent-up names its own unit.
 missing_mount_sources() {
+  local svcs=("$@")
+  (( ${#svcs[@]} )) || svcs=(db redis rustfs-init rustfs deps rails playwright)
   ( set -a; . "$WT_ENV"; set +a
     local rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" svc f line src
-    for svc in db redis rustfs-init rustfs deps rails playwright; do
+    for svc in "${svcs[@]}"; do
       f="$ROOT/.container-config/quadlet/$svc@.container"
       [[ -f "$f" ]] || continue
       while IFS= read -r line; do
@@ -93,7 +97,7 @@ missing_mount_sources() {
 
 require_mounts() {
   local out
-  out="$(missing_mount_sources)"
+  out="$(missing_mount_sources "$@")"
   [[ -n "$out" ]] || return 0
   printf 'error: these bind-mount sources do not exist, and podman will not\n' >&2
   printf 'create them the way the Docker daemon did:\n\n' >&2
@@ -405,6 +409,58 @@ cmd_nvim_up() {
   die "$(unit nvim) is running but nvim is not answering on localhost:$NVIM_PORT: mise run logs nvim"
 }
 
+# The ACP agent (agent@, .container-config/acp-bridge), on demand like nvim:
+# `up` never starts it. wt calls this through `mise run agent:up` before it
+# connects, so the fast path -- unit active, socket present -- is one systemctl
+# call. Starting it pulls rails and playwright in through Wants=, as
+# podman-claude.sh starts them, so a cold stack makes the first start slow.
+cmd_agent_up() {
+  local rundir="$ROOT/.run/$W" sock="$ROOT/.run/$W/acp.sock"
+  if systemctl --user is-active --quiet "$(unit agent)"; then
+    [[ -S "$sock" ]] && return 0
+  else
+    require_units; require_env; require_home
+    set -a; . "$WT_ENV"; set +a
+    podman image exists "$CLAUDE_IMAGE" || die "$CLAUDE_IMAGE does not exist yet:
+    mise run build claude"
+    # The unit refuses too (ExecStartPre), but only as "control process exited".
+    [[ -f "$ROOT/.firewall/hooks.d/$P-firewall.json" ]] \
+      || die "no firewall hook descriptor in .firewall/hooks.d. Run: mise run units:install"
+    # Bind sources podman will not create; the unit makes .run/<slug> itself
+    # too, for restarts that do not come through here. The project dir is the
+    # mount point of the shared memory dir, keyed as podman-claude.sh keys it.
+    mkdir -p "$rundir" "$ROOT/.container-config/claude-memory" "$ROOT/.container-config/status" \
+      "$ROOT/.home/$W/.claude/projects/$(printf '%s' "$WT_DIR" | tr -c 'a-zA-Z0-9' '-')"
+    chmod 0700 "$rundir"
+    require_mounts agent
+    # A socket left by a bridge that crashed would read as ready below.
+    rm -f "$sock"
+    printf 'starting %s (rails and playwright come up first)...\n' "$(unit agent)" >&2
+    systemctl --user start "$(unit agent)" \
+      || die "$(unit agent) failed to start: journalctl --user -u $(unit agent) -n 30 --no-pager"
+  fi
+  # Active means the container runs, not that the bridge listens: the
+  # entrypoint's claude setup and the adapter's npm install come first.
+  local i state
+  for ((i = 0; i < 240; i++)); do
+    [[ -S "$sock" ]] && return 0
+    state="$(systemctl --user show -p ActiveState --value "$(unit agent)" 2>/dev/null)"
+    [[ "$state" == failed ]] \
+      && die "$(unit agent) failed: mise run logs agent; journalctl --user -u $(unit agent) -n 30 --no-pager"
+    sleep 0.5
+  done
+  die "$(unit agent) is running but $sock did not appear: mise run logs agent"
+}
+
+cmd_agent_stop() {
+  if ! systemctl --user cat "$(unit agent)" >/dev/null 2>&1; then
+    printf '%s is not installed; nothing to stop\n' "$(unit agent)"
+    return 0
+  fi
+  systemctl --user stop "$(unit agent)"
+  printf 'stopped %s\n' "$(unit agent)"
+}
+
 cmd_status() {
   printf '\n'
   systemctl --user --no-pager --no-legend list-units "$P-*@$W.service" 2>/dev/null \
@@ -522,6 +578,8 @@ cmd_test_system() {
 case "${1:-}" in
   up)          shift; cmd_up ;;
   nvim-up)     shift; cmd_nvim_up ;;
+  agent-up)    shift; cmd_agent_up ;;
+  agent-stop)  shift; cmd_agent_stop ;;
   stop)        shift; cmd_stop ;;
   down)        shift; cmd_down ;;
   pull)        shift; cmd_pull ;;
@@ -530,5 +588,5 @@ case "${1:-}" in
   logs)        shift; cmd_logs "$@" ;;
   exec)        shift; cmd_exec "$@" ;;
   test:system) shift; cmd_test_system "$@" ;;
-  *) die "usage: $(basename "$0") {up|nvim-up|stop|down|restart [svc]|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
+  *) die "usage: $(basename "$0") {up|nvim-up|agent-up|agent-stop|stop|down|restart [svc]|pull|status|logs [svc]|exec [cmd...]|test:system}" ;;
 esac

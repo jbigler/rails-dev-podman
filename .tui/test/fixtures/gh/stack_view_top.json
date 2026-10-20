@@ -1,0 +1,62 @@
+{
+  "trunk": "master",
+  "currentBranch": "improvement/stim_sheet_note_cell_components",
+  "branches": [
+    {
+      "name": "refactor/stim_sheet_cell_components",
+      "head": "6bd6d8983f38f500398411838cb3473f9561fd58",
+      "base": "0261ae13e8396f910905a113063fda5ceaccf373",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": true,
+      "pr": {
+        "number": 10412,
+        "url": "https://github.com/Filial-Health/rails-core/pull/10412",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "refactor/stim_sheet_trigger_cell",
+      "head": "0af01040547ba5ded9bd533faf0e02e65e47f2dc",
+      "base": "6bd6d8983f38f500398411838cb3473f9561fd58",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10413,
+        "url": "https://github.com/Filial-Health/rails-core/pull/10413",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "claude/issue-9780-stim-cell-component",
+      "head": "456c2a4fdb9d15591e0d2526dd1f5e603b52771a",
+      "base": "0af01040547ba5ded9bd533faf0e02e65e47f2dc",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 9782,
+        "url": "https://github.com/Filial-Health/rails-core/pull/9782",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "improvement/stim_sheet_note_cell_components",
+      "head": "d1c43742eed1f342c7463e9eb52adca51e1d4e12",
+      "base": "456c2a4fdb9d15591e0d2526dd1f5e603b52771a",
+      "isCurrent": true,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10410,
+        "url": "https://github.com/Filial-Health/rails-core/pull/10410",
+        "state": "OPEN"
+      }
+    }
+  ]
+}

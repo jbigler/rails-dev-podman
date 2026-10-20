@@ -1,0 +1,15 @@
+master:0
+claude-adoring-newton-3p64gp:10
+bugfix-server-side-idle-lock:17
+claude-issue-9780-stim-cell-component:18
+bugfix-dosespot-patient-sync-invalid-dat:21
+improvement-form-object-docs:22
+bugfix-validation-error-in-partner-regis:23
+improvement-questionnaire-desired-additi:24
+feature-skip-own-broadcast:27
+improvement-apply-require-active-scope:28
+improvement-validate-facility-appointmen:29
+general-work:30
+claude-js-fixtures-framework:32
+improvement-memoize-user-options:33
+bugfix-form-submit-raises-on-failure:34

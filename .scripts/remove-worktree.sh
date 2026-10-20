@@ -96,7 +96,7 @@ W="$clean_name"
 # for anything left behind (a container started by hand, or one whose unit was
 # already removed).
 echo "Stopping the units for worktree ${W}..."
-for svc in rails deps claude nvim playwright rustfs rustfs-init redis db net-network; do
+for svc in agent rails deps claude nvim playwright rustfs rustfs-init redis db net-network; do
   systemctl --user stop "${P}-${svc}@${W}.service" 2>/dev/null || true
 done
 
@@ -105,7 +105,7 @@ done
 # with this one: removing "api" would have swept "api-v2"'s containers and
 # volumes with it. Enumerating the service names the templates actually set
 # cannot do that. Verified against a list containing api-v2 before and after.
-SERVICES="rails deps claude nvim playwright rustfs rustfs-init redis db"
+SERVICES="agent rails deps claude nvim playwright rustfs rustfs-init redis db"
 lingering=""
 for svc in $SERVICES; do
   ct="${P}-${W}-${svc}"
@@ -158,15 +158,17 @@ rm -f "${root}/.unit-env/${clean_name}.env" "${root}/.unit-env/${clean_name}.sha
 # Drop the dashboard's claude status file for this worktree
 rm -f "${root}/.container-config/status/${clean_name}.json"
 
-# Drop this worktree's home. Its ~/.claude holds a live OAuth refresh token
-# valid for weeks, so an orphaned home is a stale credential, not just
-# clutter. Guard the path: only a plain name directly under .home/ may go.
+# Drop this worktree's home and its agent run dir (.run/<slug>: the ACP bridge
+# socket and session.jsonl, a transcript of everything the agent saw). The home's
+# ~/.claude holds a live OAuth refresh token valid for weeks, so an orphaned
+# home is a stale credential, not just clutter. Guard the paths: only a plain
+# name directly under .home/ and .run/ may go.
 case "$clean_name" in
   ''|.|..|*/*)
-    echo "warn: suspicious worktree name '${clean_name}'; not removing its home" >&2
+    echo "warn: suspicious worktree name '${clean_name}'; not removing its home or run dir" >&2
     ;;
   *)
-    rm -rf "${root}/.home/${clean_name}"
+    rm -rf "${root}/.home/${clean_name}" "${root}/.run/${clean_name}"
     ;;
 esac
 

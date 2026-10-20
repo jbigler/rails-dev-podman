@@ -100,10 +100,16 @@ module Wt
       def apply(model) = model.put(:nvim, slug, status)
     end
 
-    # One streamed log line (or a batch) for the followed service.
-    class LogLines < Data.define(:lines)
+    # A batch of lines from the LogStream for slug/svc. Batches from a stream that has
+    # since been replaced (sent just before its cancel landed) are dropped.
+    class LogLines < Data.define(:slug, :svc, :lines)
       include Message
-      def apply(model) = model.with(log_lines: (model.log_lines + lines).last(500))
+      def apply(model)
+        s = model.log_stream
+        return model unless s && s.slug == slug && s.svc == svc
+
+        model.with(log_lines: (model.log_lines + lines).last(500))
+      end
     end
   end
 end

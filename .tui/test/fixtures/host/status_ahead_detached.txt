@@ -1,0 +1,6 @@
+# branch.oid 1234567890abcdef1234567890abcdef12345678
+# branch.head (detached)
+1 M. N... 100644 100644 100644 aaaa aaaa app/models/user.rb
+2 R. N... 100644 100644 100644 bbbb bbbb R100 app/new.rb	app/old.rb
+u UU N... 100644 100644 100644 100644 cccc dddd eeee config/routes.rb
+? tmp/scratch.txt

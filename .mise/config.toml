@@ -98,6 +98,37 @@ run = """
 """
 alias = "v"
 
+[tasks."agent:up"]
+description = "Start this worktree's ACP agent (the agent@ unit: acp-bridge + AGENT_CMD, default claude-agent-acp) and wait until its socket appears in .run/<worktree>/. Not started by up. Run from a worktree."
+run = "{{config_root}}/.scripts/podman-wt.sh agent-up"
+
+[tasks."agent:stop"]
+description = "Stop this worktree's ACP agent. Its session log in .run/<worktree>/ is kept. Run from a worktree."
+run = "{{config_root}}/.scripts/podman-wt.sh agent-stop"
+
+[tasks.tui]
+description = "wt: the terminal dashboard for every worktree, its pod, gh stack and agent (.tui/). Run from the root or any worktree; that worktree starts selected. Args go to wt, e.g. `mise run tui --theme dark`."
+alias = "w"
+# Not the workspace root: wt preselects the worktree it was started from.
+dir = "{{cwd}}"
+# Pinned here rather than in [tools], so a worktree's own .ruby-version (the
+# app's Ruby) never decides which Ruby runs wt and its vendored gems.
+tools = { ruby = "4.0.7" }
+quiet = true
+run = [
+  "cd {{config_root}}/.tui && (bundle check >/dev/null 2>&1 || bundle install --quiet)",
+  "{{config_root}}/.tui/bin/wt",
+]
+
+[tasks."tui:test"]
+description = "Run wt's test suite (minitest on captured fixtures; needs no podman, systemd or nvim)."
+dir = "{{config_root}}/.tui"
+tools = { ruby = "4.0.7" }
+run = [
+  "bundle check >/dev/null 2>&1 || bundle install --quiet",
+  "bundle exec rake test",
+]
+
 [tasks.rails]
 description = "Shell into the running Rails container for this worktree."
 run = "{{config_root}}/.scripts/podman-wt.sh exec /bin/bash"
@@ -315,7 +346,7 @@ run = "{{config_root}}/.scripts/firewall.sh show"
 [tasks."fw:allow"]
 description = "Allow hostnames/IPs in a running container's firewall until its next start, e.g. `mise run fw:allow claude example.com`. To keep it: CLAUDE_FIREWALL_ALLOW, or .container-config/firewall/*.allow."
 usage = '''
-arg "<service>" help="claude, nvim, rails, deps, db, redis, rustfs"
+arg "<service>" help="claude, agent, nvim, rails, deps, db, redis, rustfs"
 arg "<hosts>…" var=#true help="hostnames or IPv4 addresses/CIDRs"
 '''
 run = '{{config_root}}/.scripts/firewall.sh allow "$usage_service" $usage_hosts'

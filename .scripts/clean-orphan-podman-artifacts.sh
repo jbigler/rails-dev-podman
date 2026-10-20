@@ -155,7 +155,7 @@ sweep_finished_worktrees
 
 # Closed sets, longest first so "rustfs-init" is tried before "rustfs" and
 # "db-data" before "db". Anything not ending in one of these is not ours.
-SERVICES="rustfs-init playwright claude rails redis nvim deps rustfs db"
+SERVICES="rustfs-init playwright claude agent rails redis nvim deps rustfs db"
 VOL_SUFFIXES="rustfs-data node-modules db-data"
 NET_SUFFIXES="dev"
 # The shared proxy containers are <prefix>-traefik|dozzle|home -- one segment

@@ -31,7 +31,9 @@ module Wt
 
     def selected_worktree = worktrees.find { it.slug == ui.selected } || worktrees.first
     def worktree(slug) = worktrees.find { it.slug == slug }
-    def failed?(source, key) = failures.key?("#{source}:#{key}")
+    # A per-worktree source fails as "source:slug"; units and status files are one call
+    # for every worktree, keyed by the bare source name, so that failure covers every slug.
+    def failed?(source, key) = failures.key?("#{source}:#{key}") || failures.key?(source.to_s)
 
     # Visible worktree list after the `/` filter (name, branch or PR number).
     def visible_worktrees

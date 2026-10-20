@@ -47,6 +47,15 @@ class UpdateCoreTest < Minitest::Test
     assert_equal :dark, m.ui.theme
   end
 
+  def test_function_keys_work_while_typing_a_reply
+    m, = step(model, "f3", "h", "i")
+    assert m.ui.input_focus
+    assert_equal "hi", m.ui.input
+    m, = step(m, "f1")
+    assert_equal :worktrees, m.ui.screen
+    refute m.ui.input_focus
+  end
+
   def test_quit_exits
     _, cmd = step(model, "q")
     assert_kind_of Rooibos::Command::Exit, cmd
