@@ -23,6 +23,9 @@ module Wt
           lines = [*agent_rows(model, tui, theme, slug, w), *nvim_rows(model, tui, theme, wt, w), D.rule(tui, theme, w),
                    *table(model, tui, theme, wt, w)]
           title = [W.span(tui, theme, "Pod", :tx, bold: true), W.span(tui, theme, " #{model.config.prefix}-#{slug}", :tx2)]
+          if (busy = model.busy[slug])
+            title << W.span(tui, theme, " · ⟳ #{busy.label} #{W.duration(model.now - busy.since)}", :yel)
+          end
           [W.panel(tui, theme, title:, child: tui.paragraph(text: lines)), lines.size + 2]
         end
 

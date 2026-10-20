@@ -355,6 +355,10 @@ run = '{{config_root}}/.scripts/firewall.sh allow "$usage_service" $usage_hosts'
 description = "Render .container-config/quadlet/ into ~/.config/containers/systemd and reload systemd."
 run = "{{config_root}}/.scripts/quadlet.sh install"
 
+[tasks."units:check"]
+description = "Say whether the installed units still match .container-config/quadlet/ (exit 1 and list the drifted ones if not). up refuses stale units; units:install fixes them. wt shows the same check in its top bar."
+run = "{{config_root}}/.scripts/quadlet.sh check-stale"
+
 [tasks."units:uninstall"]
 description = "Remove the rendered Quadlet units and reload systemd."
 run = "{{config_root}}/.scripts/quadlet.sh uninstall"

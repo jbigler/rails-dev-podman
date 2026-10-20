@@ -177,14 +177,17 @@ module Wt
 
         def services(model, tui, theme, slug)
           return [W.unknown(tui, theme)] if units_failed?(model, slug)
-          return [] unless model.services.key?(slug)
 
-          service_list(model, slug).map { W.glyph(tui, theme, it.state) }
+          glyphs = model.services.key?(slug) ? service_list(model, slug).map { W.glyph(tui, theme, it.state) } : []
+          # A running up/stop/restart: keep the glyphs (they show containers arriving) and say what is under way.
+          busy = model.busy[slug]
+          busy ? [*glyphs, W.span(tui, theme, "#{' ' unless glyphs.empty?}⟳ #{busy.label}", :yel)] : glyphs
         end
 
-        # One mark for the whole pod: the most severe service state.
+        # One mark for the whole pod: the most severe service state, or ⟳ while an action runs.
         def summary(model, tui, theme, slug)
           return [W.unknown(tui, theme)] if units_failed?(model, slug)
+          return [W.span(tui, theme, "⟳", :yel)] if model.busy[slug]
           return [] unless model.services.key?(slug)
 
           states = service_list(model, slug).map(&:state)

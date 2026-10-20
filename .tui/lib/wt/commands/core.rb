@@ -41,10 +41,30 @@ module Wt
     class MiseTask < Data.define(:label, :slug, :cwd, :args, :timeout, :refresh)
       include Rooibos::Command::Custom
 
-      def call(out, _token)
-        r = Shell.capture(["mise", "run", *args], chdir: cwd, env: { "NO_COLOR" => "1" }, timeout:, stdin: "")
-        msg = Msg::CommandFinished.new(label:, slug:, status: r.timed_out ? -1 : r.status, stderr: r.timed_out ? "timed out" : r.stderr, refresh:)
-        out.put(Ractor.make_shareable(msg))
+      def call(out, _token) = out.put(Ractor.make_shareable(finished(run)))
+
+      def run = Shell.capture(["mise", "run", *args], chdir: cwd, env: { "NO_COLOR" => "1" }, timeout:, stdin: "")
+
+      def finished(r)
+        Msg::CommandFinished.new(label:, slug:, status: r.timed_out ? -1 : r.status, stderr: r.timed_out ? "timed out" : r.stderr, refresh:)
+      end
+    end
+
+    # MiseTasks run one after another; the first failure stops the chain and is the
+    # one reported, otherwise the last task's result is. Either way it is reported for
+    # the chain's worktree (the last task's), which is where it shows as busy.
+    class MiseChain < Data.define(:tasks)
+      include Rooibos::Command::Custom
+
+      def slug = tasks.last.slug
+
+      def call(out, token)
+        tasks.each_with_index do |task, i|
+          r = task.run
+          next if r.ok? && i < tasks.size - 1 && !token.canceled?
+
+          return out.put(Ractor.make_shareable(task.finished(r).with(slug:)))
+        end
       end
     end
 

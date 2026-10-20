@@ -16,6 +16,8 @@ module Wt
     :nvim,       # slug => NvimStatus
     :log_lines,  # [String] tail of the followed service log (full tier)
     :log_stream, # the running Commands::LogStream (kept so it can be cancelled), or nil
+    :stale_units, # installed unit files that differ from .container-config/quadlet/ (nil = not checked yet)
+    :busy,       # slug (nil = the workspace) => Busy, a mise action still running there
     :failures,   # "source:key" => error text; views draw a dimmed ? for that cell
     :inflight,   # [String] fetch keys whose command has not reported back yet
     :gh_at,      # Time of the last successful gh call (top bar "gh ✓ 40s ago")
@@ -24,7 +26,8 @@ module Wt
   )
     def initialize(
       config:, worktrees: [], git: {}, services: {}, stats: {}, prs: {}, stacks: {}, agents: {},
-      sessions: {}, nvim: {}, log_lines: [], log_stream: nil, failures: {}, inflight: [], gh_at: nil, now: Time.now, ui: Ui.new
+      sessions: {}, nvim: {}, log_lines: [], log_stream: nil, stale_units: nil, busy: {}, failures: {}, inflight: [], gh_at: nil,
+      now: Time.now, ui: Ui.new
     )
       super
     end

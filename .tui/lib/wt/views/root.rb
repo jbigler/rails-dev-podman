@@ -32,7 +32,12 @@ module Wt
              elsif model.failures.keys.any? { it.start_with?("pr:") } then W.span(tui, theme, "gh ?  ", :tx2, dim: true)
              end
         left = [W.span(tui, theme, " wt  ", :ac, bold: true), W.span(tui, theme, model.config.root.sub(Dir.home, "~"), :tx2)]
+        stale = model.stale_units.to_a
+        busy = model.busy.map { |slug, b| W.span(tui, theme, "⟳ #{b.label} #{slug || 'workspace'} #{W.duration(model.now - b.since)}  ", :yel) }
         right = [
+          *busy,
+          # `up` refuses to start any worktree until these are re-rendered.
+          (W.glyph(tui, theme, :failed, "#{stale.size} unit#{'s' unless stale.size == 1} out of date · U install  ") unless stale.empty?),
           W.glyph(tui, theme, pods_up.positive? ? :running : :stopped, "pods #{pods_up}/#{wts.size}  "),
           (W.glyph(tui, theme, :permission, "#{needs} needs input  ") if needs.positive?),
           (W.glyph(tui, theme, :failed, "#{errors} error#{'s' unless errors == 1}  ") if errors.positive?),

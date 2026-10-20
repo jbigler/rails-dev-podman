@@ -13,29 +13,31 @@ module Wt
   #          long-running watchers: podman events (units refetch on change) and ACP sockets
   #   :fast  2 s   units (all worktrees), git status (visible rows), status files
   #   :slow  5 s   worktree list, stats + nvim (selected worktree only)
-  #   :gh    60 s  PR + stack per worktree
+  #   :gh    60 s  PR + stack per worktree, installed unit files vs templates
   module Refresh
     INTERVALS = { fast: 2.0, slow: 5.0, gh: 60.0 }.freeze
 
     def self.start(model)
       tickers = INTERVALS.map { |kind, interval| Commands::Ticker.new(kind:, interval:) }
       watchers = [Commands::PodmanEvents.new(config: model.config), Acp::Watch.new(config: model.config)]
-      schedule(model, [worktrees(model), status_files(model)], extra: tickers + watchers)
+      schedule(model, [worktrees(model), status_files(model), unit_files(model)], extra: tickers + watchers)
     end
 
     def self.on_tick(model, kind)
       case kind
       when :fast then schedule(model, [units(model), *git(model), status_files(model)])
       when :slow then schedule(model, [worktrees(model), *selected(model)])
-      when :gh then schedule(model, gh(model))
+      when :gh then schedule(model, [*gh(model), unit_files(model)])
       else [model, nil]
       end
     end
 
     # Everything for every worktree: first load, and after an action changed state
-    # (the worktree list too, since `c` / `d` add and remove rows).
+    # (the worktree list too, since `c` / `d` add and remove rows; unit files, since
+    # `U` reinstalls them).
     def self.all(model)
-      schedule(model, [worktrees(model), units(model), *git(model), *selected(model), *gh(model), status_files(model)],
+      schedule(model, [worktrees(model), units(model), *git(model), *selected(model), *gh(model), status_files(model),
+                       unit_files(model)],
                requeue: true)
     end
 
@@ -59,12 +61,13 @@ module Wt
     # The spec for a fetch key, rebuilt from the current model (nil once its
     # worktree is gone or no longer qualifies).
     def self.spec_for(m, key)
-      [worktrees(m), status_files(m), units(m), *m.worktrees.flat_map { [git_for(m, it), *per_worktree(m, it), *gh_for(m, it)] }]
+      [worktrees(m), status_files(m), unit_files(m), units(m), *m.worktrees.flat_map { [git_for(m, it), *per_worktree(m, it), *gh_for(m, it)] }]
         .compact.find { it[0] == key }
     end
 
     def self.worktrees(m) = ["worktrees", Sources::Worktrees, m.config]
     def self.status_files(m) = ["status", Sources::StatusFiles, m.config]
+    def self.unit_files(m) = ["unit-files", Sources::UnitFiles, m.config]
     def self.units(m) = m.worktrees.empty? ? nil : ["units", Sources::Units, m.config, m.worktrees.map(&:slug)]
     def self.git(m) = m.visible_worktrees.map { git_for(m, it) }
 

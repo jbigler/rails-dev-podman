@@ -1,0 +1,10 @@
+[up] $ /home/jbigler/workspace/filial/.scripts/podman-wt.sh up
+These installed units no longer match .container-config/quadlet/:
+
+  filial-agent@.container                  not installed
+  filial-rails@.container                  differs from the template
+
+systemd is still running the old generated units. Re-render them:
+  mise run units:install
+error: the installed units are out of date; see above
+[up] ERROR task failed

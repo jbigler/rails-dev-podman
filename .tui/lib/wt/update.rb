@@ -6,7 +6,7 @@ module Wt
   module Update
     def self.call(msg, model)
       if msg.is_a?(Message) then msg.apply(model)
-      elsif msg.respond_to?(:key?) && msg.key? then Keys.handle(msg, model)
+      elsif msg.respond_to?(:key?) && msg.key? then track_busy(Keys.handle(msg, model))
       elsif msg.respond_to?(:resize?) && msg.resize?
         model.with(ui: model.ui.with(width: msg.width, height: msg.height))
       elsif msg.respond_to?(:focus_gained?) && msg.focus_gained? then model.with(ui: model.ui.with(focused: true))
@@ -15,6 +15,16 @@ module Wt
       elsif msg.is_a?(Rooibos::Message::Error) then command_crashed(msg, model)
       else model
       end
+    end
+
+    # Every action is a key press, so this is where a started mise action is
+    # recorded; Msg::CommandFinished clears it.
+    def self.track_busy(result)
+      model, cmd = Rooibos.normalize_init(result)
+      started = Busy.started(cmd, Time.now)
+      return [model, cmd] if started.empty?
+
+      [model.with(busy: Ractor.make_shareable(model.busy.merge(started)), now: Time.now), cmd]
     end
 
     # A command raised instead of reporting (Rooibos turns that into Message::Error).

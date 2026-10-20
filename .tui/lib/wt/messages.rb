@@ -36,12 +36,12 @@ module Wt
       include Message
       def apply(model)
         text = status == 0 ? "#{label}: done" : "#{label}: #{stderr_line}"
-        model, id = model.toast(text, level: status == 0 ? :info : :error)
+        model, id = model.with(busy: model.busy.except(slug)).toast(text, level: status == 0 ? :info : :error)
         model, refresh_cmd = refresh ? Refresh.all(model) : [model, nil]
         [model, Rooibos::Command.batch(*[Commands.expire_toast(id), refresh_cmd].compact)]
       end
 
-      def stderr_line = stderr.to_s.lines.map(&:strip).reject(&:empty?).last || "exit #{status}"
+      def stderr_line = Shell.error_line(stderr) || "exit #{status}"
     end
 
     class ToastExpired < Data.define(:id)

@@ -234,8 +234,10 @@ checks it and `mise run allow-ports` lowers it.
   requires its image. stop (which does stop nvim and agent) keeps volumes; down
   deletes this worktree's three and prompts, defaulting to No. destroy nukes all <prefix>[-_]* resources,
   the rendered units and the folder (type 'destroy' to confirm).
-- units:install/units:uninstall/units:env, doctor, verify, verify:spike, allow-ports: unit and host
-  management. `up` refuses to start when an installed unit no longer matches its template.
+- units:install/units:check/units:uninstall/units:env, doctor, verify, verify:spike, allow-ports: unit and host
+  management. `up` refuses to start when an installed unit no longer matches its template; units:check
+  (quadlet.sh check-stale) lists the drifted ones. Any branch that edits .container-config/quadlet/ or
+  quadlet.sh's render() needs a units:install afterwards.
 - rails/console(c)/ci: all route through `podman-wt.sh exec`, which uses the running rails container
   when it is up and a transient one otherwise. The transient container carries
   --label traefik.enable=false, or Traefik load-balances the worktree host onto something not serving
@@ -332,6 +334,10 @@ worktree; that worktree starts selected. `--theme dark` / WT_THEME, `--accent` /
   Wt::Shell.capture with a timeout (WT_TIMEOUT, default 5 s; mise actions WT_ACTION_TIMEOUT). A failed or
   timed-out source dims its cell to `?`, never crashes. Model, messages and commands must be Ractor-shareable
   (deep-frozen Data); the test suite runs in RatatuiRuby debug mode, which enforces it.
+- Feedback: a mise action started from a key is marked busy (⟳ <task> <elapsed>) on its row, its Pod panel
+  and the top bar until its CommandFinished; failure toasts show the last `error:` line, not mise's
+  "[task] ERROR task failed" trailer. The top bar shows stale units (units:check, every 60 s and after any
+  action); `U` runs units:install, and `s` on a stale workspace offers units:install then up.
 - Interactive programs (n nvim attach, L logs below full width) go through Wt::Terminal.handover: restore the
   terminal, run, re-init; ^C there reaches only the child (wt holds a no-op INT handler meanwhile).
 - Exit: Wt::App.run. q, TERM and HUP unwind to Rooibos' quit point (commands cancelled, terminal restored);

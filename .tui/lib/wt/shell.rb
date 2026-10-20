@@ -8,12 +8,22 @@ module Wt
   module Shell
     class Result < Data.define(:stdout, :stderr, :status, :timed_out)
       def ok? = !timed_out && status == 0
-      # One line for a toast: stderr's last non-empty line, else the exit reason.
+      # One line for a toast (see Shell.error_line), else the exit reason.
       def error_line
         return "timed out" if timed_out
 
-        stderr.lines.map(&:strip).reject(&:empty?).last || "exit #{status}"
+        Shell.error_line(stderr) || "exit #{status}"
       end
+    end
+
+    # mise's own lines around a task: "[up] $ <command>" and "[up] ERROR task failed".
+    MISE_NOISE = /\A\[[^\]]+\] (\$ |ERROR task failed)/
+
+    # The line of stderr worth showing: the last "error: …" line (the convention every
+    # .scripts/*.sh die() follows), else the last line that is not mise's wrapper.
+    def self.error_line(stderr)
+      lines = stderr.to_s.lines.map(&:strip).reject { it.empty? || it.match?(MISE_NOISE) }
+      lines.reverse.find { it.match?(/\Aerror:/i) } || lines.last
     end
 
     # argv: Array of Strings. env: Hash merged into the environment.

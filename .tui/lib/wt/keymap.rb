@@ -64,6 +64,7 @@ module Wt
       B.new(keys: %w[s], action: :toggle_pod, label: "pod up/down", group: "Pod", hint: true, screens: WA),
       B.new(keys: %w[r], action: :restart_service, label: "restart service", group: "Pod", screens: WA),
       B.new(keys: %w[L], action: :logs, label: "logs", group: "Pod", hint: true, screens: WA),
+      B.new(keys: %w[U], action: :install_units, label: "install units", group: "Pod"),
       # stack
       B.new(keys: ["["], action: :stack_down, label: "stack down", group: "Stack", screens: W),
       B.new(keys: ["]"], action: :stack_up, label: "stack up", group: "Stack", screens: W),

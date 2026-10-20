@@ -13,8 +13,20 @@ module Wt
       return pod_no_worktree(model) unless slug
 
       up = (model.services[slug] || []).any? { it.up? || it.state == :starting }
-      task = up ? "stop" : "up"
-      [model, Commands.mise(model, task, slug, task)]
+      return [model, Commands.mise(model, "stop", slug, "stop")] if up
+      # `up` refuses stale units (podman-wt.sh require_units); offer the fix instead of the failure.
+      return [model, Commands.mise(model, "up", slug, "up")] if model.stale_units.to_a.empty?
+
+      prompt = "Installed units are out of date (#{model.stale_units.join(', ')}). Run units:install, then up #{slug}?"
+      model.with(ui: model.ui.with(confirm: Confirm.new(prompt:, action: :install_units_then_up, args: [slug])))
+    end
+
+    # U — re-render the Quadlet units (`mise run units:install`, from the workspace root).
+    def self.install_units(model) = [model, Commands.mise(model, "units:install", nil, "units:install")]
+
+    def self.install_units_then_up(model, slug)
+      [model, Commands::MiseChain.new(tasks: [Commands.mise(model, "units:install", nil, "units:install"),
+                                              Commands.mise(model, "up", slug, "up")])]
     end
 
     # r — ask which service (default: the one the log panel follows).
