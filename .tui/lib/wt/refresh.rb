@@ -27,9 +27,10 @@ module Wt
       end
     end
 
-    # Everything for every worktree: first load, and after an action changed state.
+    # Everything for every worktree: first load, and after an action changed state
+    # (the worktree list too, since `c` / `d` add and remove rows).
     def self.all(model)
-      schedule(model, [units(model), *git(model), *selected(model), *gh(model), status_files(model)])
+      schedule(model, [worktrees(model), units(model), *git(model), *selected(model), *gh(model), status_files(model)])
     end
 
     # specs: [[key, source, *args], ...] → [model with inflight keys, batch command or nil]
