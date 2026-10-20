@@ -336,6 +336,7 @@ worktree; that worktree starts selected. `--theme dark` / WT_THEME, `--accent` /
 - Layout: bin/wt (entry), lib/wt.rb (load order by layer), lib/wt/{model,messages,sources,commands,actions,
   views,acp,nvim}/, keymap.rb (the ONE key table — the bottom bar and the `?` overlay are generated from it),
   refresh.rb (which source runs when), keys.rb (modal input: confirm, prompt, filter, reply).
+  views/markdown.rb renders agent replies (GFM subset: tables, code, lists, inline styles) for the chat.
 - Elm architecture (Rooibos): Update/View are pure and never block; every external call is a command through
   Wt::Shell.capture with a timeout (WT_TIMEOUT, default 5 s; mise actions WT_ACTION_TIMEOUT). A failed or
   timed-out source dims its cell to `?`, never crashes. Model, messages and commands must be Ractor-shareable

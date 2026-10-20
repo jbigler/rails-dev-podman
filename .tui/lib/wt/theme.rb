@@ -29,11 +29,14 @@ module Wt
     def [](role) = colors.fetch(role)
 
     # A RatatuiRuby style. fg/bg are palette roles (:tx, :ac, ...).
-    def style(fg = :tx, bg: nil, bold: false, dim: false, reverse: false)
+    def style(fg = :tx, bg: nil, bold: false, dim: false, reverse: false, italic: false, underline: false, strike: false)
       mods = []
       mods << :bold if bold
       mods << :dim if dim
       mods << :reversed if reverse
+      mods << :italic if italic
+      mods << :underlined if underline
+      mods << :crossed_out if strike
       RatatuiRuby::Style::Style.new(fg: fg && self[fg], bg: bg && self[bg], modifiers: mods)
     end
 

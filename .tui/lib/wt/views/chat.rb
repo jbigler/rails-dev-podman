@@ -85,8 +85,8 @@ module Wt
         s.transcript.each do |e|
           case e.role
           when :user then lines.concat(wrapped(tui, theme, "› ", :ac, e.text, :tx, width))
-          when :agent then lines.concat(wrapped(tui, theme, "◇ ", :cyn, e.text, :tx, width))
-          when :thought then lines.concat(wrapped(tui, theme, "∴ ", :tx2, e.text, :tx2, width))
+          when :agent then lines.concat(markdown(tui, theme, "◇ ", :cyn, e.text, {}, width))
+          when :thought then lines.concat(markdown(tui, theme, "∴ ", :tx2, e.text, { fg: :tx2, italic: true }, width))
           when :system then lines.concat(wrapped(tui, theme, "— ", :tx2, e.text, :tx2, width))
           when :tool
             i = s.tool_calls.index { it.id == e.tool_call_id }
@@ -116,6 +116,18 @@ module Wt
         rows = [""] if rows.empty?
         rows.each_with_index.map do |row, i|
           W.line(tui, W.span(tui, theme, i.zero? ? marker : " " * W.cells(marker), mcolor), W.span(tui, theme, row, color))
+        end
+      end
+
+      # Agent and thought text is Markdown: rendered rows (Views::Markdown), with the
+      # marker on the first row and an indent after.
+      def markdown(tui, theme, marker, mcolor, text, base, width)
+        indent = W.cells(marker)
+        rows = Markdown.rows(text, [width - indent, 10].max, base)
+        rows = [[]] if rows.empty?
+        rows.each_with_index.map do |row, i|
+          W.line(tui, W.span(tui, theme, i.zero? ? marker : " " * indent, mcolor),
+                 *row.map { tui.span(content: it.text, style: theme.style(it.style.fetch(:fg, :tx), **it.style.except(:fg))) })
         end
       end
 

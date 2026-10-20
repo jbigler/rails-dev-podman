@@ -177,7 +177,7 @@ module Wt
         msg = s.transcript.reverse.find { it.role == :agent }
         return W.line(tui, W.span(tui, theme, "—", :tx2)) unless msg
 
-        W.line(tui, W.span(tui, theme, "◇ ", :cyn), W.span(tui, theme, W.truncate(msg.text.to_s.lines.first&.chomp, 240), :tx))
+        W.line(tui, W.span(tui, theme, "◇ ", :cyn), W.span(tui, theme, W.truncate(Markdown.preview(msg.text), 240), :tx))
       end
 
       # Number chips for a permission's options, in the order the agent sent them.

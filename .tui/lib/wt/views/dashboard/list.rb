@@ -231,7 +231,7 @@ module Wt
                    end
             case pick
             when ToolCall then return "#{pick.kind} #{pick.title}"
-            when TranscriptEntry then return pick.text.to_s.lines.first&.chomp
+            when TranscriptEntry then return Markdown.preview(pick.text)
             end
           end
           model.agents[slug]&.last
