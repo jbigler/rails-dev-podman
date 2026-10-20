@@ -34,7 +34,7 @@ image_pattern="^localhost/${P}/"
 units=$(cd "$DEST" 2>/dev/null && ls "${P}-"* 2>/dev/null || true)
 
 echo "This will remove:"
-echo "  - every podman container, network and volume matching ${pattern}"
+echo "  - every podman container, network, volume and secret matching ${pattern}"
 echo "  - every image matching ${image_pattern}"
 [ -n "$units" ] && echo "  - the rendered units in ${DEST} ($(printf '%s' "$units" | wc -w) files)"
 echo "  - the project folder: ${target}"
@@ -65,6 +65,7 @@ sweep() (
 sweep containers "podman ps -a --format '{{.Names}}'"      "podman rm -f"        "$pattern"
 sweep networks   "podman network ls --format '{{.Name}}'"  "podman network rm -f" "$pattern"
 sweep volumes    "podman volume ls --format '{{.Name}}'"   "podman volume rm -f"  "$pattern"
+sweep secrets    "podman secret ls --format '{{.Name}}'"   "podman secret rm"     "$pattern"
 sweep images     "podman images --format '{{.Repository}}:{{.Tag}}'" "podman rmi -f" "$image_pattern"
 
 if [ -n "$units" ]; then

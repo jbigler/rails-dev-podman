@@ -150,8 +150,12 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   name), initialize cached, unanswered permission requests held and re-sent on reconnect, every message
   appended to .run/<slug>/session.jsonl (never rotated) so wt rebuilds the transcript, and it writes
   status/<slug>.json itself (state, agent, plan, last) — WORKTREE_NAME is removed from the adapter's env so
-  claude-status-hook.sh cannot overwrite it. No CLAUDE_CODE_OAUTH_TOKEN/GH_TOKEN: a unit has no calling shell,
-  and copying them into .unit-env would leave a token per worktree; it uses the worktree home's own login.
+  claude-status-hook.sh cannot overwrite it. Claude auth matches `mise run claude`: a unit has no calling shell
+  to forward CLAUDE_CODE_OAUTH_TOKEN from, so agent-up (run from one, or from wt) stores it on every call as
+  the podman secret <prefix>_claude_oauth (podman's store, not a file per worktree), mounted at
+  /run/secrets/claude-oauth, and the bridge puts it in the adapter's env. Empty (no token, or CLAUDE_NO_TOKEN)
+  = the home's own login, as claude:notoken; a direct systemctl start creates it empty. A running container
+  keeps the token it started with: a new one applies on the next start. GH_TOKEN is not forwarded.
   Protocol between bridge and wt (hello, busy, held requests, log and status formats): .tui/docs/design/ACP-BRIDGE.md.
 
 ## Egress firewall (.container-config/firewall/)

@@ -421,6 +421,20 @@ agent_sock_ready() {
   (( $(stat -c %Y "$sock") >= BASH_REMATCH[1] ))
 }
 
+# The agent's Claude auth: what podman-claude.sh forwards from this shell, kept
+# as a podman secret since agent@ (a unit) has no shell of its own. Refreshed on
+# every agent:up, even with the agent already running -- a container keeps the
+# secret it started with, so a new token applies on its next start (restarts
+# included). Empty under CLAUDE_NO_TOKEN or with no token: the home's own login
+# then decides, as for claude:notoken. A lone newline stands in for empty, since
+# podman refuses empty secret data; the bridge strips it.
+store_agent_token() {
+  local tok="${CLAUDE_CODE_OAUTH_TOKEN:-}"
+  [[ -z "${CLAUDE_NO_TOKEN:-}" ]] || tok=""
+  printf '%s\n' "$tok" | podman secret create --replace "${P}_claude_oauth" - >/dev/null \
+    || die "could not store the Claude token as podman secret ${P}_claude_oauth"
+}
+
 # The ACP agent (agent@, .container-config/acp-bridge), on demand like nvim:
 # `up` never starts it. wt calls this through `mise run agent:up` before it
 # connects, so the fast path -- unit active, current socket present -- is two
@@ -428,6 +442,7 @@ agent_sock_ready() {
 # podman-claude.sh starts them, so a cold stack makes the first start slow.
 cmd_agent_up() {
   local rundir="$ROOT/.run/$W" sock="$ROOT/.run/$W/acp.sock"
+  store_agent_token
   if systemctl --user is-active --quiet "$(unit agent)"; then
     agent_sock_ready "$sock" && return 0
   else

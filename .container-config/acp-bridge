@@ -29,6 +29,9 @@
 #                   same file if the adapter runs Claude Code's hooks.
 #   ACP_BRIDGE_DIR  socket and session log directory. Default /run/agent.
 #   ACP_STATUS_DIR  status file directory. Default /status.
+#   ACP_TOKEN_FILE  Claude OAuth token, read into the adapter's
+#                   CLAUDE_CODE_OAUTH_TOKEN when non-empty. Default
+#                   /run/secrets/claude-oauth (agent@'s podman secret).
 
 require "fileutils"
 require "json"
@@ -40,6 +43,7 @@ require "time"
 class AcpBridge
   DEFAULT_CMD = "claude-agent-acp"
   DEFAULT_PACKAGES = "@agentclientprotocol/claude-agent-acp"
+  TOKEN_FILE = "/run/secrets/claude-oauth"
   # wt advertises neither capability; an adapter that asks anyway is told the
   # method does not exist rather than being left waiting on a client that will
   # never answer.
@@ -174,12 +178,26 @@ class AcpBridge
   def spawn_adapter
     in_r, @adapter_in = IO.pipe
     @adapter_out, out_w = IO.pipe
-    @adapter_pid = Process.spawn({ "WORKTREE_NAME" => nil }, *@argv, in: in_r, out: out_w, err: :err)
+    @adapter_pid = Process.spawn(adapter_env, *@argv, in: in_r, out: out_w, err: :err)
     in_r.close
     out_w.close
     @adapter_queue = Queue.new
     Thread.new { adapter_writer }
     Thread.new { adapter_reader }
+  end
+
+  # WORKTREE_NAME removed (see the header), and the Claude token agent:up stored
+  # as a podman secret: the same auth podman-claude.sh forwards from its shell.
+  # An empty or missing secret leaves the home's own login in charge.
+  def adapter_env
+    env = { "WORKTREE_NAME" => nil }
+    token = begin
+      File.read(setting("ACP_TOKEN_FILE", TOKEN_FILE)).strip
+    rescue SystemCallError
+      ""
+    end
+    env["CLAUDE_CODE_OAUTH_TOKEN"] = token unless token.empty?
+    env
   end
 
   def listen

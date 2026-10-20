@@ -49,11 +49,17 @@ Environment=RUSTFS_ENDPOINT=http://rustfs:9000
 Environment=CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
 # AGENT_CMD, AGENT_NAME and AGENT_PACKAGES reach the bridge from the
 # .unit-env file above, written from mise env (mise.local.toml) by units-env.sh;
-# unset, the bridge runs claude-agent-acp. Deliberately absent: the host's
-# CLAUDE_CODE_OAUTH_TOKEN and GH_TOKEN, which podman-claude.sh forwards from the
-# calling shell. A unit has no calling shell, and copying the tokens into
-# .unit-env would leave them in a file per worktree; the agent uses this home's
-# own Claude login, as nvim@'s claude-agent-acp does.
+# unset, the bridge runs claude-agent-acp.
+#
+# Claude auth: the same CLAUDE_CODE_OAUTH_TOKEN podman-claude.sh forwards from the
+# calling shell. A unit has no calling shell, so `mise run agent:up` (run from
+# one, or from wt) stores it as the podman secret @@P@@_claude_oauth -- podman's
+# secret store, not a file per worktree -- and the bridge reads it from this mount
+# into the adapter's environment. An empty secret (no token, or CLAUDE_NO_TOKEN)
+# leaves this home's own Claude login in charge, as with `mise run claude:notoken`.
+# Secrets are copied at container creation: a new token applies on the next
+# start. GH_TOKEN is still not forwarded.
+Secret=@@P@@_claude_oauth,type=mount,target=claude-oauth,uid=1000,gid=1000,mode=0400
 
 Label=traefik.enable=false
 
@@ -125,6 +131,11 @@ ExecStartPre=/usr/bin/test -f @@ROOT@@/.firewall/hooks.d/@@P@@-firewall.json
 # the agent (the bridge also makes it 0600).
 ExecStartPre=/usr/bin/mkdir -p @@ROOT@@/.run/%i
 ExecStartPre=/usr/bin/chmod 0700 @@ROOT@@/.run/%i
+# podman refuses a missing secret too. agent:up writes the real one; a start that
+# does not come through it (a direct systemctl start) gets an empty one, which
+# means "use the home's own login". podman refuses empty secret data, so the
+# placeholder is a lone newline (echo), which the bridge strips.
+ExecStartPre=/bin/sh -c 'podman secret exists @@P@@_claude_oauth || echo | podman secret create @@P@@_claude_oauth - >/dev/null'
 # The bridge exits non-zero when the adapter dies; this brings both back.
 Restart=on-failure
 RestartSec=5
