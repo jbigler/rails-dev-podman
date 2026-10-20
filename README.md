@@ -136,6 +136,7 @@ The dashboard is at `http://wt.localhost`; live logs for every project container
 
 - `mise run wt <branch | PR# | new-branch>` — create a new git worktree with its own mise.local.toml and ports
 - `mise run wt:ls` — list all worktrees
+- `mise run wt:pick` (`w`) — fzf list of every worktree (stack, Claude state, changes); Enter opens its Claude tab, other keys nvim, shell, logs, up/stop (needs fzf)
 - `mise run wt:open [browser]` — open the current worktree URL (`xdg-open` by default)
 - `mise run wt:rm <branch | dir-name>` — fully remove a worktree: its units, containers, volumes and network, its git registration, ports.registry entry, container home and folder (refuses on the base worktree)
 - `mise run wt:share` / `wt:unshare` — expose this one worktree (app + S3) over the tailnet for phone testing

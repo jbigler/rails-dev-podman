@@ -171,6 +171,12 @@ run = '{{config_root}}/.scripts/create-worktree.sh "$usage_branch"'
 description = "List all worktrees"
 run = "{{config_root}}/.scripts/list-worktrees.sh"
 
+[tasks."wt:pick"]
+description = "Pick a worktree from a filterable list (stack, Claude state, changes; most recently active first) and act on it: Enter opens its Claude tab, other keys nvim, a shell, logs, up/stop, the browser. Needs fzf."
+run = "{{config_root}}/.scripts/wt-pick.sh"
+raw = true
+alias = "w"
+
 [tasks."wt:open"]
 description = "Open the current worktree URL in a browser. Pass a browser binary name (e.g. firefox) to override xdg-open."
 usage = 'arg "[browser]" help="optional browser binary; defaults to xdg-open"'

@@ -57,6 +57,15 @@ dir is missing (partial filesystem view, e.g. the container).
 
 mise run wt:ls list worktrees; mise run wt:open [browser] open link.
 
+mise run wt:pick (alias w) → .scripts/wt-pick.sh: fzf over every worktree (base included), most recently
+active first (last commit, or the status file's ts while a claude container runs). Columns: stack (rails@
+active), Claude (running `<prefix>-<slug>-claude` container + the status hook's state), changed files and
+ahead/behind, age; the branch only when the slug does not already say it. fzf calls the script back for
+rows, preview and actions, and reloads the rows every WT_PICK_REFRESH seconds (default 5, 0 = off) by
+POSTing to its own --listen port. Actions only run mise tasks, cd'd into the worktree so its mise env
+loads; claude, nvim, logs, console and a shell open through newterm.sh as one tab per worktree
+(`claude:<slug>`, `nvim:<slug>`, …), so a second press focuses the existing tab.
+
 mise run wt:share / wt:unshare → .scripts/share-worktree.sh: expose ONE worktree over the tailnet for
 phone testing. tailscale serve fronts rails (:443) and rustfs (:8443), Traefik bypassed.
 **Not by container IP**: tailscaled runs in the host network namespace and a rootless container's IP is
@@ -264,7 +273,9 @@ checks it and `mise run allow-ports` lowers it.
   template onto this worktree's home (or --all for every home); apply never touches credentials,  
   sessions, or other state.
 - claude runs in the current window; CLAUDE_NEW_TERM=1 or claude:newterm delegates to
-  .scripts/claude-newterm.sh, which detects the host terminal (env fingerprint, then process tree) then
+  .scripts/claude-newterm.sh → .scripts/newterm.sh --title claude:<slug>. newterm.sh first focuses a tab
+  already carrying that title (kitty: a wt_tab user var set at launch, so Claude retitling itself doesn't
+  lose it; tmux: window name), else detects the host terminal (env fingerprint, then process tree) and
   escalates: new tab (tmux/kitty/wezterm/konsole/gnome-terminal/xfce4-terminal/terminator/iTerm2) → new
   window of that same terminal → new window of any emulator found ($TERMINAL first, then kitty, wezterm,
   ghostty, alacritty, foot, konsole, gnome-terminal, xfce4-terminal, terminator, xterm) → current window
