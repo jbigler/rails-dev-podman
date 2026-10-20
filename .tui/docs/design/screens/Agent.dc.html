@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wt — agent chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: {{L.w}}px; height: 1400px; box-sizing: border-box; background: {{c.bg}}; color: {{c.tx}}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; line-height: 20px; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 3ch; height: 28px; padding: 0 2ch; background: {{c.bg2}}; border-bottom: 1px solid {{c.ui}}; white-space: nowrap; overflow: hidden">
+    <span style="font-weight: 700; color: {{c.ac}}">wt</span>
+    <span>Filial-Health/rails-core</span>
+    <sc-if value="{{L.wide}}" hint-placeholder-val="{{ true }}"><span style="color: {{c.tx2}}">~/src/rails-core.worktrees</span></sc-if>
+    <span style="flex-grow: 1"></span>
+    <span><span style="color: {{c.grn}}">●</span> pods 4/6</span>
+    <span><span style="color: {{c.ac}}">◆</span> 1 needs input</span>
+    <span><span style="color: {{c.red}}">✗</span> 1 error</span>
+    <span>14:03</span>
+  </div>
+
+  <div style="display: flex; gap: 1ch; padding: 10px 2ch 0; white-space: nowrap">
+    <a href="Main{{sfx}}.dc.html" style="padding: 0 1ch; color: {{c.tx}}; background: {{c.bg2}}; text-decoration: none">F1 Worktrees</a>
+    <a href="Monitor{{sfx}}.dc.html" style="padding: 0 1ch; color: {{c.tx}}; background: {{c.bg2}}; text-decoration: none">F2 Agents <span style="color: {{c.ac}}">◆1</span></a>
+    <span style="padding: 0 1ch; background: {{c.ac}}; color: {{c.bg}}; font-weight: 700">F3 Chat</span>
+    <span style="flex-grow: 1"></span>
+    <span style="color: {{c.tx2}}">{{L.label}}</span>
+  </div>
+
+  <!-- session strip -->
+  <div style="display: flex; margin: 12px 2ch 0; border-bottom: 1px solid {{c.ui}}; white-space: nowrap; overflow: hidden">
+    <span style="padding: 0 1ch; border: 1px solid {{c.ac}}; border-bottom: 2px solid {{c.bg}}; margin-bottom: -1px; color: {{c.ac}}; font-weight: 700">^1 tasks-filtering ◆</span>
+    <span style="padding: 0 1ch"><span style="color: {{c.tx2}}">^2 hipaa-logoff</span> <span style="color: {{c.blu}}">●</span></span>
+    <span style="padding: 0 1ch; color: {{c.tx2}}">^3 intake-forms ·</span>
+    <span style="padding: 0 1ch"><span style="color: {{c.tx2}}">^4 rustfs-spike</span> <span style="color: {{c.red}}">✗</span></span>
+    <span style="flex-grow: 1"></span>
+    <span style="color: {{c.tx2}}">claude-agent-acp · ACP over .run/tasks-filtering/acp.sock</span>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex; gap: 2ch; padding: 16px 2ch 12px">
+
+    <!-- transcript + input -->
+    <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+      <div style="flex-grow: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 0 1ch">
+
+        <div style="display: flex; gap: 1ch; color: {{c.tx2}}">
+          <span>──</span><span>session started 13:48 · cwd ~/src/rails-core.worktrees/tasks-filtering · mcp: nvim, postgres</span>
+        </div>
+
+        <div style="display: flex; gap: 1ch">
+          <span style="color: {{c.ac}}; font-weight: 700">›</span>
+          <span>Wire the bucket counts from #1418 into the filter sidebar badges. Counts should respect the active criteria except for the bucket itself.</span>
+        </div>
+
+        <div style="display: flex; gap: 1ch"><span style="color: {{c.cyn}}">◇</span><span>BucketCounts lives on the parent branch in this stack (tasks/bucket-counts), so it's already in this worktree's history. Plan:</span></div>
+
+        <!-- ACP plan -->
+        <div style="padding-left: 3ch">
+          <sc-for list="{{plan}}" as="p" hint-placeholder-count="5">
+            <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{p.c}}">{{p.box}}</span><span style="color: {{p.tc}}">{{p.text}}</span><span style="color: {{c.tx2}}">{{p.pri}}</span></div>
+          </sc-for>
+        </div>
+
+        <!-- ACP tool calls -->
+        <div style="display: flex; flex-direction: column">
+          <sc-for list="{{calls}}" as="t" hint-placeholder-count="6">
+            <div style="display: grid; grid-template-columns: 2ch 2ch 8ch minmax(0,1fr) auto; column-gap: 1ch; white-space: nowrap; background: {{t.bg}}; padding: 0 1ch">
+              <span style="color: {{t.sc}}">{{t.s}}</span>
+              <span style="color: {{t.kc}}">{{t.g}}</span>
+              <span style="color: {{c.tx2}}">{{t.kind}}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis">{{t.title}}</span>
+              <span style="color: {{t.hc}}">{{t.hint}}</span>
+            </div>
+            <sc-if value="{{t.diff}}" hint-placeholder-val="{{ false }}">
+              <div style="margin: 2px 0 4px 6ch; border-left: 1px solid {{c.ui}}; padding-left: 1ch; overflow: hidden">
+                <sc-for list="{{diff}}" as="d" hint-placeholder-count="6"><div style="color: {{d.c}}; background: {{d.bg}}; white-space: pre">{{d.text}}</div></sc-for>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; gap: 1ch"><span style="color: {{c.cyn}}">◇</span><span>The counts query scans tasks by status_bucket and takes ~380ms on the seeded data. I added an index migration and want to apply it to this worktree's database.</span></div>
+
+        <div style="display: grid; grid-template-columns: 2ch 2ch 8ch minmax(0,1fr) auto; column-gap: 1ch; white-space: nowrap; padding: 0 1ch">
+          <span style="color: {{c.ac}}">◆</span><span style="color: {{c.blu}}">$</span><span style="color: {{c.tx2}}">execute</span><span>bin/rails db:migrate</span><span style="color: {{c.ac}}">pending</span>
+        </div>
+
+        <!-- session/request_permission -->
+        <div style="border: 1px solid {{c.ac}}; padding: 10px 2ch; display: flex; flex-direction: column; gap: 6px; background: {{c.bg2}}">
+          <div style="color: {{c.ac}}; font-weight: 700">◆ claude asks to run a command</div>
+          <div style="color: {{c.blu}}; background: {{c.bg}}; padding: 4px 1ch">$ bin/rails db:migrate</div>
+          <div style="color: {{c.tx2}}">inside agent-tasks-filtering → postgres :5446 (this worktree's pod only)</div>
+          <div style="display: flex; flex-wrap: wrap; column-gap: 3ch; white-space: nowrap">
+            <span><span style="color: {{c.bg}}; background: {{c.grn}}; padding: 0 0.5ch; font-weight: 700">1</span> Allow once</span>
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">2</span> Always allow bin/rails db:*</span>
+            <span><span style="color: {{c.bg}}; background: {{c.red}}; padding: 0 0.5ch; font-weight: 700">3</span> Reject</span>
+            <span style="color: {{c.tx2}}">or type a reply to reject with a reason</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- compact context strip (½ width) -->
+      <sc-if value="{{L.compact}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; padding: 2px 1ch; background: {{c.bg2}}; white-space: nowrap">
+          <span style="color: {{c.pur}}">⎇ tasks/filter-ui</span>
+          <span>stack 3/3</span>
+          <span><span style="color: {{c.blu}}">#1421</span> <span style="color: {{c.red}}">✗ 2</span></span>
+          <span>nvim <span style="color: {{c.grn}}">● 1</span></span>
+          <span>rails <span style="color: {{c.grn}}">●</span> pg <span style="color: {{c.grn}}">●</span> redis <span style="color: {{c.grn}}">●</span> rustfs <span style="color: {{c.yel}}">◐</span></span>
+          <span style="flex-grow: 1"></span>
+          <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">^b</span> details</span>
+        </div>
+      </sc-if>
+
+      <!-- input -->
+      <div style="position: relative; border: 1px solid {{c.ui2}}; padding: 10px 1ch 8px">
+        <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; color: {{c.tx2}}">prompt · ⏎ send · ⇧⏎ newline · @ file · / command</span>
+        <div style="display: flex; gap: 1ch; align-items: center">
+          <span style="color: {{c.ac}}; font-weight: 700">›</span>
+          <span style="color: {{c.tx2}}">Answer with 1–3, or type to reply…</span>
+          <span style="width: 1ch; height: 18px; background: {{c.tx}}" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- context sidebar (⅔ and wider) -->
+    <sc-if value="{{L.wide}}" hint-placeholder-val="{{ true }}">
+      <div style="width: 46ch; flex-shrink: 0; display: flex; flex-direction: column; gap: 22px">
+        <div style="position: relative; border: 1px solid {{c.ui}}; padding: 14px 2ch 10px">
+          <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">wt/tasks-filtering</span>
+          <div style="display: grid; grid-template-columns: 6ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap"><span style="color: {{c.tx2}}">HEAD</span><span style="color: {{c.pur}}">⎇ tasks/filter-ui</span></div>
+          <div style="display: grid; grid-template-columns: 6ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap"><span style="color: {{c.tx2}}">PR</span><span><a href="https://github.com/Filial-Health/rails-core/pull/1421" style="color: {{c.blu}}; text-decoration: none">#1421</a> <span style="color: {{c.tx2}}">draft</span> <span style="color: {{c.red}}">✗ 2</span></span></div>
+          <div style="margin-top: 6px; border-top: 1px dashed {{c.ui}}; padding-top: 6px; white-space: pre"><span style="color: {{c.tx2}}">main</span>
+<span style="color: {{c.tx2}}">└─ </span>#1412 criteria-object <span style="color: {{c.grn}}">✓</span>
+<span style="color: {{c.tx2}}">   └─ </span>#1418 bucket-counts <span style="color: {{c.yel}}">⟳</span>
+<span style="color: {{c.tx2}}">      └─ </span><span style="font-weight: 700">#1421 filter-ui</span> <span style="color: {{c.ac}}; font-weight: 700">◀</span></div>
+          <div style="margin-top: 4px; color: {{c.yel}}">#1418 moved · <span style="color: {{c.bg}}; background: {{c.yel}}; padding: 0 0.5ch; font-weight: 700">^r</span> restack</div>
+        </div>
+
+        <div style="position: relative; border: 1px solid {{c.ui}}; padding: 14px 2ch 10px">
+          <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">nvim <span style="color: {{c.tx2}}; font-weight: 400">nvim-tasks-filtering</span></span>
+          <div><span style="color: {{c.grn}}">●</span> listening · 127.0.0.1:7781</div>
+          <div style="color: {{c.tx2}}">1 UI attached · kitty window</div>
+          <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">buf <span style="color: {{c.pur}}">filter_sidebar_component.html.erb:14</span></div>
+          <div style="color: {{c.tx2}}">7 buffers · 1 modified</div>
+          <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; margin-top: 6px; white-space: nowrap">
+            <span><span style="color: {{c.bg}}; background: {{c.ac}}; padding: 0 0.5ch; font-weight: 700">^o</span> open call</span>
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">^n</span> attach</span>
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">^N</span> window</span>
+          </div>
+        </div>
+
+        <div style="position: relative; border: 1px solid {{c.ui}}; padding: 14px 2ch 10px">
+          <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">Services</span>
+          <sc-for list="{{services}}" as="s" hint-placeholder-count="5">
+            <div style="display: grid; grid-template-columns: 11ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap"><span>{{s.name}}</span><span style="color: {{s.c}}">{{s.state}}</span></div>
+          </sc-for>
+        </div>
+
+        <div style="position: relative; border: 1px solid {{c.ui}}; padding: 14px 2ch 10px; flex-grow: 1; min-height: 0">
+          <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">Changes <span style="color: {{c.tx2}}; font-weight: 400">uncommitted</span></span>
+          <sc-for list="{{changes}}" as="f" hint-placeholder-count="4">
+            <div style="display: grid; grid-template-columns: 2ch minmax(0,1fr) 8ch; column-gap: 1ch; white-space: nowrap"><span style="color: {{f.mc}}">{{f.m}}</span><span style="overflow: hidden; text-overflow: ellipsis">{{f.path}}</span><span><span style="color: {{c.grn}}">{{f.add}}</span> <span style="color: {{c.red}}">{{f.del}}</span></span></div>
+          </sc-for>
+          <div style="margin-top: 10px; color: {{c.tx2}}">session 15m · 5 turns · ctx 17%</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; padding: 4px 2ch 6px; border-top: 1px solid {{c.ui}}; background: {{c.bg2}}; white-space: nowrap">
+    <sc-for list="{{keys}}" as="k" hint-placeholder-count="8">
+      <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">{{k.k}}</span> {{k.l}}</span>
+    </sc-for>
+    <span style="flex-grow: 1"></span>
+    <a href="Main{{sfx}}.dc.html" style="color: {{c.tx}}; text-decoration: none"><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">^]</span> back</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tier":{"editor":"enum","options":["half","twothirds"],"default":"twothirds"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"accent":{"editor":"enum","options":["orange","cyan","purple","blue"],"default":"orange"},"$preview":{"width":1690,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const tier = this.props.tier === 'half' ? 'half' : 'twothirds';
+    const PAL = {
+      light: { bg: '#FFFCF0', bg2: '#F2F0E5', sel: '#E6E4D9', ui: '#CECDC3', ui2: '#B7B5AC', tx: '#100F0F', tx2: '#6F6E69', red: '#AF3029', ora: '#BC5215', yel: '#8E6B01', grn: '#536907', cyn: '#1C6C66', blu: '#205EA6', pur: '#5E409D', mag: '#A02F6F', addBg: '#EDEECF', delBg: '#FFE1D5' },
+      dark: { bg: '#100F0F', bg2: '#1C1B1A', sel: '#282726', ui: '#403E3C', ui2: '#575653', tx: '#CECDC3', tx2: '#878580', red: '#D14D41', ora: '#DA702C', yel: '#D0A215', grn: '#879A39', cyn: '#3AA99F', blu: '#4385BE', pur: '#8B7EC8', mag: '#CE5D97', addBg: '#1A1E0C', delBg: '#261312' }
+    };
+    const c = Object.assign({}, PAL[theme]);
+    c.ac = c[{ orange: 'ora', cyan: 'cyn', purple: 'pur', blue: 'blu' }[this.props.accent] || 'ora'];
+    const L = tier === 'half'
+      ? { w: 1264, wide: false, compact: true, label: '140×70 · ½' }
+      : { w: 1690, wide: true, compact: false, label: '187×70 · ⅔' };
+    const K = { read: ['◇', c.cyn], search: ['⌕', c.cyn], edit: ['✎', c.pur], execute: ['$', c.blu] };
+    const call = (kind, title, extra) => Object.assign({ kind, g: K[kind][0], kc: K[kind][1], title, s: '✓', sc: c.grn, bg: 'transparent', hint: '', hc: c.tx2, diff: false }, extra || {});
+    const done = (text, pri) => ({ box: '[x]', c: c.grn, tc: c.tx2, text, pri: pri || '' });
+    const doing = (text, pri) => ({ box: '[~]', c: c.ac, tc: c.tx, text, pri: pri || '' });
+    const todo = (text, pri) => ({ box: '[ ]', c: c.tx2, tc: c.tx, text, pri: pri || '' });
+    const ctx = (text) => ({ text, c: c.tx2, bg: 'transparent' });
+    const add = (text) => ({ text, c: c.grn, bg: c.addBg });
+    const del = (text) => ({ text, c: c.red, bg: c.delBg });
+    return {
+      c, L,
+      sfx: theme === 'dark' ? 'Dark' : '',
+      plan: [
+        done('Read BucketCounts query'),
+        done('Badge counts in FilterSidebarComponent', 'high'),
+        done('Component tests'),
+        doing('Index on tasks.status_bucket'),
+        todo('System tests with playwright', 'low')
+      ],
+      calls: [
+        call('read', 'app/queries/tasks/bucket_counts.rb · 64 lines'),
+        call('search', '"status_bucket" in app/ test/ · 14 hits'),
+        call('edit', 'app/components/tasks/filter_sidebar_component.rb  +22 −4'),
+        call('edit', 'app/components/tasks/filter_sidebar_component.html.erb  +11 −3', { bg: c.sel, hint: '^o open in nvim · d diff', hc: c.ac, diff: true }),
+        call('execute', 'bin/rails test test/components/tasks/ · 9 runs, 0 failures'),
+        call('edit', 'db/migrate/20261020070112_add_status_bucket_index_to_tasks.rb  +7')
+      ],
+      diff: [
+        ctx('12   <% buckets.each do |bucket| %>'),
+        del('13 -   <%= render Filial::SidebarLinkComponent.new(label: bucket.label, href: bucket.path) %>'),
+        add('13 +   <%= render Filial::SidebarLinkComponent.new(label: bucket.label, href: bucket.path) do %>'),
+        add('14 +     <%= render Filial::BadgeComponent.new(count: counts.fetch(bucket.key, 0)) %>'),
+        add('15 +   <% end %>'),
+        ctx('16   <% end %>')
+      ],
+      services: [
+        { name: 'rails', state: '● :3014', c: c.grn },
+        { name: 'postgres', state: '● :5446', c: c.grn },
+        { name: 'redis', state: '● :6393', c: c.grn },
+        { name: 'rustfs', state: '◐ starting', c: c.yel },
+        { name: 'playwright', state: '○ stopped', c: c.tx2 }
+      ],
+      changes: [
+        { m: 'M', mc: c.yel, path: '…/filter_sidebar_component.rb', add: '+22', del: '−4' },
+        { m: 'M', mc: c.yel, path: '…/filter_sidebar_component.html.erb', add: '+11', del: '−3' },
+        { m: 'A', mc: c.grn, path: 'db/migrate/…_status_bucket_index.rb', add: '+7', del: '' },
+        { m: 'M', mc: c.yel, path: 'test/components/…/filter_sidebar_test.rb', add: '+16', del: '−2' }
+      ],
+      keys: tier === 'half'
+        ? [{ k: '^1–9', l: 'session' }, { k: 'esc', l: 'cancel' }, { k: '^o', l: 'nvim' }, { k: '^b', l: 'details' }]
+        : [{ k: '^1–9', l: 'switch session' }, { k: 'esc', l: 'cancel turn' }, { k: '↑↓', l: 'select tool call' }, { k: '^o', l: 'open in nvim' },
+           { k: 'd', l: 'diff' }, { k: '^n', l: 'attach nvim' }, { k: '^r', l: 'restack' }, { k: '^s', l: 'services' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

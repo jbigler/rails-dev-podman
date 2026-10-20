@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wt — agent monitor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1690px; height: 1400px; box-sizing: border-box; background: {{c.bg}}; color: {{c.tx}}; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; line-height: 20px; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 3ch; height: 28px; padding: 0 2ch; background: {{c.bg2}}; border-bottom: 1px solid {{c.ui}}; white-space: nowrap">
+    <span style="font-weight: 700; color: {{c.ac}}">wt</span>
+    <span>Filial-Health/rails-core</span>
+    <span style="color: {{c.tx2}}">~/src/rails-core.worktrees</span>
+    <span style="flex-grow: 1"></span>
+    <span><span style="color: {{c.grn}}">●</span> pods 10/12</span>
+    <span><span style="color: {{c.ac}}">◆</span> 2 need input</span>
+    <span><span style="color: {{c.red}}">✗</span> 1 failed</span>
+    <span style="color: {{c.tx2}}">gh ✓ 40s ago</span>
+    <span>14:03</span>
+  </div>
+
+  <div style="display: flex; gap: 1ch; padding: 10px 2ch 0; white-space: nowrap">
+    <a href="Main{{sfx}}.dc.html" style="padding: 0 1ch; color: {{c.tx}}; background: {{c.bg2}}; text-decoration: none">F1 Worktrees</a>
+    <span style="padding: 0 1ch; background: {{c.ac}}; color: {{c.bg}}; font-weight: 700">F2 Agents ◆2</span>
+    <a href="Agent{{sfx}}.dc.html" style="padding: 0 1ch; color: {{c.tx}}; background: {{c.bg2}}; text-decoration: none">F3 Chat</a>
+    <span style="flex-grow: 1"></span>
+    <span style="color: {{c.tx2}}">view </span>
+    <span style="padding: 0 1ch; background: {{V.cardsBg}}; color: {{V.cardsC}}">cards</span>
+    <span style="padding: 0 1ch; background: {{V.listBg}}; color: {{V.listC}}">list</span>
+    <span style="color: {{c.tx2}}">· sort: urgency · 187×70 · ⅔</span>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; gap: 22px; padding: 20px 2ch 12px">
+
+    <!-- ══ CARDS VIEW ══ -->
+    <sc-if value="{{V.cards}}" hint-placeholder-val="{{ true }}">
+      <div style="position: relative; border: 1px solid {{c.ui}}; padding: 18px 2ch 10px; display: flex; flex-direction: column; gap: 22px">
+        <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">Agents <span style="color: {{c.tx2}}; font-weight: 400">10 · <span style="color: {{c.ac}}">2 need input</span> · <span style="color: {{c.red}}">1 failed</span> · 4 running · 3 done</span></span>
+
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 2ch">
+          <sc-for list="{{cards}}" as="a" hint-placeholder-count="8">
+            <div style="position: relative; border: 1px solid {{a.border}}; padding: 14px 2ch 8px; display: flex; flex-direction: column; min-width: 0; background: {{a.bg}}">
+              <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700; color: {{a.titleC}}">^{{a.idx}} {{a.name}}</span>
+              <div style="display: flex; gap: 1ch; white-space: nowrap">
+                <span style="color: {{c.bg}}; background: {{a.color}}; padding: 0 1ch; font-weight: 700">{{a.state}}</span>
+                <span style="color: {{c.tx2}}">{{a.since}}</span>
+                <span style="flex-grow: 1"></span>
+                <span style="color: {{c.tx2}}">{{a.kind}}</span>
+              </div>
+              <div style="display: grid; grid-template-columns: 6ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap; margin-top: 6px">
+                <span style="color: {{c.tx2}}">HEAD</span><span style="overflow: hidden; text-overflow: ellipsis"><span style="color: {{c.pur}}">{{a.branch}}</span> <span style="color: {{c.tx2}}">{{a.stack}}</span></span>
+                <span style="color: {{c.tx2}}">nvim</span><span style="color: {{a.nvimC}}">{{a.nvim}} <span style="color: {{c.tx2}}">· {{a.session}}</span></span>
+              </div>
+              <div style="margin-top: 6px; border-top: 1px dashed {{c.ui}}; padding-top: 4px">
+                <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{c.tx2}}">plan</span><span style="color: {{a.barC}}">{{a.bar}}</span><span style="color: {{c.tx2}}">{{a.done}}/{{a.total}}</span></div>
+                <sc-for list="{{a.plan}}" as="p" hint-placeholder-count="3">
+                  <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{p.c}}">{{p.box}}</span><span style="overflow: hidden; text-overflow: ellipsis; color: {{p.tc}}">{{p.text}}</span></div>
+                </sc-for>
+              </div>
+              <div style="margin-top: 4px; border-top: 1px dashed {{c.ui}}; padding-top: 4px; color: {{a.lastC}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.last}}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- overflow: compact rows -->
+        <div>
+          <div style="color: {{c.tx2}}; border-bottom: 1px solid {{c.ui}}">+2 more · ↓ to scroll · <span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">v</span> list view</div>
+          <sc-for list="{{overflow}}" as="a" hint-placeholder-count="2">
+            <div style="display: grid; grid-template-columns: 4ch 13ch 20ch 9ch 30ch 10ch 5ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap">
+              <span style="color: {{c.tx2}}">^{{a.idx}}</span>
+              <span style="color: {{a.color}}; font-weight: 700">{{a.stateShort}}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis">{{a.name}}</span>
+              <span style="color: {{c.tx2}}">{{a.kind}}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis; color: {{c.pur}}">{{a.branch}}</span>
+              <span style="color: {{a.barC}}">{{a.bar}}</span>
+              <span style="color: {{c.tx2}}">{{a.done}}/{{a.total}}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis; color: {{a.lastC}}">{{a.last}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ LIST VIEW ══ -->
+    <sc-if value="{{V.list}}" hint-placeholder-val="{{ false }}">
+      <div style="position: relative; border: 1px solid {{c.ui}}; padding: 18px 1ch 10px">
+        <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">Agents <span style="color: {{c.tx2}}; font-weight: 400">10 · <span style="color: {{c.ac}}">2 need input</span> · <span style="color: {{c.red}}">1 failed</span> · 4 running · 3 done</span></span>
+        <div style="display: grid; grid-template-columns: 2ch 4ch 13ch 20ch 9ch 30ch 5ch 10ch 5ch 6ch 8ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap; color: {{c.tx2}}; border-bottom: 1px solid {{c.ui}}; padding: 0 1ch">
+          <span></span><span>KEY</span><span>STATE</span><span>WORKTREE</span><span>AGENT</span><span>HEAD</span><span>STK</span><span>PLAN</span><span></span><span>NVIM</span><span>SESSION</span><span>NOW / LAST</span>
+        </div>
+        <sc-for list="{{agents}}" as="a" hint-placeholder-count="10">
+          <div style="display: grid; grid-template-columns: 2ch 4ch 13ch 20ch 9ch 30ch 5ch 10ch 5ch 6ch 8ch minmax(0,1fr); column-gap: 1ch; white-space: nowrap; padding: 2px 1ch; background: {{a.rowBg}}">
+            <span style="color: {{c.ac}}; font-weight: 700">{{a.mark}}</span>
+            <span style="color: {{c.tx2}}">^{{a.idx}}</span>
+            <span style="color: {{a.color}}; font-weight: 700">{{a.stateShort}}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis">{{a.name}}</span>
+            <span style="color: {{c.tx2}}">{{a.kind}}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; color: {{c.pur}}">{{a.branch}}</span>
+            <span style="color: {{c.tx2}}">{{a.stack}}</span>
+            <span style="color: {{a.barC}}">{{a.bar}}</span>
+            <span style="color: {{c.tx2}}">{{a.done}}/{{a.total}}</span>
+            <span style="color: {{a.nvimC}}">{{a.nvimShort}}</span>
+            <span style="color: {{c.tx2}}">{{a.session}}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; color: {{a.lastC}}">{{a.last}}</span>
+          </div>
+        </sc-for>
+        <div style="margin-top: 6px; color: {{c.tx2}}">fits ~40 agents at 70 rows before scrolling · <span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">v</span> cards</div>
+      </div>
+    </sc-if>
+
+    <div style="flex-grow: 1; min-height: 0; display: flex; gap: 2ch">
+
+      <!-- attention queue -->
+      <div style="position: relative; border: 1px solid {{c.ac}}; padding: 14px 2ch 10px; width: 62ch; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px">
+        <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700; color: {{c.ac}}">Needs attention <span style="color: {{c.tx2}}; font-weight: 400">3</span></span>
+
+        <div style="background: {{c.sel}}; padding: 6px 2ch; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{c.ac}}; font-weight: 700">◆ ^1 tasks-filtering</span><span style="color: {{c.tx2}}">claude · 2m</span></div>
+          <div style="color: {{c.blu}}; white-space: nowrap">$ bin/rails db:migrate</div>
+          <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; white-space: nowrap">
+            <span><span style="color: {{c.bg}}; background: {{c.grn}}; padding: 0 0.5ch; font-weight: 700">1</span> Allow once</span>
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">2</span> Always db:*</span>
+            <span><span style="color: {{c.bg}}; background: {{c.red}}; padding: 0 0.5ch; font-weight: 700">3</span> Reject</span>
+            <a href="Agent{{sfx}}.dc.html" style="color: {{c.tx}}; text-decoration: none"><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">⏎</span> chat</a>
+          </div>
+        </div>
+
+        <div style="padding: 6px 2ch; border: 1px solid {{c.ui}}; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{c.ac}}; font-weight: 700">◆ ^2 econsent-pdf</span><span style="color: {{c.tx2}}">codex · 40s</span></div>
+          <div style="color: {{c.blu}}; white-space: nowrap">$ bundle add hexapdf</div>
+          <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; white-space: nowrap">
+            <span><span style="color: {{c.bg}}; background: {{c.grn}}; padding: 0 0.5ch; font-weight: 700">1</span> Allow once</span>
+            <span><span style="color: {{c.bg}}; background: {{c.red}}; padding: 0 0.5ch; font-weight: 700">3</span> Reject</span>
+          </div>
+        </div>
+
+        <div style="padding: 6px 2ch; border: 1px solid {{c.ui}}; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; gap: 1ch; white-space: nowrap"><span style="color: {{c.red}}; font-weight: 700">✗ ^3 rustfs-spike</span><span style="color: {{c.tx2}}">claude · 11m</span></div>
+          <div>rustfs exited 137 (OOM); tool call failed.</div>
+          <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; white-space: nowrap">
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">r</span> restart rustfs</span>
+            <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">R</span> restart + re-prompt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- stream -->
+      <div style="position: relative; border: 1px solid {{c.ui}}; padding: 14px 2ch 10px; flex-grow: 1; min-width: 0">
+        <span style="position: absolute; top: -11px; left: 1ch; padding: 0 1ch; background: {{c.bg}}; font-weight: 700">Session updates <span style="color: {{c.tx2}}; font-weight: 400">all worktrees · follow ●</span></span>
+        <sc-for list="{{events}}" as="e" hint-placeholder-count="24">
+          <div style="display: grid; grid-template-columns: 8ch 18ch 2ch 8ch minmax(0,1fr) 2ch; column-gap: 1ch; white-space: nowrap; overflow: hidden">
+            <span style="color: {{c.tx2}}">{{e.t}}</span>
+            <span style="color: {{e.wc}}; overflow: hidden; text-overflow: ellipsis">{{e.wt}}</span>
+            <span style="color: {{e.gc}}">{{e.g}}</span>
+            <span style="color: {{c.tx2}}">{{e.kind}}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis">{{e.msg}}</span>
+            <span style="color: {{e.sc}}">{{e.s}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; column-gap: 2ch; padding: 4px 2ch 6px; border-top: 1px solid {{c.ui}}; background: {{c.bg2}}; white-space: nowrap">
+    <sc-for list="{{keys}}" as="k" hint-placeholder-count="10">
+      <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">{{k.k}}</span> {{k.l}}</span>
+    </sc-for>
+    <span style="flex-grow: 1"></span>
+    <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">?</span> more</span>
+    <span><span style="color: {{c.bg}}; background: {{c.tx2}}; padding: 0 0.5ch; font-weight: 700">q</span> quit</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"view":{"editor":"enum","options":["cards","list"],"default":"cards"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"accent":{"editor":"enum","options":["orange","cyan","purple","blue"],"default":"orange"},"$preview":{"width":1690,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme === 'dark' ? 'dark' : 'light';
+    const view = this.props.view === 'list' ? 'list' : 'cards';
+    const PAL = {
+      light: { bg: '#FFFCF0', bg2: '#F2F0E5', sel: '#E6E4D9', ui: '#CECDC3', ui2: '#B7B5AC', tx: '#100F0F', tx2: '#6F6E69', red: '#AF3029', ora: '#BC5215', yel: '#8E6B01', grn: '#536907', cyn: '#1C6C66', blu: '#205EA6', pur: '#5E409D', mag: '#A02F6F' },
+      dark: { bg: '#100F0F', bg2: '#1C1B1A', sel: '#282726', ui: '#403E3C', ui2: '#575653', tx: '#CECDC3', tx2: '#878580', red: '#D14D41', ora: '#DA702C', yel: '#D0A215', grn: '#879A39', cyn: '#3AA99F', blu: '#4385BE', pur: '#8B7EC8', mag: '#CE5D97' }
+    };
+    const c = Object.assign({}, PAL[theme]);
+    c.ac = c[{ orange: 'ora', cyan: 'cyn', purple: 'pur', blue: 'blu' }[this.props.accent] || 'ora'];
+    const A = c.ac;
+
+    const V = {
+      cards: view === 'cards', list: view === 'list',
+      cardsBg: view === 'cards' ? A : c.bg2, cardsC: view === 'cards' ? c.bg : c.tx2,
+      listBg: view === 'list' ? A : c.bg2, listC: view === 'list' ? c.bg : c.tx2
+    };
+
+    const done = (text) => ({ box: '[x]', c: c.grn, tc: c.tx2, text });
+    const doing = (text) => ({ box: '[~]', c: A, tc: c.tx, text });
+    const todo = (text) => ({ box: '[ ]', c: c.tx2, tc: c.tx, text });
+    const fail = (text) => ({ box: '[!]', c: c.red, tc: c.tx, text });
+    const bar = (n, of) => '▰'.repeat(n) + '▱'.repeat(of - n);
+    const ST = {
+      perm: { state: 'PERMISSION', stateShort: '◆ permission', color: A, barC: A, lastC: A },
+      fail: { state: 'FAILED', stateShort: '✗ failed', color: c.red, barC: c.red, lastC: c.red },
+      run: { state: 'RUNNING', stateShort: '● running', color: c.blu, barC: c.blu, lastC: c.tx },
+      end: { state: 'END TURN', stateShort: '· done', color: c.tx2, barC: c.grn, lastC: c.tx2 }
+    };
+    const ag = (idx, st, o) => {
+      const a = Object.assign({ idx: String(idx), stack: '', nvim: '● 0 UIs', nvimShort: '● 0', nvimC: c.grn }, ST[st], o);
+      a.bar = bar(a.done, a.total);
+      a.border = st === 'perm' ? A : st === 'fail' ? c.red : c.ui;
+      a.titleC = st === 'perm' ? A : st === 'fail' ? c.red : c.tx;
+      a.bg = 'transparent';
+      a.mark = idx === 1 ? '▌' : '';
+      a.rowBg = idx === 1 ? c.sel : 'transparent';
+      return a;
+    };
+    const agents = [
+      ag(1, 'perm', { name: 'tasks-filtering', kind: 'claude', since: '2m', branch: 'tasks/filter-ui', stack: '3/3', session: '15m', nvim: '● 1 UI', nvimShort: '● 1', done: 3, total: 5,
+        plan: [done('Component tests'), doing('Index on status_bucket'), todo('System tests')], last: '◆ execute bin/rails db:migrate' }),
+      ag(2, 'perm', { name: 'econsent-pdf', kind: 'codex', since: '40s', branch: 'econsent/pdf-export', session: '9m', done: 1, total: 4,
+        plan: [done('Spike PDF libraries'), doing('Add hexapdf'), todo('Signature page layout')], last: '◆ execute bundle add hexapdf' }),
+      ag(3, 'fail', { name: 'rustfs-spike', kind: 'claude', since: '11m', branch: 'spike/rustfs-uploads', session: '1h02m', nvim: '○ stopped', nvimShort: '○', nvimC: c.tx2, done: 2, total: 4,
+        plan: [done('Direct upload config'), fail('Upload service tests'), todo('Benchmark vs MinIO')], last: '✗ rustfs exited 137 (OOM)' }),
+      ag(4, 'run', { name: 'hipaa-logoff', kind: 'codex', since: '6m', branch: 'hipaa/automatic-logoff', session: '22m', done: 2, total: 4,
+        plan: [done('Restore after re-auth'), doing('System test: idle logoff'), todo('Audit log entry')], last: '⟳ execute bin/rails test:system' }),
+      ag(5, 'run', { name: 'triage-queue', kind: 'claude', since: '3m', branch: 'triage/queue-priority', stack: '2/2', session: '34m', done: 4, total: 6,
+        plan: [done('Priority scope'), doing('Turbo stream reorder'), todo('Nurse view tests')], last: '✎ edit app/views/triage/_queue.html.erb' }),
+      ag(6, 'run', { name: 'results-signoff', kind: 'opencode', since: '1m', branch: 'results/bulk-sign-off', session: '18m', done: 1, total: 3,
+        plan: [done('Bulk select UI'), doing('SignOff service batching'), todo('Policy specs')], last: '◇ read app/services/results/sign_off.rb' }),
+      ag(7, 'run', { name: 'monitoring-stims', kind: 'claude', since: '8m', branch: 'monitoring/stim-day-notes', stack: '1/3', session: '47m', nvim: '● 1 UI', nvimShort: '● 1', done: 5, total: 7,
+        plan: [done('Stim day note model'), doing('Follicle table edits'), todo('Print layout')], last: '$ execute bin/rails test test/models/' }),
+      ag(8, 'end', { name: 'intake-forms', kind: 'opencode', since: '24m ago', branch: 'intake/questionnaire-model', stack: '1/2', session: '41m', done: 4, total: 4,
+        plan: [done('Validations'), done('Address review'), done('Push stack')], last: 'end_turn · pushed 2 commits to #1430' }),
+      ag(9, 'end', { name: 'follicle-chart', kind: 'claude', since: '1h ago', branch: 'fix/follicle-chart-scale', session: '12m', nvim: '○ stopped', nvimShort: '○', nvimC: c.tx2, done: 2, total: 2,
+        plan: [done('Fix y-axis scale'), done('Snapshot test')], last: 'end_turn · ready for PR' }),
+      ag(10, 'end', { name: 'rcm-era-import', kind: 'codex', since: '2h ago', branch: 'rcm/era-835-import', stack: '2/2', session: '1h20m', done: 5, total: 5,
+        plan: [done('835 parser'), done('Remittance matching'), done('Import job')], last: 'end_turn · 3 commits, tests green' })
+    ];
+
+    const K = { read: ['◇', c.cyn], search: ['⌕', c.cyn], edit: ['✎', c.pur], execute: ['$', c.blu], think: ['∴', c.tx2], msg: ['›', A], perm: ['◆', A], stop: ['■', c.tx2], fail: ['✗', c.red] };
+    const W = { 'tasks-filtering': A, 'econsent-pdf': A, 'rustfs-spike': c.red, 'hipaa-logoff': c.blu, 'triage-queue': c.blu, 'results-signoff': c.blu, 'monitoring-stims': c.blu, 'intake-forms': c.tx2 };
+    const ev = (t, wt, kind, msg, s) => ({ t, wt, wc: W[wt] || c.tx2, g: K[kind][0], gc: K[kind][1], kind: kind === 'msg' ? 'prompt' : kind === 'perm' ? 'permit' : kind, msg, s: s || '', sc: s === '✗' ? c.red : s === '⟳' ? c.yel : s === '◆' ? A : c.grn });
+
+    return {
+      c, V,
+      sfx: theme === 'dark' ? 'Dark' : '',
+      agents,
+      cards: agents.slice(0, 8),
+      overflow: agents.slice(8),
+      events: [
+        ev('14:03:09', 'results-signoff', 'read', 'app/services/results/sign_off.rb', '✓'),
+        ev('14:03:05', 'hipaa-logoff', 'execute', 'bin/rails test:system test/system/session_timeout_test.rb', '⟳'),
+        ev('14:02:40', 'econsent-pdf', 'perm', 'execute bundle add hexapdf', '◆'),
+        ev('14:02:31', 'monitoring-stims', 'execute', 'bin/rails test test/models/ · 88 runs, 0 failures', '✓'),
+        ev('14:02:02', 'triage-queue', 'edit', 'app/views/triage/_queue.html.erb  +19 −7', '✓'),
+        ev('14:01:22', 'tasks-filtering', 'perm', 'execute bin/rails db:migrate', '◆'),
+        ev('14:01:15', 'hipaa-logoff', 'edit', 'app/javascript/controllers/form_stash_controller.js  +38 −6', '✓'),
+        ev('14:00:47', 'tasks-filtering', 'edit', 'db/migrate/20261020070112_add_status_bucket_index_to_tasks.rb  +7', '✓'),
+        ev('14:00:30', 'monitoring-stims', 'edit', 'app/components/monitoring/follicle_table_component.rb  +41 −12', '✓'),
+        ev('14:00:12', 'tasks-filtering', 'execute', 'bin/rails test test/components/tasks/ · 9 runs, 0 failures', '✓'),
+        ev('13:59:50', 'econsent-pdf', 'search', '"prawn|hexapdf|grover" in Gemfile.lock · 0 hits', '✓'),
+        ev('13:59:30', 'tasks-filtering', 'edit', 'app/components/tasks/filter_sidebar_component.html.erb  +11 −3', '✓'),
+        ev('13:58:44', 'hipaa-logoff', 'think', 'plan updated · 2 of 4 complete'),
+        ev('13:58:21', 'triage-queue', 'execute', 'bin/rails test test/models/triage_item_test.rb · 14 runs, 0 failures', '✓'),
+        ev('13:58:10', 'tasks-filtering', 'edit', 'app/components/tasks/filter_sidebar_component.rb  +22 −4', '✓'),
+        ev('13:57:02', 'tasks-filtering', 'read', 'app/queries/tasks/bucket_counts.rb', '✓'),
+        ev('13:56:10', 'tasks-filtering', 'msg', 'you: wire bucket counts from #1418 into the filter sidebar badges'),
+        ev('13:54:31', 'econsent-pdf', 'msg', 'you: export signed e-consents as a PDF with the signature page'),
+        ev('13:52:10', 'rustfs-spike', 'fail', 'rustfs container exited 137 (OOM killed) · turn stopped', '✗'),
+        ev('13:51:44', 'rustfs-spike', 'execute', 'bin/rails test test/services/storage/rustfs_upload_test.rb', '✗'),
+        ev('13:45:02', 'results-signoff', 'msg', 'you: allow bulk sign-off of normal results'),
+        ev('13:39:05', 'intake-forms', 'execute', 'gh stack push · intake/questionnaire-model', '✓'),
+        ev('13:38:51', 'intake-forms', 'stop', 'stopReason: end_turn'),
+        ev('13:36:12', 'intake-forms', 'edit', 'app/models/questionnaire.rb  +14 −8', '✓')
+      ],
+      keys: [
+        { k: '^1–9', l: 'jump to agent' }, { k: '↑↓←→', l: 'move' }, { k: '⏎', l: 'chat' }, { k: '1-3', l: 'answer permission' },
+        { k: 'v', l: 'cards / list' }, { k: 'esc', l: 'cancel turn' }, { k: 'o', l: 'open in nvim' }, { k: 'K', l: 'stop session' },
+        { k: 'f', l: 'filter' }, { k: 'T', l: 'theme' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

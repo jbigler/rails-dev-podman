@@ -27,3 +27,6 @@ mise.local.toml
 
 # Include the scripts
 !/.scripts/
+
+# Include the TUI
+!/.tui/
