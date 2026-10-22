@@ -27,3 +27,7 @@ mise.local.toml
 
 # Include the scripts
 !/.scripts/
+
+# Include the web dashboard, not its vendored gems
+!/.dashboard/
+/.dashboard/vendor/
