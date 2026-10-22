@@ -167,6 +167,57 @@ class GitSafetyTest < Minitest::Test
     end
   end
 
+  # The real config is container-written: 12,000 fetch lines must not hold the
+  # shadow's lock (and so every poller) for long. Over the cap it fails closed.
+  def test_bloated_config_fails_closed_fast
+    config = "#{@base}/.git/config"
+    real = File.binread(config)
+    fetches = 12_000.times.map { "\tfetch = +refs/heads/b#{it}:refs/remotes/origin/b#{it}\n" }.join
+    File.binwrite(config, "#{real}[remote \"origin\"]\n#{fetches}")
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    outcome = Thread.new do
+      @safety.env(@ws)
+    rescue Dashboard::GitSafety::Unsafe => e
+      e
+    end
+    assert outcome.join(5), "building the shadow blocked"
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, :<, 1
+    assert_kind_of Dashboard::GitSafety::Unsafe, outcome.value
+
+    File.binwrite(config, real)
+    assert @safety.env(@ws).key?("GIT_COMMON_DIR"), "a sane config afterwards is read again"
+  end
+
+  # The shadow is written by us, not git: every allowlisted entry must read back
+  # exactly, whatever quoting its subsection name or value needs.
+  def test_shadow_config_round_trips_hostile_names_and_values
+    odd = %(a"b\\c d=e#f;g[h]\t)
+    value = %( lead "q" \\ b=c #h ;s\ttab\nnl\b\r\x01 trail )
+    git "config", "remote.#{odd}.url", value
+    git "config", "--add", "remote.#{odd}.fetch", "+refs/heads/*:refs/remotes/#{odd}/*"
+    git "config", "--add", "remote.#{odd}.fetch", ""
+    git "config", "branch.#{odd}.merge", "refs/heads/x"
+    git "config", "remote.dotted.name.here.url", "u"
+    git "config", "core.bare", "false"
+    File.write("#{@base}/.git/config", "[core]\n\tsymlinks\n", mode: "a")
+    File.write("#{@base}/.git/config", "[remote \"many\"]\n#{1_900.times.map { "\tfetch = r#{it}\n" }.join}", mode: "a")
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    shadow = @safety.env(@ws).fetch("GIT_COMMON_DIR")
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, :<, 1, "a config just under the cap is slow"
+    allowed = Dashboard::GitSafety::SanitizedConfig::ALLOWED
+    want = git_in(@root, "config", "--no-includes", "--file", "#{@base}/.git/config", "--list", "-z").split("\0").filter_map do
+      key, val = it.split("\n", 2)
+      [key, val || "true"] if key.match?(allowed)
+    end
+    got = git_in(@root, "config", "--file", "#{shadow}/config", "--list", "-z").split("\0").map { it.split("\n", 2) }
+
+    assert_includes want, ["remote.#{odd}.url", value]
+    assert_includes want, ["core.symlinks", "true"]
+    assert_equal want, got
+  end
+
   def test_a_failing_config_list_fails_closed
     with_shell(FakeShell.new("git config" => Dashboard::Shell::Result.fail("fatal: bad config line 3", status: 128))) do
       assert_raises(Dashboard::GitSafety::Unsafe) { @safety.env(@ws) }

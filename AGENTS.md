@@ -233,7 +233,9 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   Its config is regenerated, when the real master/.git/config's bytes change, from one capped read of that
   file (regular files only) through an allowlist — core format keys, extensions.objectformat/refstorage,
   remote.*.url/fetch/gh-resolved, branch.*.remote/merge — so no filter, include, fsmonitor, hooksPath or
-  worktreeConfig a container writes ever reaches git, however it races the read. objects, refs, packed-refs,
+  worktreeConfig a container writes ever reaches git, however it races the read. git lists the file (one
+  `git config --list`); the dashboard writes the kept entries in one pass, and more than 2,000 of them fails
+  closed, so a bloated config cannot hold the pollers. objects, refs, packed-refs,
   worktrees, HEAD, shallow, gh-stack and reftable are symlinked; info/ and hooks/ are not. Overrides stay as
   defence in depth (core.fsmonitor=false, core.hooksPath=/dev/null, diff.ignoreSubmodules=all,
   submodule.recurse=false, GIT_OPTIONAL_LOCKS=0) and git status passes --ignore-submodules=all: a

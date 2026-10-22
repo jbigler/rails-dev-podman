@@ -43,7 +43,7 @@ module Dashboard
         build unless @read
         entries = SanitizedConfig.entries(bytes, @home)
         fresh = File.join(@dir, "config.new")
-        SanitizedConfig.write(entries, fresh, @home)
+        SanitizedConfig.write(entries, fresh)
         File.rename(fresh, File.join(@dir, "config"))
         @read = bytes
       end
