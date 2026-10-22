@@ -2,14 +2,17 @@
 
 module Dashboard
   # Raw source results → [Worktree] for the views. Rerun after every source result.
+  # failed: the Hub's failure keys — "units", "prs", … or "<source>:<W>" for one worktree.
   module Derive
+    GIT_UNKNOWN = GitInfo.new(ahead: UNKNOWN, behind: UNKNOWN, upstream: UNKNOWN, dirty_count: UNKNOWN)
+
     def self.worktrees(ws, raw, failed)
       refs = raw.refs || []
       units = failed.key?("units") ? UNKNOWN : raw.units
       containers = failed.key?("containers") ? UNKNOWN : raw.containers
       sorted = refs.reject(&:base).sort_by(&:name) + refs.select(&:base)
       sorted.map do |ref|
-        git = raw.git[ref.name]
+        git = failed.key?("git:#{ref.name}") ? GIT_UNKNOWN : raw.git[ref.name]
         env = raw.env[ref.name]&.last || {}
         Worktree.new(
           name: ref.name, path: ref.path, base: ref.base, branch: ref.branch, head_sha: ref.head_sha,
@@ -29,7 +32,7 @@ module Dashboard
       return UNKNOWN if failed.key?("prs")
 
       pr = raw.prs[ref.branch] || raw.pr_index[ref.branch]
-      pr&.with(commits: raw.commits[ref.name])
+      pr&.with(commits: failed.key?("commits:#{ref.name}") ? UNKNOWN : raw.commits[ref.name])
     end
     private_class_method :pr
   end

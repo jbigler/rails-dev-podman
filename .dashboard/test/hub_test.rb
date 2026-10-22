@@ -60,11 +60,31 @@ class HubTest < Minitest::Test
     refute_equal Dashboard::UNKNOWN, h.snapshot.worktrees.first.services
   end
 
+  def wt(h, name) = h.snapshot.worktrees.find { it.name == name }
+
   def test_per_worktree_failure_is_marked_per_worktree
     h = hub
     h.apply([:stacks, "wt-stacked"], nil, failed: "gh stack view: timed out")
-    assert_equal Dashboard::UNKNOWN, h.snapshot.worktrees.find { it.name == "wt-stacked" }.stack
+    assert_equal Dashboard::UNKNOWN, wt(h, "wt-stacked").stack
     assert_equal "gh stack view: timed out", h.snapshot.failed["stacks:wt-stacked"]
+  end
+
+  def test_git_failure_marks_that_worktrees_git_cells_unknown
+    h = hub
+    h.apply([:git, "wt-stacked"], nil, failed: "git status: timed out")
+    stacked = wt(h, "wt-stacked")
+    assert_equal [Dashboard::UNKNOWN] * 4, [stacked.ahead, stacked.behind, stacked.upstream, stacked.dirty_count]
+    master = wt(h, "master")
+    assert_equal [0, 0, "origin", 0], [master.ahead, master.behind, master.upstream, master.dirty_count]
+    h.apply([:git, "wt-stacked"], Dashboard::GitInfo.new(ahead: 1, behind: 0, upstream: "origin", dirty_count: 0))
+    assert_equal 1, wt(h, "wt-stacked").ahead
+  end
+
+  def test_commit_count_failure_marks_the_pr_commits_unknown
+    h = hub
+    h.apply([:commits, "wt-stacked"], nil, failed: "git rev-list: timed out")
+    pr = wt(h, "wt-stacked").pr
+    assert_equal [10_329, Dashboard::UNKNOWN], [pr.number, pr.commits]
   end
 
   def test_reread_results_merge_and_drop_gone_files
@@ -75,11 +95,15 @@ class HubTest < Minitest::Test
     assert_equal "13001", h.snapshot.worktrees.find { it.name == "wt-01" }.services.first.port
   end
 
-  def test_removed_worktrees_leave_the_per_worktree_values
+  def test_removed_worktrees_leave_the_per_worktree_values_and_failures
     h = hub
+    h.apply([:stacks, "wt-stacked"], nil, failed: "gh stack view: timed out")
+    h.apply([:git, "wt-01"], nil, failed: "git status: timed out")
+    h.apply(:units, nil, failed: "systemctl: no user session")
     h.apply(:worktrees, fixture_raw.refs.reject { it.name == "wt-stacked" })
     raw = h.snapshot.raw
     assert_equal [{}, {}, {}, {}], [raw.env, raw.commits, raw.stacks, raw.git.slice("wt-stacked")]
+    assert_equal %w[git:wt-01 units], h.snapshot.failed.keys.sort
   end
 
   def test_header_when_stale_units_or_autostart_change

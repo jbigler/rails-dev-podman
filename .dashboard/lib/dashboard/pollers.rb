@@ -63,6 +63,15 @@ module Dashboard
       end
     end
 
+    # Waits up to timeout seconds for pokes → true when any arrived. Takes
+    # them one by one: a poke landing after the wait gave up is still taken
+    # here, or left for the next wait, never cleared away unseen.
+    def poked?(timeout = TICK)
+      poked = !@wake.pop(timeout:).nil?
+      poked = true while @wake.pop(timeout: 0)
+      poked
+    end
+
     private
 
     def run
@@ -70,8 +79,7 @@ module Dashboard
       loop do
         now = Time.now
         (poked ? @schedule.local_all(now) : @schedule.local_due(now)).each { |key| guarded { refresh(key) } }
-        poked = !@wake.pop(timeout: TICK).nil?
-        @wake.clear
+        poked = poked?
       end
     end
 
@@ -85,7 +93,8 @@ module Dashboard
   # Reads GitHub into the Hub on its own thread: at startup, on hints, and on
   # the Schedule's timer while a page is open. Open PRs every time; the
   # all-states index only on demand (startup and hints), never on the timer;
-  # the stack and the open PR's commit count for viewed worktrees only.
+  # the stack and the open PR's commit count for viewed worktrees only, and
+  # at once for a worktree viewed since the last refresh (Ruling 10).
   class GithubPoller
     include Polling
 
@@ -122,7 +131,9 @@ module Dashboard
     end
 
     # One step: the startup or hinted refresh (with the index), else the
-    # timer's when due; again while actions queue reruns.
+    # timer's when due; again while actions queue reruns. Without one, the
+    # worktrees viewed since the last refresh get their stack and commit
+    # count, outside the timer and the hint coalescing.
     def tick
       hot = self.class.hot?(@hub.snapshot.raw, @hub.viewed_names)
       subscribers = @hub.subscriber_count
@@ -135,7 +146,7 @@ module Dashboard
           on_demand
         end
       end
-      return if full.nil?
+      return details(unread) if full.nil?
 
       loop do
         guarded { refresh(full:) }
@@ -150,15 +161,30 @@ module Dashboard
       read(:prs) { Sources::OpenPrs.fetch(@ws) }
       read(:pr_index) { Sources::PrIndex.fetch(@ws) } if full
       viewed = @hub.viewed_names
-      raw = @hub.snapshot.raw
-      (raw.refs || []).select { viewed.include?(it.name) }.each do |ref|
-        read([:stacks, ref.name]) { Sources::Stack.fetch(ref.path) }
-        pr = raw.prs[ref.branch]
-        read([:commits, ref.name]) { Sources::CommitCount.fetch(ref.path, pr.base_ref) } if pr
-      end
+      details((@hub.snapshot.raw.refs || []).select { viewed.include?(it.name) })
     end
 
     private
+
+    # Viewed worktrees whose stack was never read. One whose read failed
+    # waits for the timer rather than retrying every tick.
+    def unread
+      viewed = @hub.viewed_names
+      state = @hub.snapshot
+      (state.raw.refs || []).select do |ref|
+        viewed.include?(ref.name) && !state.raw.stacks.key?(ref.name) && !state.failed.key?("stacks:#{ref.name}")
+      end
+    end
+
+    # Each ref's stack, and its open PR's commit count.
+    def details(refs)
+      prs = @hub.snapshot.raw.prs
+      refs.each do |ref|
+        read([:stacks, ref.name]) { Sources::Stack.fetch(ref.path) }
+        pr = prs[ref.branch]
+        read([:commits, ref.name]) { Sources::CommitCount.fetch(ref.path, pr.base_ref) } if pr
+      end
+    end
 
     def run
       loop do

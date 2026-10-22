@@ -46,13 +46,14 @@ module Dashboard
     # key: a source (:worktrees, :units, :unit_env, …) or [source, name] for
     # one worktree's :git, :stacks or :commits. failed: the Sources::Failed
     # message; the previous value stays and the key is marked failed until it
-    # reads again.
+    # reads again. New refs drop the values and failures of removed worktrees.
     def apply(key, value, failed: false)
       @lock.synchronize do
         old = @state
         failure = Array(key).join(":")
         raw = failed ? old.raw : merge(old.raw, key, value)
         failures = failed ? old.failed.merge(failure => failed) : old.failed.except(failure)
+        failures = current(failures, raw.refs) if key == :worktrees && !failed
         @state = old.with(worktrees: Derive.worktrees(@ws, raw, failures), raw:, failed: failures)
         publish(old, @state)
       end
@@ -97,6 +98,12 @@ module Dashboard
       else
         raise ArgumentError, "unknown source: #{key.inspect}"
       end
+    end
+
+    # The failures without the "<source>:<W>" keys of worktrees not in refs.
+    def current(failures, refs)
+      names = refs.map(&:name)
+      failures.select { |key, _| (name = key.split(":", 2)[1]).nil? || names.include?(name) }
     end
 
     def publish(old, new)
