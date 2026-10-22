@@ -13,9 +13,9 @@
   <section id="detail" class="detail empty"><p class="muted">no worktree selected</p></section>
   <% end %>
 </main>
-<section class="panel" aria-label="Actions">
-  <details open>
+<section class="panel" aria-label="Actions" data-controller="panel">
+  <details open data-panel-target="details" data-action="toggle->panel#toggle">
     <summary>actions</summary>
-    <div id="actions" class="jobs"></div>
+    <div id="actions" class="jobs" data-panel-target="jobs"><%== jobs(state) %></div>
   </details>
 </section>

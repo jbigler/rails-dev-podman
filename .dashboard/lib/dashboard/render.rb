@@ -11,7 +11,7 @@ module Dashboard
   # HTML-escaped unless a template says <%== %>.
   module Render
     VIEWS = File.expand_path("../../views", __dir__)
-    TEMPLATES = %w[layout page _header _list _row _detail].to_h do |name|
+    TEMPLATES = %w[layout page _header _list _row _detail _job].to_h do |name|
       [name, Tilt::ErubiTemplate.new(File.join(VIEWS, "#{name}.erb"), escape_html: true, freeze: true)]
     end.freeze
 
@@ -29,6 +29,12 @@ module Dashboard
     # The list container (id "worktrees") with every row; `selected`: the name of the shown worktree, nil for none.
     def self.list(state, selected) = view("_list", state:, selected:)
     def self.detail(wt, state) = view("_detail", wt:, state:)
+
+    # One job of the action panel (id "job-<id>").
+    def self.job(job) = view("_job", job:)
+
+    # Every job, oldest first: the action panel's content.
+    def self.jobs(state) = state.jobs.map { job(it) }.join
 
     # repo: the owner/name the header and the title show.
     def self.header(state, repo:) = view("_header", state:, repo:)

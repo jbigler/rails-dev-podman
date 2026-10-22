@@ -128,6 +128,23 @@ class HubTest < Minitest::Test
     assert_equal [], h.snapshot.jobs
   end
 
+  def job(id, state) = Dashboard::Job.new(id:, worktree: "wt-01", label: "up", state:, exit_status: nil, started_at: NOW, finished_at: nil, lines: [], created: nil)
+
+  # A running job outlasts finished ones; an update keeps the job in its place.
+  def test_publish_job_keeps_the_last_twenty_and_tells_every_page
+    h = hub
+    a = h.subscribe(viewing: "wt-01")
+    b = h.subscribe(viewing: nil)
+    h.publish_job(job(1, :running))
+    (2..26).each { h.publish_job(job(it, :ok)) }
+    h.publish_job(job(1, :failed))
+    jobs = h.snapshot.jobs
+    assert_equal [1, *8..26], jobs.map(&:id)
+    assert_equal :failed, jobs.first.state
+    expected = [[:job, 1], *(2..26).map { [:job, it] }, [:job, 1]]
+    assert_equal [expected, expected], [drain(a), drain(b)]
+  end
+
   def test_unknown_source_is_an_error
     assert_raises(ArgumentError) { hub.apply(:weather, 1) }
   end

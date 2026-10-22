@@ -25,6 +25,7 @@ module Dashboard
   # viewing W, [:gone, W] to pages viewing a removed W, [:notify, W] to all
   # when W's agent starts waiting on a permission or a question, [:header] to
   # all when the needs-input count, the stale units or autostart changed.
+  # Jobs come from the Runner through #publish_job: [:job, id] to all.
   class Hub
     # sources whose value replaces the Raw field of the same name (:worktrees replaces refs)
     REPLACE = %i[units containers stale_units autostart prs pr_index].freeze
@@ -34,6 +35,8 @@ module Dashboard
     PER_WORKTREE = %i[git stacks commits].freeze
     # Raw fields keyed by worktree name, cut back to the current refs
     BY_NAME = %i[git env agent_files commits stacks].freeze
+    # jobs State#jobs keeps; the oldest finished ones go first
+    KEEP_JOBS = 20
 
     # raw: the results to start from (tests feed fixture_raw).
     def initialize(ws, raw: Raw.empty)
@@ -56,6 +59,21 @@ module Dashboard
         failures = current(failures, raw.refs) if key == :worktrees && !failed
         @state = old.with(worktrees: Derive.worktrees(@ws, raw, failures), raw:, failed: failures)
         publish(old, @state)
+      end
+      nil
+    end
+
+    # job: a frozen copy. Replaces the job with its id in place, else appends it (newest last).
+    def publish_job(job)
+      @lock.synchronize do
+        jobs = @state.jobs.dup
+        index = jobs.index { it.id == job.id }
+        index ? jobs[index] = job : jobs << job
+        while jobs.size > KEEP_JOBS && (finished = jobs.index { !it.running? })
+          jobs.delete_at(finished)
+        end
+        @state = @state.with(jobs: jobs.freeze)
+        send_to(@subs, [:job, job.id])
       end
       nil
     end

@@ -47,4 +47,12 @@ module Dashboard
           stale_units: [], autostart: UNKNOWN)
     end
   end
+
+  # One action run. worktree: its name, nil for a workspace action; state: :running | :ok | :failed | :cancelled;
+  # exit_status: the last command's (nil while running or when killed); lines: its output, the last
+  # Runner::KEEP_LINES; created: the worktree a successful wt-create added. The Runner owns the
+  # mutable one; the Hub holds frozen copies.
+  Job = Struct.new(:id, :worktree, :label, :state, :exit_status, :started_at, :finished_at, :lines, :created, keyword_init: true) do
+    def running? = state == :running
+  end
 end

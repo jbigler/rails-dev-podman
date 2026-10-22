@@ -11,6 +11,8 @@ module Dashboard
     PING_FRAME = ": ping\n\n"
     # The list container's id (views/_list.erb).
     LIST = "worktrees"
+    # The action panel's job container's id (views/page.erb).
+    JOBS = "actions"
     QUESTIONS = { permission: "needs permission", question: "question" }.freeze
 
     # <turbo-stream> with the given attributes (escaped; nil ones left out) around a
@@ -26,8 +28,9 @@ module Dashboard
     # → [String] frames for one Hub event, rendered from `state`. sub: the page's
     # Subscription (whose row is selected). listed: the worktree names the page's
     # list holds; a row event whose worktree joined or left it re-renders the whole
-    # list. repo: what the header shows.
-    def self.frames(event, state, sub, listed: nil, repo: nil)
+    # list. jobs: id => state of the jobs the page shows (shown_jobs). repo: what
+    # the header shows.
+    def self.frames(event, state, sub, listed: nil, jobs: {}, repo: nil)
       kind, name = event
       case kind
       when :row then [row(name, state, sub, listed)]
@@ -35,18 +38,27 @@ module Dashboard
       when :gone then [gone]
       when :header then [turbo("replace", "header", Render.header(state, repo:))]
       when :notify then notify(name, state)
-      when :job then [] # Task 7
+      when :job then job(name, state, sub, jobs)
       else raise ArgumentError, "unknown event: #{event.inspect}"
       end
     end
 
     # → [String] frames that bring a page rendered from an older state up to date:
-    # the list, the header and (when it shows one) the detail pane. A connect sends
-    # them first, so changes before it (render to connect, a reconnect gap) still show.
+    # the list, the header, (when it shows one) the detail pane and the jobs. A
+    # connect sends them first, so changes before it (render to connect, a
+    # reconnect gap) still show.
     def self.catch_up(state, sub, repo:)
       frames = [turbo("replace", LIST, Render.list(state, sub.viewing)), turbo("replace", "header", Render.header(state, repo:))]
       frames << detail(sub.viewing, state) if sub.viewing
-      frames
+      frames << turbo("update", JOBS, Render.jobs(state))
+    end
+
+    # id => state of the jobs a page shows: after the catch-up, every job in
+    # `state`; after the frames for job `id`, the ones `shown` had that `state`
+    # still holds, plus `id`.
+    def self.shown_jobs(state, shown = nil, id = nil)
+      current = state.jobs.to_h { [it.id, it.state] }
+      shown ? shown.slice(*current.keys).merge(current.slice(id)) : current
     end
 
     def self.row(name, state, sub, listed)
@@ -63,6 +75,23 @@ module Dashboard
       wt ? turbo("replace", "detail", Render.detail(wt, state)) : gone
     end
 
+    # A job the page shows is replaced; a new one is appended, after removing the
+    # ones the Hub has dropped since. The viewed worktree's detail pane follows
+    # its job starting or ending (the buttons' busy state).
+    def self.job(id, state, sub, shown)
+      job = state.jobs.find { it.id == id }
+      return [] unless job
+
+      html = Render.job(job)
+      frames = if shown.key?(id)
+                 [turbo("replace", Render.dom_id("job", id.to_s), html)]
+               else
+                 (shown.keys - state.jobs.map(&:id)).map { turbo("remove", Render.dom_id("job", it.to_s)) } << turbo("append", JOBS, html)
+               end
+      frames << detail(job.worktree, state) if job.worktree && job.worktree == sub.viewing && shown[id] != job.state
+      frames
+    end
+
     def self.gone = turbo("replace", "detail", %(<section id="detail" class="detail empty"><p class="muted">worktree removed</p></section>))
 
     # A browser notification when the agent still waits; none once it has moved on.
@@ -74,6 +103,6 @@ module Dashboard
     end
 
     def self.find(state, name) = state.worktrees.find { it.name == name }
-    private_class_method :row, :detail, :gone, :notify, :find
+    private_class_method :row, :detail, :job, :gone, :notify, :find
   end
 end

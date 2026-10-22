@@ -27,6 +27,57 @@ class FakeShell
   end
 end
 
+# Each child is looked up by its command after the scope wrapper ("mise run up")
+# and yields that script's lines, then exits with its status. A held command
+# blocks after its lines until #release or a kill (which makes the status nil).
+class FakeSpawner
+  SCOPE = %w[systemd-run --user --scope --collect --quiet --].freeze
+  Call = Data.define(:argv, :env, :chdir)
+
+  class Child
+    def initialize(lines, status, gate)
+      @lines = lines
+      @status = status
+      @gate = gate
+      @killed = false
+    end
+
+    def each_line(&)
+      @lines.each(&)
+      @gate&.pop
+    end
+
+    def wait = @killed ? nil : @status
+
+    def kill
+      @killed = true
+      @gate&.push(:killed)
+    end
+  end
+
+  # script: command => [lines, status]; hold: commands that block.
+  def initialize(script = {}, hold: [])
+    @script = script
+    @hold = hold
+    @lock = Mutex.new
+    @calls = []
+    @gates = Hash.new { |gates, command| gates[command] = Thread::Queue.new }
+  end
+
+  def spawn(argv, env:, chdir:)
+    command = argv.drop(SCOPE.size).join(" ")
+    @lock.synchronize do
+      @calls << Call.new(argv:, env:, chdir:)
+      lines, status = @script.fetch(command, [[], 0])
+      Child.new(lines, status, (@gates[command] if @hold.include?(command)))
+    end
+  end
+
+  def calls = @lock.synchronize { @calls.dup }
+  def commands = calls.map { it.argv.drop(SCOPE.size).join(" ") }
+  def release(command) = @lock.synchronize { @gates[command] } << :go
+end
+
 module DashboardTestHelpers
   FIXTURES = File.expand_path("fixtures", __dir__)
   ROOT = "/home/dev/workspace/myproj"

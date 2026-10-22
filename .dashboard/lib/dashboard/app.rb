@@ -18,9 +18,10 @@ module Dashboard
       ws = Workspace.discover
       hub = Hub.new(ws)
       schedule = Schedule.new(Time.now)
-      LocalPoller.new(hub, ws, schedule).start
+      local = LocalPoller.new(hub, ws, schedule).start
       github = GithubPoller.new(hub, ws, schedule).start
-      build(hub:, runner: nil, token: SecureRandom.hex(32), port: ENV.fetch("WT_DASHBOARD_PORT"), ws:, github:, repo: repo_name(ws))
+      runner = Runner.new(hub:, ws:, github:, local:)
+      build(hub:, runner:, token: SecureRandom.hex(32), port: ENV.fetch("WT_DASHBOARD_PORT"), ws:, github:, repo: repo_name(ws))
     end
 
     # owner/name from the base's origin remote, read once; the root folder's name when that fails.
@@ -30,8 +31,8 @@ module Dashboard
       File.basename(ws.root)
     end
 
-    # runner: nil until actions exist (Task 7); github: the GithubPoller, nil in tests;
-    # repo: what the header shows (repo_name).
+    # runner: the Runner (nil in tests that start no action); github: the
+    # GithubPoller, nil in tests; repo: what the header shows (repo_name).
     def self.build(hub:, runner:, token:, port:, ws:, repo:, github: nil)
       app = Class.new(self)
       app.opts.merge!(hub:, runner:, token:, ws:, github:, repo:)
@@ -69,6 +70,27 @@ module Dashboard
         opts[:github]&.hint(:focus)
         no_content
       end
+
+      # A worktree's action (form: input, discard) → 202 with the job id.
+      r.post "w", String, "act", String do |encoded, id|
+        name = Rack::Utils.unescape_path(encoded)
+        wt = opts[:hub].snapshot.worktrees.find { it.name == name }
+        spec = Actions.find(id)
+        not_found unless wt && spec&.target == :worktree
+        refuse(422, "not on the base worktree") if wt.base && !spec.base_ok
+        start(spec, wt)
+      end
+
+      r.post "act", String do |id|
+        spec = Actions.find(id)
+        not_found unless spec&.target == :workspace
+        start(spec, nil)
+      end
+
+      r.post "jobs", Integer, "cancel" do |id|
+        not_found unless opts[:runner].cancel(id)
+        no_content
+      end
     end
 
     private
@@ -83,14 +105,16 @@ module Dashboard
       sub = hub.subscribe(viewing: name)
       state = hub.snapshot # after subscribe: any later change is queued
       listed = state.worktrees.map(&:name) # what the page's list holds once the catch-up lands
+      jobs = Streams.shown_jobs(state) # and its action panel
       return unless deliver(stream, Streams.catch_up(state, sub, repo: opts[:repo]).map { Streams.sse(it) }.join)
 
       loop do
         event = sub.queue.pop(timeout: Streams::PING)
         payload = if event
                     state = hub.snapshot
-                    frames = Streams.frames(event, state, sub, listed:, repo: opts[:repo])
+                    frames = Streams.frames(event, state, sub, listed:, jobs:, repo: opts[:repo])
                     listed = state.worktrees.map(&:name) if event.first == :row # a row frame leaves the list as in state
+                    jobs = Streams.shown_jobs(state, jobs, event[1]) if event.first == :job
                     frames.map { Streams.sse(it) }.join
                   else
                     Streams::PING_FRAME
@@ -114,6 +138,26 @@ module Dashboard
       stream.close
     rescue StandardError
       nil # the server has closed it already
+    end
+
+    # Starts the spec with the request's input (stripped; required when the spec
+    # prompts) → the job id as text/plain, 409 while busy.
+    def start(spec, wt)
+      input = request.params["input"].to_s.strip
+      refuse(422, "#{spec.label}: an answer is required") if spec.prompt && input.empty?
+      job = opts[:runner].start(spec, worktree: wt, input: (input if spec.prompt), discard: request.params["discard"] == "1")
+      response.status = 202
+      text(job.id.to_s)
+    rescue Runner::Busy => e
+      refuse(409, e.message)
+    end
+
+    def not_found = refuse(404, "no such action")
+    def refuse(status, message) = request.halt([status, { "content-type" => "text/plain" }, [message]])
+
+    def text(body)
+      response["content-type"] = "text/plain"
+      body
     end
 
     # An empty 204 for a POST route's block to return. It must return nil, not

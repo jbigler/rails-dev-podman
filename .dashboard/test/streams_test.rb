@@ -133,8 +133,72 @@ class StreamsTest < Minitest::Test
                  "</turbo-stream>", frame
   end
 
-  def test_job_events_are_left_for_later
-    assert_empty S.frames([:job, "j1"], state, sub(nil))
+  def job(id, state: :running, worktree: "wt-01", lines: ["hello <b>"], created: nil)
+    Dashboard::Job.new(id:, worktree:, label: "up", state:, exit_status: state == :failed ? 1 : nil, started_at: NOW, finished_at: nil,
+                       lines:, created:)
+  end
+
+  def test_new_job_appends_and_a_shown_one_is_replaced
+    hub.publish_job(job(1))
+    frame = one(S.frames([:job, 1], state, sub(nil), jobs: {}))
+    assert_match(/\A<turbo-stream action="append" target="actions"><template><article id="job-1"/, frame)
+    assert_includes frame, "hello &lt;b&gt;"
+    assert_includes frame, 'data-action-url-param="/jobs/1/cancel"'
+    frame = one(S.frames([:job, 1], state, sub(nil), jobs: { 1 => :running }))
+    assert_match(/\A<turbo-stream action="replace" target="job-1">/, frame)
+    assert_empty S.frames([:job, 2], state, sub(nil), jobs: {})
+  end
+
+  def test_finished_job_shows_status_and_the_created_worktree
+    hub.publish_job(job(1, state: :failed))
+    hub.publish_job(job(2, state: :ok, worktree: nil, created: "wt-new"))
+    failed = one(S.frames([:job, 1], state, sub(nil), jobs: { 1 => :running }))
+    assert_includes failed, "exit 1"
+    refute_includes failed, "/cancel"
+    created = one(S.frames([:job, 2], state, sub(nil), jobs: {}))
+    assert_includes created, 'data-job-created="/w/wt-new"'
+    assert_includes created, 'href="/w/wt-new"'
+  end
+
+  def test_running_job_shows_only_the_tail
+    hub.publish_job(job(1, lines: Array.new(800) { "line #{it}" }))
+    frame = one(S.frames([:job, 1], state, sub(nil), jobs: {}))
+    refute_includes frame, "line 299\n"
+    assert_includes frame, "line 300\n"
+    assert_includes frame, "300 earlier lines"
+  end
+
+  def test_a_job_starting_or_ending_rerenders_the_viewed_detail
+    hub.publish_job(job(1))
+    frames = S.frames([:job, 1], state, sub("wt-01"), jobs: {})
+    assert_equal 2, frames.size
+    assert_match(/\A<turbo-stream action="replace" target="detail">/, frames.last)
+    assert_equal 1, S.frames([:job, 1], state, sub("wt-01"), jobs: { 1 => :running }).size # output only
+    assert_equal 1, S.frames([:job, 1], state, sub("wt-02"), jobs: {}).size
+  end
+
+  def test_jobs_the_hub_dropped_are_removed_when_a_new_one_appends
+    (1..21).each { hub.publish_job(job(it, state: :ok)) }
+    shown = (1..20).to_h { [it, :ok] }
+    frames = S.frames([:job, 21], state, sub(nil), jobs: shown)
+    assert_equal ['<turbo-stream action="remove" target="job-1"></turbo-stream>'], frames[0..-2]
+    assert_match(/action="append"/, frames.last)
+    assert_equal (2..21).to_h { [it, :ok] }, S.shown_jobs(state, shown, 21)
+    assert_equal (2..21).to_h { [it, :ok] }, S.shown_jobs(state)
+  end
+
+  def test_events_stream_delivers_jobs
+    _, _, stream, thread = open_stream
+    assert stream.wait_for('target="detail"'), "no catch-up within 1 s"
+    hub.publish_job(job(1))
+    hub.publish_job(job(1, state: :ok))
+    output = stream.wait_for('target="job-1"')
+    assert output, "no job frames within 1 s"
+    assert_match(/^data: <turbo-stream action="append" target="actions">/, output)
+    assert_match(/^data: <turbo-stream action="replace" target="job-1">/, output)
+  ensure
+    stream&.close
+    thread&.kill
   end
 
   # Runs GET /events?w=wt-01 in a thread, the way a streaming server calls the body.
@@ -186,9 +250,15 @@ class StreamsTest < Minitest::Test
   def test_catch_up_for_a_removed_worktree_shows_the_gone_notice
     hub.apply(:worktrees, fixture_raw.refs.reject { it.name == "wt-01" })
     frames = S.catch_up(state, sub("wt-01"), repo: "example-org/app")
-    assert_equal 3, frames.size
-    assert_includes frames.last, "worktree removed"
-    assert_equal 2, S.catch_up(state, sub(nil), repo: "example-org/app").size # nothing shown, no detail to repair
+    assert_equal 4, frames.size
+    assert_includes frames[2], "worktree removed"
+    assert_equal 3, S.catch_up(state, sub(nil), repo: "example-org/app").size # nothing shown, no detail to repair
+  end
+
+  def test_catch_up_brings_the_jobs
+    hub.publish_job(job(1, state: :ok))
+    frame = S.catch_up(state, sub(nil), repo: "example-org/app").last
+    assert_match(/\A<turbo-stream action="update" target="actions"><template><article id="job-1"/, frame)
   end
 
   def test_disconnect_unsubscribes

@@ -1,4 +1,5 @@
-<section id="detail" class="detail" data-worktree="<%= wt.name %>">
+<% busy = busy?(state, wt) %>
+<section id="detail" class="detail<%= " busy" if busy %>" data-worktree="<%= wt.name %>">
   <h2 class="detail-name"><%= wt.name %></h2>
   <div class="branch-line">
     <span class="purple">⎇ <%= wt.branch || "(detached)" %></span>
@@ -125,6 +126,7 @@
           <td class="<%= cls %>"><%= glyph %> <%= word %></td>
           <td class="muted"><%= port(wt, s) %></td>
           <td><a href="<%= logs_url(wt, s) %>" target="_blank" rel="noopener">logs</a></td>
+          <td><%== action_button(restart_spec(s), action_path(wt, restart_spec(s)), disabled: busy, label: "restart") %></td>
         </tr>
         <% end %>
       </tbody>
@@ -141,6 +143,18 @@
     <% else %>
     <a class="app-link" aria-disabled="true" title="<%= url %> (rails is not up)"><%= label %></a>
     <% end %>
+    <% end %>
+  </section>
+
+  <section class="block actions">
+    <h3>actions<% if busy %> <span class="blue">· running</span><% end %></h3>
+    <% action_groups(wt).each do |group, specs| %>
+    <div class="action-group">
+      <span class="muted"><%= group %></span>
+      <% specs.each do |spec| %>
+      <%== action_button(spec, action_path(wt, spec), disabled: busy) %>
+      <% end %>
+    </div>
     <% end %>
   </section>
 </section>

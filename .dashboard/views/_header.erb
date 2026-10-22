@@ -6,13 +6,26 @@
   <span class="need-input accent">◆ <%= n %> need input</span>
   <% end %>
   <nav class="header-links" aria-label="Tools">
+    <%== action_button(action("wt-create"), "/act/wt-create") %>
     <button type="button" hidden data-notify-target="ask" data-action="notify#ask">notifications</button>
     <a href="<%= logs_home %>" target="_blank" rel="noopener">logs</a>
     <a href="<%= traefik_url %>" target="_blank" rel="noopener">traefik</a>
+    <details class="settings">
+      <summary title="settings">⚙</summary>
+      <div class="settings-menu">
+        <% autostart = state.raw.autostart %>
+        <% on = autostart == :enabled %>
+        <% spec = action(on ? "autostart-off" : "autostart-on") %>
+        <button type="button" role="switch" aria-checked="<%= on %>" data-action="action#run" data-action-url-param="/act/<%= spec.id %>"<% if unknown?(autostart) %> title="not known whether the unit starts at login"<% end %>>
+          Start at login<%= " ?" if unknown?(autostart) %>
+        </button>
+      </div>
+    </details>
   </nav>
   <% unless state.raw.stale_units.empty? %>
   <div class="banner" role="alert">
     <strong>Installed units differ from their templates.</strong>
+    <%== action_button(action("units-install"), "/act/units-install", label: "Install units") %>
     <ul>
       <% state.raw.stale_units.each do |line| %>
       <li><code><%= stale_line(line) %></code></li>

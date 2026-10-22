@@ -16,6 +16,13 @@ module Dashboard
       TRAEFIK = "http://127.0.0.1:8080/"
       VNC_QUERY = "path=websockify&autoconnect=1&reconnect=1&reconnect_delay=2000&resize=scale"
       TAIL_CHARS = 600
+      JOB = { running: ["●", "blue"], ok: ["✓", "green"], failed: ["✗", "red"], cancelled: ["○", "muted"] }.freeze
+      # Lines a running job's fragment carries (it is re-sent with every publish); a finished one carries all.
+      RUNNING_TAIL = 500
+      # The detail pane's action buttons by group, in order; the restart-<svc> ones sit in the services table.
+      ACTION_GROUPS = { "services" => %w[up stop restart-all down], "tests" => %w[test test-rails test-javascript test-system watch-rails watch-javascript],
+                        "open" => %w[claude nvim console shell], "share" => %w[share unshare],
+                        "stack" => %w[stack-push stack-up stack-down restack], "worktree" => %w[wt-rm] }.freeze
 
       def dom_id(prefix, name) = Render.dom_id(prefix, name)
       def path(name) = Render.path(name)
@@ -24,6 +31,7 @@ module Dashboard
       def list(state, selected) = Render.list(state, selected)
       def detail(wt, state) = Render.detail(wt, state)
       def header(state, repo:) = Render.header(state, repo:)
+      def jobs(state) = Render.jobs(state)
 
       def logs_home = LOGS
       def traefik_url = TRAEFIK
@@ -221,6 +229,54 @@ module Dashboard
         app = "http://#{host}"
         [["app", app], ["mail", "#{app}/letter_opener"], ["lookbook", "#{app}/lookbook"], ["routes", "#{app}/rails/info/routes"],
          ["vnc", "http://vnc.#{host}/vnc.html?#{VNC_QUERY}"], ["rustfs", "http://#{s3_ui}"]]
+      end
+
+      # --- actions -------------------------------------------------------------
+
+      # A worktree's buttons are disabled while one of its jobs runs.
+      def busy?(state, wt) = state.jobs.any? { it.running? && it.worktree == wt.name }
+
+      # → [[group, [Spec]]] for the detail pane; the stack group only on a stack.
+      def action_groups(wt)
+        offered = Actions.for_worktree(wt).to_h { [it.id, it] }
+        ACTION_GROUPS.filter_map do |group, ids|
+          specs = offered.values_at(*ids).compact
+          [group, specs] unless specs.empty? || (group == "stack" && !wt.stack.is_a?(Stack))
+        end
+      end
+
+      def action(id) = Actions.find(id)
+      def restart_spec(s) = action("restart-#{SERVICE_SVC.fetch(s.label)}")
+      def action_path(wt, spec) = "#{path(wt.name)}/act/#{spec.id}"
+
+      # A button the action controller turns into a POST to `url` (HTML).
+      def action_button(spec, url, disabled: false, label: spec.label)
+        attrs = { "type" => "button", "data-action" => "action#run", "data-action-url-param" => url,
+                  "data-action-confirm-param" => spec.confirm, "data-action-prompt-param" => spec.prompt,
+                  "data-action-discard-param" => ("true" if spec.discardable?), "title" => ("opens a terminal" if spec.mode == :terminal) }
+        html = attrs.filter_map { |key, value| %( #{key}="#{ERB::Util.html_escape(value)}") unless value.nil? }.join
+        %(<button#{html}#{' disabled' if disabled}>#{ERB::Util.html_escape(label)}</button>)
+      end
+
+      # → [glyph, class, word]
+      def job_status(job)
+        glyph, cls = JOB.fetch(job.state)
+        word = job.state == :failed && job.exit_status ? "exit #{job.exit_status}" : job.state.to_s
+        [glyph, cls, word]
+      end
+
+      def duration(job)
+        s = [((job.finished_at || Time.now) - job.started_at).to_i, 0].max
+        if s < 60 then "#{s}s"
+        elsif s < 3600 then format("%dm %02ds", s / 60, s % 60)
+        else format("%dh %02dm", s / 3600, s % 3600 / 60)
+        end
+      end
+
+      # → [lines left out, lines shown]
+      def job_lines(job)
+        lines = job.running? ? job.lines.last(RUNNING_TAIL) : job.lines
+        [job.lines.size - lines.size, lines]
       end
 
       INSTANCE = new.freeze
