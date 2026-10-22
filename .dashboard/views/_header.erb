@@ -1,0 +1,22 @@
+<% n = state.needs_input_count %>
+<header id="header" class="header" data-needs-input="<%= n %>" data-title="<%= title(state) %>">
+  <a class="brand" href="/">wt</a>
+  <span class="repo"><%= repo(state) %></span>
+  <% if n.positive? %>
+  <span class="need-input accent">◆ <%= n %> need input</span>
+  <% end %>
+  <nav class="header-links" aria-label="Tools">
+    <a href="<%= logs_home %>" target="_blank" rel="noopener">logs</a>
+    <a href="<%= traefik_url %>" target="_blank" rel="noopener">traefik</a>
+  </nav>
+  <% unless state.raw.stale_units.empty? %>
+  <div class="banner" role="alert">
+    <strong>Installed units differ from their templates.</strong>
+    <ul>
+      <% state.raw.stale_units.each do |line| %>
+      <li><code><%= stale_line(line) %></code></li>
+      <% end %>
+    </ul>
+  </div>
+  <% end %>
+</header>
