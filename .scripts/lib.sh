@@ -116,13 +116,36 @@ ensure_unit_env() (
   # that podman refuses outright. So it is compared against the live agent
   # rather than an mtime, and both nvim@ and podman-claude.sh can trust the
   # value in the file instead of each re-deciding what to do about it.
+  #
+  # No live agent here (a dashboard action, a non-desktop shell) while the file
+  # still names a live one is not stale: units-env.sh would keep that value
+  # anyway, and regenerating on every such call would only churn the file.
   if [ -z "$stale" ]; then
     live="${SSH_AUTH_SOCK:-}"
-    [ -S "$live" ] || live=/dev/null
-    grep -qxF "SSH_AGENT_SOCK=$live" "$out" || stale="ssh agent socket changed"
+    if [ -S "$live" ]; then
+      grep -qxF "SSH_AGENT_SOCK=$live" "$out" || stale="ssh agent socket changed"
+    else
+      have="$(sed -n 's/^SSH_AGENT_SOCK=//p' "$out")"
+      [ "$have" = /dev/null ] || [ -S "$have" ] || stale="ssh agent socket changed"
+    fi
   fi
   [ -n "$stale" ] || return 0
 
   printf '%s; regenerating %s...\n' "$stale" "${out#"$root"/}" >&2
   "$root/.scripts/units-env.sh" >&2
+)
+
+# Copy the calling shell's desktop session into the systemd user manager, so
+# the dashboard -- a service, with whatever environment the manager had when it
+# started, possibly at boot -- hands its children (terminals, `up` regenerating
+# .unit-env) a current display and agent socket. It reads them back from the
+# manager at every child start. Only set values are pushed and nothing is ever
+# unset: a shell without a display must not take one away from the dashboard.
+push_session_env() (
+  set --
+  for name in SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP KITTY_LISTEN_ON; do
+    eval "val=\${$name:-}"
+    [ -n "$val" ] && set -- "$@" "$name=$val"
+  done
+  [ "$#" -eq 0 ] || systemctl --user set-environment "$@"
 )

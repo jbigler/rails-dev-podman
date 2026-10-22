@@ -210,17 +210,19 @@ diagnose_failure() {
 }
 
 # rails@ Wants= traefik, so starting rails pulls it in -- but only traefik.
-# Nothing pulls in dozzle or home, and the compose `up` had
-# depends = ["proxy:up"], which started all three. Losing the wt.localhost
-# dashboard and logs.localhost on every `up` was a regression from that, so the
-# whole proxy stack starts here.
+# Nothing pulls in dozzle or the dashboard, and the compose `up` had
+# depends = ["proxy:up"], which started the whole proxy stack. Losing the
+# dashboard and logs.localhost on every `up` was a regression from that, so
+# they start here.
 #
 # Not a unit dependency: the dashboard belongs to the workspace, not to any one
 # worktree, and making rails@ Want= it would tear it down with the last worktree
-# and rebuild that relationship in every template.
+# and rebuild that relationship in every template. The session environment goes
+# first, so the dashboard's terminals and ssh agent come from this shell.
 start_proxy() {
   local u rc=0
-  for u in traefik dozzle home; do
+  push_session_env 2>/dev/null || rc=1
+  for u in traefik dozzle dashboard; do
     systemctl --user start "${PROJECT_PREFIX}-$u.service" 2>/dev/null || rc=1
   done
   return "$rc"
@@ -389,7 +391,7 @@ cmd_status() {
     --format 'table {{.Names}} {{.Status}} {{.Ports}}' 2>/dev/null || true
   printf '\n  app        http://%s\n' "${WORKTREE_HOST:-$W.localhost}"
   printf '  s3 / ui    http://%s  http://%s\n' "${S3_HOST:-s3.$W.localhost}" "${RUSTFS_UI_HOST:-s3-ui.$W.localhost}"
-  printf '  dashboard  http://wt.localhost   logs  http://logs.localhost\n'
+  printf '  dashboard  http://wt.localhost:%s   logs  http://logs.localhost\n' "${WT_DASHBOARD_PORT:-7700}"
 }
 
 # Container stdout is k8s-file, not journald, so the unit journal holds only

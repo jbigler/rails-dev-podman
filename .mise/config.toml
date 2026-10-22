@@ -375,8 +375,73 @@ dir = "{{config_root}}/.dashboard"
 tools = { ruby = "4.0.7" }
 run = [
   "bundle check >/dev/null 2>&1 || bundle install --quiet",
-  'exec bundle exec falcon serve --bind "http://127.0.0.1:${WT_DASHBOARD_PORT}" --threaded --count 1',
+  # DASHBOARD_MISE_DIR is set by the unit (.container-config/systemd/): `mise
+  # run` does not put mise itself on PATH, and the dashboard runs `mise` by
+  # name. Prepended, so the user manager's own PATH is kept.
+  'export PATH="${DASHBOARD_MISE_DIR:+$DASHBOARD_MISE_DIR:}$PATH"; exec bundle exec falcon serve --bind "http://127.0.0.1:${WT_DASHBOARD_PORT}" --threaded --count 1',
 ]
+
+[tasks.dashboard]
+description = "Start the web dashboard (a systemd user unit) if it is not running, wait until it answers, then open http://wt.localhost:WT_DASHBOARD_PORT. Pass a browser binary name (e.g. firefox) to override xdg-open."
+usage = 'arg "[browser]"'
+run = """
+  . "{{config_root}}/.scripts/lib.sh"
+  unit="$PROJECT_PREFIX-dashboard.service"
+  # Before the start, and on every run: the unit hands this shell's display and
+  # ssh agent to the terminals and `up`s it starts, reading them from the user
+  # manager -- which may hold none, or a previous login's.
+  push_session_env
+  systemctl --user start "$unit"
+  # Host header: the dashboard answers only for its own host names.
+  tries=0
+  until curl -fsS --max-time 1 -o /dev/null -H "Host: wt.localhost:$WT_DASHBOARD_PORT" \
+          "http://127.0.0.1:$WT_DASHBOARD_PORT/healthz" 2>/dev/null; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 15 ]; then
+      echo "error: dashboard did not answer; journalctl --user -u $unit -n 30" >&2
+      exit 1
+    fi
+    sleep 1
+  done
+  url="http://wt.localhost:$WT_DASHBOARD_PORT"
+  echo "$url"
+  browser="${usage_browser:-}"
+  if [ -n "$browser" ]; then
+    if ! command -v "$browser" >/dev/null 2>&1; then
+      echo "Error: '$browser' not found in PATH" >&2
+      exit 1
+    fi
+    exec "$browser" "$url"
+  fi
+  if ! command -v xdg-open >/dev/null 2>&1; then
+    echo "xdg-open not found. Pass a browser binary: mise run dashboard firefox" >&2
+    exit 1
+  fi
+  exec xdg-open "$url"
+"""
+
+[tasks."dashboard:stop"]
+description = "Stop the web dashboard's systemd user unit. Actions it started keep running."
+run = 'systemctl --user stop "$PROJECT_PREFIX-dashboard.service"'
+
+[tasks."dashboard:autostart"]
+description = "Start the web dashboard at login: on enables its systemd user unit, off disables it, no argument prints the current state."
+usage = 'arg "[state]" help="on or off; omit to print"'
+run = """
+  unit="$PROJECT_PREFIX-dashboard.service"
+  case "${usage_state:-}" in
+    on)  exec systemctl --user enable "$unit" ;;
+    off) exec systemctl --user disable "$unit" ;;
+    "")
+      # is-enabled exits non-zero for every state but enabled; printing the
+      # state is the whole job here, so that is not a failure.
+      state="$(systemctl --user is-enabled "$unit" 2>/dev/null)" || true
+      echo "${state:-not installed (mise run units:install)}" ;;
+    *)
+      echo "error: usage: mise run dashboard:autostart [on|off]" >&2
+      exit 2 ;;
+  esac
+"""
 
 [tasks."dashboard:test"]
 description = "Run the web dashboard's test suite (minitest on captured fixtures; needs no podman, systemd or gh)."

@@ -15,6 +15,9 @@ set -eu
 : "${PROJECT_PREFIX:?PROJECT_PREFIX is unset; refusing to destroy}"
 P="$PROJECT_PREFIX"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
+# The dashboard is a plain unit, so it lives in systemd's own dir instead.
+DASHBOARD_UNIT="${P}-dashboard.service"
+DASHBOARD_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$DASHBOARD_UNIT"
 
 if [ -f .mise/config.toml ]; then
   target=$(pwd)
@@ -37,11 +40,16 @@ echo "This will remove:"
 echo "  - every podman container, network and volume matching ${pattern}"
 echo "  - every image matching ${image_pattern}"
 [ -n "$units" ] && echo "  - the rendered units in ${DEST} ($(printf '%s' "$units" | wc -w) files)"
+[ -f "$DASHBOARD_FILE" ] && echo "  - the dashboard unit ${DASHBOARD_FILE}"
 echo "  - the project folder: ${target}"
 echo ""
 printf "Type 'destroy' to confirm: "
 read -r confirm
 [ "$confirm" = "destroy" ] || { echo "Aborted."; exit 1; }
+
+# Disabled while its file still exists: an enabled unit removed underneath
+# systemd leaves a dangling default.target.wants/ symlink behind.
+systemctl --user disable --now "$DASHBOARD_UNIT" 2>/dev/null || true
 
 # Stop everything before removing anything. --all rather than a name list: at
 # this point the intent is total, and a unit missed here would fight the sweep.
@@ -70,8 +78,12 @@ sweep images     "podman images --format '{{.Repository}}:{{.Tag}}'" "podman rmi
 if [ -n "$units" ]; then
   echo "Removing rendered units from ${DEST}"
   rm -f "$DEST/${P}-"*
-  systemctl --user daemon-reload
 fi
+if [ -f "$DASHBOARD_FILE" ]; then
+  echo "Removing ${DASHBOARD_FILE}"
+  rm -f "$DASHBOARD_FILE"
+fi
+systemctl --user daemon-reload 2>/dev/null || true
 
 echo "Removing project folder: ${target}"
 cd "$HOME"
