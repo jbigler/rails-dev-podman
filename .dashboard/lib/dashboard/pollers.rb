@@ -52,7 +52,7 @@ module Dashboard
       names = refs.map(&:name)
       case key
       when :worktrees then read(:worktrees) { Sources::Worktrees.fetch(@ws) }
-      when :git then refs.each { |ref| read([:git, ref.name]) { Sources::GitStatus.fetch(ref.path) } }
+      when :git then refs.each { |ref| read([:git, ref.name]) { Sources::GitStatus.fetch(@ws, ref.path) } }
       when :units then read(:units) { Sources::Units.fetch(units(names)) }
       when :containers then read(:containers) { Sources::Containers.fetch }
       when :agent_files then read(:agent_files) { Sources::AgentFiles.fetch(@ws, names, mtimes(raw.agent_files)) }
@@ -180,9 +180,9 @@ module Dashboard
     def details(refs)
       prs = @hub.snapshot.raw.prs
       refs.each do |ref|
-        read([:stacks, ref.name]) { Sources::Stack.fetch(ref.path) }
+        read([:stacks, ref.name]) { Sources::Stack.fetch(@ws, ref.path) }
         pr = prs[ref.branch]
-        read([:commits, ref.name]) { Sources::CommitCount.fetch(ref.path, pr.base_ref) } if pr
+        read([:commits, ref.name]) { Sources::CommitCount.fetch(@ws, ref.path, pr.base_ref) } if pr
       end
     end
 

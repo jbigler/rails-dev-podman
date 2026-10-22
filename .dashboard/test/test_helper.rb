@@ -78,6 +78,22 @@ class FakeSpawner
   def release(command) = @lock.synchronize { @gates[command] } << :go
 end
 
+# Stands in for GitSafety's shadows: the fixture workspace has no real .git.
+# Installed for every test; a real one is swapped in with with_git_safety.
+class FakeGitSafety
+  SHADOW = "/run/fake/myproj-dashboard/gitcommon"
+
+  # unsafe: every env raises GitSafety::Unsafe, as a shadow that cannot be built does.
+  def initialize(unsafe: false) = @unsafe = unsafe
+
+  def env(_ws)
+    raise Dashboard::GitSafety::Unsafe, "git safety: cannot build the shadow" if @unsafe
+
+    Dashboard::GitSafety.overrides_env.merge("GIT_COMMON_DIR" => SHADOW)
+  end
+end
+Dashboard::GitSafety.backend = FakeGitSafety.new
+
 module DashboardTestHelpers
   FIXTURES = File.expand_path("fixtures", __dir__)
   ROOT = "/home/dev/workspace/myproj"
@@ -86,12 +102,6 @@ module DashboardTestHelpers
   def fixture(*path) = File.read(File.join(FIXTURES, *path))
 
   def ws = Dashboard::Workspace.new(root: ROOT, prefix: "myproj", base_name: "master")
-
-  # FakeShell responses for GitSafety's filter-driver read in each path:
-  # exit 1, no output — the repo configures no filters.
-  def no_filters(*paths)
-    paths.to_h { ["git -C #{it} config --name-only", Dashboard::Shell::Result.new(stdout: "", stderr: "", status: 1, timed_out: false)] }
-  end
 
   # The fixture machine: 16 worktrees, wt-stacked on a 21-branch stack, pods
   # up for master, wt-01, wt-06, wt-09 and wt-stacked; only wt-stacked has a
@@ -122,6 +132,14 @@ module DashboardTestHelpers
     yield shell
   ensure
     Dashboard::Shell.backend = previous
+  end
+
+  def with_git_safety(backend)
+    previous = Dashboard::GitSafety.backend
+    Dashboard::GitSafety.backend = backend
+    yield backend
+  ensure
+    Dashboard::GitSafety.backend = previous
   end
 end
 

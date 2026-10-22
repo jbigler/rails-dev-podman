@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Dashboard
-  # gh runs git, so every call carries Sources.git_env of its directory.
+  # gh runs git, so every call carries Sources.git_env of the workspace.
   module Sources
     REVIEW = { "APPROVED" => :approved, "CHANGES_REQUESTED" => :changes, "REVIEW_REQUIRED" => :review }.freeze
     PR_STATE = { "OPEN" => :open, "MERGED" => :merged, "CLOSED" => :closed }.freeze
@@ -13,7 +13,7 @@ module Dashboard
 
     def self.gh_pr_list(ws, state, fields)
       argv = ["gh", "pr", "list", "--state", state, "--limit", "200", "--json", fields]
-      r = Shell.run(argv, chdir: ws.base_path, timeout: Shell::GH_TIMEOUT, env: git_env(ws.base_path))
+      r = Shell.run(argv, chdir: ws.base_path, timeout: Shell::GH_TIMEOUT, env: git_env(ws))
       check!(r, "gh pr list").stdout
     end
 
@@ -83,8 +83,8 @@ module Dashboard
 
     # `gh stack view --json` in one worktree (§3.5).
     module Stack
-      def self.fetch(path)
-        r = Shell.run(%w[gh stack view --json], chdir: path, timeout: Shell::GH_TIMEOUT, env: Sources.git_env(path))
+      def self.fetch(ws, path)
+        r = Shell.run(%w[gh stack view --json], chdir: path, timeout: Shell::GH_TIMEOUT, env: Sources.git_env(ws))
         raise Failed, "gh stack view: #{r.error_line}" if r.broken?
         return nil unless r.ok? # any other non-zero exit: not in a stack
 

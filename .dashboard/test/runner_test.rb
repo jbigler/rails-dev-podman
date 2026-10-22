@@ -26,7 +26,7 @@ class RunnerTest < Minitest::Test
   # the refs before and after a wt-create.
   class ListShell < FakeShell
     def initialize(lists)
-      super(no_filters_for("#{DashboardTestHelpers::ROOT}/master"))
+      super()
       @lists = lists
     end
 
@@ -36,8 +36,6 @@ class RunnerTest < Minitest::Test
       @calls << Call.new(argv:, chdir:, env:)
       Dashboard::Shell::Result.ok(@lists.size > 1 ? @lists.shift : @lists.first)
     end
-
-    def no_filters_for(path) = { "git -C #{path} config --name-only" => Dashboard::Shell::Result.new(stdout: "", stderr: "", status: 1, timed_out: false) }
   end
 
   def setup

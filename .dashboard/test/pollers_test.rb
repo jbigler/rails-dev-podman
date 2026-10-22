@@ -11,12 +11,12 @@ class PollersTest < Minitest::Test
   def hub(raw = fixture_raw) = Dashboard::Hub.new(ws, raw:)
 
   def github_shell(overrides = {})
-    FakeShell.new(no_filters(BASE, STACKED, "#{ROOT}/wt-01").merge(
+    FakeShell.new({
       "gh pr list --state open" => R.ok(fixture("gh-pr-list-open.json")),
       "gh pr list --state all" => R.ok(fixture("gh-pr-list.json")),
       "gh stack view" => R.ok(fixture("gh-stack-view.wt-stacked.json")),
       "git -C #{STACKED} rev-list" => R.ok("6\n")
-    ).merge(overrides))
+    }.merge(overrides))
   end
 
   def index_reads(shell) = shell.calls.count { it.argv.first == "gh" && it.argv.include?("all") }

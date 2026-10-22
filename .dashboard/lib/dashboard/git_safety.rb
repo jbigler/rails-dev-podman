@@ -3,43 +3,60 @@
 module Dashboard
   # The environment every background git (and gh, which runs git) call gets.
   # Containers can write master/.git and the worktrees, so repo config must not
-  # turn into code the host runs unattended: fsmonitor and hooks are switched
-  # off and every configured filter driver is blanked. GIT_CONFIG_* entries
-  # count as command-line config, which wins over files and includes.
+  # turn into code the host runs unattended. git never reads the real common
+  # dir: GIT_COMMON_DIR points at a host-private shadow (GitSafety::Shadow)
+  # whose config holds only allowlisted keys, so no filter, include, fsmonitor
+  # or hooksPath a container wrote ever reaches it, however the real file
+  # changes between reads. The overrides stay as defence in depth (GIT_CONFIG_*
+  # entries count as command-line config, which wins over files); submodules,
+  # whose own config is never sanitized, are not entered.
   module GitSafety
     OVERRIDES = { "core.fsmonitor" => "false", "core.hooksPath" => "/dev/null",
                   "diff.ignoreSubmodules" => "all", "submodule.recurse" => "false" }.freeze
-    FILTER_KEYS = '^filter\..*\.(clean|smudge|process)$'
 
-    # The filter drivers could not be listed, so no safe environment exists.
-    # Callers treat it as a failed read.
+    # No safe environment could be built (the shadow failed). Callers treat it
+    # as a failed read and run nothing.
     class Unsafe < Error; end
 
-    # Not cached: a filter can arrive through any include.path file, whose
-    # mtime no cache key here would see.
-    def self.env(path)
-      config_env(OVERRIDES.merge(filter_keys(path).to_h { [it, ""] }))
-    end
-
-    # Exit 1 with no output is "no match"; anything else short of success
-    # (a timeout, a config git cannot parse) fails closed.
-    def self.filter_keys(path)
-      read = Shell.run(["git", "-C", path, "config", "--name-only", "--get-regexp", FILTER_KEYS],
-                       env: config_env(OVERRIDES))
-      return [] if !read.timed_out && read.status == 1 && read.stdout.empty?
-      raise Unsafe, "cannot list filter drivers in #{path}: #{read.error_line}" unless read.ok?
-
-      read.stdout.lines(chomp: true).reject(&:empty?)
-    end
-
-    def self.config_env(pairs)
-      env = { "GIT_OPTIONAL_LOCKS" => "0", "GIT_CONFIG_COUNT" => pairs.size.to_s }
-      pairs.each_with_index do |(key, value), n|
-        env["GIT_CONFIG_KEY_#{n}"] = key
-        env["GIT_CONFIG_VALUE_#{n}"] = value
+    # One Shadow per workspace, in its PrivateDir. env: where XDG_RUNTIME_DIR comes from.
+    class Shadows
+      def initialize(env: ENV)
+        @env = env
+        @lock = Mutex.new
+        @shadows = {}
       end
-      env
+
+      def env(ws) = shadow(ws).env
+
+      private
+
+      def shadow(ws)
+        @lock.synchronize do
+          @shadows[[ws.prefix, ws.base_path]] ||=
+            Shadow.new(git_dir: File.join(ws.base_path, ".git"), home: PrivateDir.for(ws.prefix, env: @env))
+        end
+      rescue Error, SystemCallError => e
+        raise Unsafe, "git safety: #{e.message}"
+      end
     end
-    private_class_method :filter_keys, :config_env
+
+    class << self
+      attr_writer :backend
+
+      def backend = @backend ||= Shadows.new
+
+      # → the env for a git or gh call in any worktree of ws. Raises Unsafe.
+      def env(ws) = backend.env(ws)
+
+      # OVERRIDES as GIT_CONFIG_* entries, plus GIT_OPTIONAL_LOCKS=0 (a read never writes the index).
+      def overrides_env
+        env = { "GIT_OPTIONAL_LOCKS" => "0", "GIT_CONFIG_COUNT" => OVERRIDES.size.to_s }
+        OVERRIDES.each_with_index do |(key, value), n|
+          env["GIT_CONFIG_KEY_#{n}"] = key
+          env["GIT_CONFIG_VALUE_#{n}"] = value
+        end
+        env
+      end
+    end
   end
 end

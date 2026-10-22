@@ -226,9 +226,17 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   pages); a stale token (page from before a restart) → 403 + X-Dashboard-Reload. No login, by the user's
   decision: single-user host. dashboard:isolation-check (also run by verify) proves no container reaches the
   port — exit 1 reached, 2 could not probe. Containers run agent-written code; the dashboard drives the host.
-- Reading untrusted repos: GitSafety runs every background git/gh read with core.fsmonitor=false,
-  core.hooksPath=/dev/null and every configured filter driver blanked, failing closed if the config read
-  fails — else a worktree's config becomes code the host runs unattended. It never runs `mise env`
+- Reading untrusted repos: GitSafety runs every background git/gh read with GIT_COMMON_DIR pointing at a
+  host-private shadow ($XDG_RUNTIME_DIR/<prefix>-dashboard/gitcommon, 0700; never mounted into a container).
+  Its config is regenerated, when the real master/.git/config's bytes change, from one capped read of that
+  file (regular files only) through an allowlist — core format keys, extensions.objectformat/refstorage,
+  remote.*.url/fetch/gh-resolved, branch.*.remote/merge — so no filter, include, fsmonitor, hooksPath or
+  worktreeConfig a container writes ever reaches git, however it races the read. objects, refs, packed-refs,
+  worktrees, HEAD, shallow, gh-stack and reftable are symlinked; info/ and hooks/ are not. Overrides stay as
+  defence in depth (core.fsmonitor=false, core.hooksPath=/dev/null, diff.ignoreSubmodules=all,
+  submodule.recurse=false, GIT_OPTIONAL_LOCKS=0) and git status passes --ignore-submodules=all: a
+  submodule's own config is never sanitized. A shadow that cannot be built fails the read closed (`?`) —
+  else a worktree's config becomes code the host runs unattended. It never runs `mise env`
   (a worktree's mise.local.toml is container-writable); ports/hosts come from .unit-env/<W>.env. The palette
   lists tasks via `mise tasks --json` at the workspace root, never in a worktree.
 - Refresh: local sources every 1/3/5/60 s. GitHub only while a page holds the SSE stream (60 s hot / 300 s),

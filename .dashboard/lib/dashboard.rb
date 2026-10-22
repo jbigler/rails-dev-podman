@@ -10,7 +10,11 @@ module Dashboard
 end
 
 require_relative "dashboard/shell"
+require_relative "dashboard/private_dir"
+require_relative "dashboard/safe_file"
 require_relative "dashboard/git_safety"
+require_relative "dashboard/git_safety/sanitized_config"
+require_relative "dashboard/git_safety/shadow"
 require_relative "dashboard/model"
 require_relative "dashboard/workspace"
 require_relative "dashboard/sources"

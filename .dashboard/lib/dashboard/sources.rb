@@ -20,10 +20,10 @@ module Dashboard
       raise Failed, "#{what}: bad JSON (#{e.message.lines.first.strip})"
     end
 
-    # The GitSafety environment for a git or gh call in `path`. Without it the
-    # call must not run at all, so an unsafe repo is a failed read.
-    def self.git_env(path)
-      GitSafety.env(path)
+    # The GitSafety environment for a git or gh call in any worktree of ws.
+    # Without it the call must not run at all, so an unsafe repo is a failed read.
+    def self.git_env(ws)
+      GitSafety.env(ws)
     rescue GitSafety::Unsafe => e
       raise Failed, e.message
     end

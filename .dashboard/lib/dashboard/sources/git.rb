@@ -1,38 +1,38 @@
 # frozen_string_literal: true
 
 module Dashboard
-  # Every git read here runs with Sources.git_env. Only these subcommands are
-  # used: config keys that run commands but GitSafety does not override
-  # (diff.external, textconv, core.pager, core.sshCommand, credential.helper)
-  # belong to diff, log -p, fetch and push, which the dashboard never reads.
+  # Every git read here runs with Sources.git_env, whose shadow config holds no
+  # key that runs a command; only these subcommands are used.
   module Sources
     # `git worktree list --porcelain` in the base worktree.
     module Worktrees
       def self.fetch(ws)
         argv = ["git", "-C", ws.base_path, "worktree", "list", "--porcelain"]
-        r = Sources.check!(Shell.run(argv, env: Sources.git_env(ws.base_path)), "git worktree list")
+        r = Sources.check!(Shell.run(argv, env: Sources.git_env(ws)), "git worktree list")
         parse(r.stdout, base_path: ws.base_path)
       end
 
       # Blank-line separated records: `worktree <path>`, `HEAD <sha>`, then
-      # `branch refs/heads/<name>` or `detached`. Prunable ones (folder gone) are skipped.
+      # `branch refs/heads/<name>` or `detached`. Prunable ones (folder gone) are
+      # skipped. The first record is the main worktree, which git names after
+      # the common dir — the GitSafety shadow — so it is given base_path.
       def self.parse(text, base_path:)
-        text.split(/\n[ \t]*\n/).filter_map do |record|
+        text.split(/\n[ \t]*\n/).each_with_index.filter_map do |record, index|
           attrs = record.lines.map(&:chomp).reject(&:empty?).to_h { |l| k, v = l.split(" ", 2); [k, v] }
-          path = attrs["worktree"]
-          next if path.nil? || attrs.key?("bare") || attrs.key?("prunable")
+          path = index.zero? ? base_path : attrs["worktree"]
+          next if attrs["worktree"].nil? || attrs.key?("bare") || attrs.key?("prunable")
 
           WorktreeRef.new(name: File.basename(path), path:, branch: attrs["branch"]&.delete_prefix("refs/heads/"),
-                          head_sha: attrs["HEAD"], base: path == base_path)
+                          head_sha: attrs["HEAD"], base: index.zero?)
         end
       end
     end
 
-    # `git status --porcelain=v2 --branch` in one worktree.
+    # `git status --porcelain=v2 --branch` in one worktree of ws.
     module GitStatus
-      def self.fetch(path)
+      def self.fetch(ws, path)
         r = Shell.run(["git", "-C", path, "status", "--porcelain=v2", "--branch", "--ignore-submodules=all"],
-                      env: Sources.git_env(path))
+                      env: Sources.git_env(ws))
         parse(Sources.check!(r, "git status").stdout)
       end
 
@@ -56,7 +56,7 @@ module Dashboard
     # `git remote get-url origin` → "owner/name" for the header.
     module Repo
       def self.fetch(ws)
-        r = Shell.run(["git", "-C", ws.base_path, "remote", "get-url", "origin"], env: Sources.git_env(ws.base_path))
+        r = Shell.run(["git", "-C", ws.base_path, "remote", "get-url", "origin"], env: Sources.git_env(ws))
         parse(Sources.check!(r, "git remote").stdout)
       end
 
@@ -71,10 +71,10 @@ module Dashboard
     module CommitCount
       # → Integer, or nil without a base or when origin/<base> is not known
       # here (not fetched yet). A hung or missing git is a failure.
-      def self.fetch(path, base_ref)
+      def self.fetch(ws, path, base_ref)
         return nil if base_ref.to_s.empty?
 
-        r = Shell.run(["git", "-C", path, "rev-list", "--count", "origin/#{base_ref}..HEAD"], env: Sources.git_env(path))
+        r = Shell.run(["git", "-C", path, "rev-list", "--count", "origin/#{base_ref}..HEAD"], env: Sources.git_env(ws))
         raise Failed, "git rev-list: #{r.error_line}" if r.broken?
 
         r.ok? ? Integer(r.stdout.strip, 10) : nil

@@ -33,8 +33,8 @@ class AppTest < Minitest::Test
     master = "#{ROOT}/master"
     remote = { "git -C #{master} remote get-url origin" => Dashboard::Shell::Result.new(stdout: "git@github.com:example-org/app.git\n", stderr: "",
                                                                                          status: 0, timed_out: false) }
-    with_shell(FakeShell.new(no_filters(master).merge(remote))) { assert_equal "example-org/app", Dashboard::App.repo_name(ws) }
-    with_shell(FakeShell.new(no_filters(master))) { assert_equal "myproj", Dashboard::App.repo_name(ws) }
+    with_shell(FakeShell.new(remote)) { assert_equal "example-org/app", Dashboard::App.repo_name(ws) }
+    with_shell(FakeShell.new) { assert_equal "myproj", Dashboard::App.repo_name(ws) }
   end
 
   def test_lists_every_worktree

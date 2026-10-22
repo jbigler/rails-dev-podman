@@ -15,11 +15,15 @@ class SourcesTest < Minitest::Test
     assert_equal "#{ROOT}/wt-stacked", stacked.path
   end
 
-  def test_worktrees_detached_and_prunable
-    text = "worktree /r/a\nHEAD abc\ndetached\n\nworktree /r/gone\nHEAD def\nbranch refs/heads/x\nprunable gitdir file points to non-existent location\n"
+  # git names the main worktree after the common dir (the GitSafety shadow).
+  def test_worktrees_main_first_detached_and_prunable
+    text = "worktree /run/x/gitcommon\nHEAD 123\nbranch refs/heads/master\n\n" \
+           "worktree /r/a\nHEAD abc\ndetached\n\nworktree /r/gone\nHEAD def\nbranch refs/heads/x\nprunable gitdir file points to non-existent location\n"
     refs = S::Worktrees.parse(text, base_path: "/r/base")
-    assert_equal ["a"], refs.map(&:name)
-    assert_nil refs.first.branch
+    assert_equal %w[base a], refs.map(&:name)
+    assert_equal ["/r/base", true, "master"], [refs.first.path, refs.first.base, refs.first.branch]
+    refute refs.last.base
+    assert_nil refs.last.branch
   end
 
   def test_git_status_ahead_behind_upstream_and_dirty
@@ -35,36 +39,39 @@ class SourcesTest < Minitest::Test
   end
 
   def test_git_calls_carry_safety_env
-    shell = FakeShell.new(no_filters("/r/wt", "#{ROOT}/master").merge(
+    shell = FakeShell.new(
       "git -C /r/wt status" => R.ok(fixture("git-status.master.txt")),
       "gh pr list" => R.ok(fixture("gh-pr-list-open.json"))
-    ))
+    )
     with_shell(shell) do
-      S::GitStatus.fetch("/r/wt")
+      S::GitStatus.fetch(ws, "/r/wt")
       S::OpenPrs.fetch(ws)
     end
     status = shell.calls.find { it.argv[3] == "status" }
     gh = shell.calls.find { it.argv.first == "gh" }
-    assert_equal "4", status.env["GIT_CONFIG_COUNT"]
-    assert_equal "4", gh.env["GIT_CONFIG_COUNT"]
+    [status, gh].each do |call|
+      assert_equal FakeGitSafety::SHADOW, call.env["GIT_COMMON_DIR"]
+      assert_equal "4", call.env["GIT_CONFIG_COUNT"]
+    end
     assert_includes status.argv, "--ignore-submodules=all"
     assert_equal "#{ROOT}/master", gh.chdir
   end
 
   def test_unsafe_git_config_fails_the_source_without_running_git
-    shell = FakeShell.new("git -C /r/wt config --name-only" => R.fail("fatal: bad config line 3", status: 128),
-                          "git -C /r/wt status" => R.ok(""))
-    with_shell(shell) { assert_raises(S::Failed) { S::GitStatus.fetch("/r/wt") } }
-    refute(shell.calls.any? { it.argv[3] == "status" })
+    shell = FakeShell.new("git -C /r/wt status" => R.ok(""))
+    with_git_safety(FakeGitSafety.new(unsafe: true)) do
+      with_shell(shell) { assert_raises(S::Failed) { S::GitStatus.fetch(ws, "/r/wt") } }
+    end
+    assert_empty shell.calls
   end
 
   def test_commit_count_against_the_pr_base
-    shell = FakeShell.new(no_filters("/r/wt").merge("git -C /r/wt rev-list --count origin/feature/branch-65..HEAD" => R.ok("6\n")))
-    with_shell(shell) { assert_equal 6, S::CommitCount.fetch("/r/wt", "feature/branch-65") }
-    with_shell(FakeShell.new(no_filters("/r/wt").merge("git -C /r/wt rev-list" => R.fail("fatal: bad revision", status: 128)))) do
-      assert_nil S::CommitCount.fetch("/r/wt", "gone")
+    shell = FakeShell.new("git -C /r/wt rev-list --count origin/feature/branch-65..HEAD" => R.ok("6\n"))
+    with_shell(shell) { assert_equal 6, S::CommitCount.fetch(ws, "/r/wt", "feature/branch-65") }
+    with_shell(FakeShell.new("git -C /r/wt rev-list" => R.fail("fatal: bad revision", status: 128))) do
+      assert_nil S::CommitCount.fetch(ws, "/r/wt", "gone")
     end
-    assert_nil S::CommitCount.fetch("/r/wt", nil)
+    assert_nil S::CommitCount.fetch(ws, "/r/wt", nil)
   end
 
   def test_units_records
@@ -131,7 +138,7 @@ class SourcesTest < Minitest::Test
   end
 
   def test_open_prs_failure_raises
-    shell = FakeShell.new(no_filters("#{ROOT}/master").merge("gh pr list" => R.fail("HTTP 401: Bad credentials")))
+    shell = FakeShell.new("gh pr list" => R.fail("HTTP 401: Bad credentials"))
     with_shell(shell) { assert_raises(S::Failed) { S::OpenPrs.fetch(ws) } }
   end
 
@@ -145,10 +152,10 @@ class SourcesTest < Minitest::Test
   end
 
   def test_stack_nonzero_exit_is_no_stack_but_missing_gh_is_a_failure
-    with_shell(FakeShell.new(no_filters("/r/master").merge("gh stack view" => R.fail(fixture("gh-stack-view.master.json"))))) do
-      assert_nil S::Stack.fetch("/r/master")
+    with_shell(FakeShell.new("gh stack view" => R.fail(fixture("gh-stack-view.master.json")))) do
+      assert_nil S::Stack.fetch(ws, "/r/master")
     end
-    with_shell(FakeShell.new(no_filters("/r/master"))) { assert_raises(S::Failed) { S::Stack.fetch("/r/master") } }
+    with_shell(FakeShell.new) { assert_raises(S::Failed) { S::Stack.fetch(ws, "/r/master") } }
   end
 
   def test_repo_from_remote_url
