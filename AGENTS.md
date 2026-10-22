@@ -255,7 +255,10 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
   XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR KITTY_LISTEN_ON) read per child from `systemctl --user show-environment`.
   lib.sh push_session_env pushes them from the calling shell in `mise run dashboard`, start_proxy and proxy:up.
-  Scopes: one job per worktree; workspace jobs one at a time. Keeps the last 20 jobs; per job 5000 lines and
+  Scopes: one job per worktree; workspace jobs one at a time. Palette tasks run in the picked worktree, except
+  workspace-level ones (wt, wt:rm, units:install/uninstall, dashboard:autostart/stop, clean, destroy, proxy:*,
+  allow-ports), which run at the root as workspace jobs; units:uninstall, dashboard:stop, wt:rm and
+  db:dump:clear ask in the page first. Keeps the last 20 jobs; per job 5000 lines and
   4 MiB (oldest lines go first), 64 KiB per line. Terminal actions go through .scripts/newterm.sh.
   podman-wt.sh exec passes -t only when stdin is a terminal, since the dashboard streams with stdin closed;
   units-env.sh keeps a still-live previous SSH_AGENT_SOCK when the caller has no agent socket.

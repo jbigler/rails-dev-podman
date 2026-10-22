@@ -91,4 +91,28 @@ class PaletteTest < Minitest::Test
     assert_includes body, %(data-palette-args="required")
     assert_includes body, "/w/wt-01/palette"
   end
+
+  def test_workspace_tasks_run_at_the_root_one_at_a_time
+    assert_equal :workspace, P.spec("wt", %w[mise run wt x]).scope
+    assert_equal :workspace, P.spec("proxy:up", %w[mise run proxy:up]).scope
+    assert_equal :worktree, P.spec("test:rails", %w[mise run test:rails]).scope
+
+    post "/w/wt-01/palette", { task: "wt", args: "feature/x" }, POST
+    assert_equal 202, last_response.status
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 1
+    sleep 0.001 while spawner.calls.empty? && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+    call = spawner.calls.last
+    assert_equal ROOT, call.chdir
+    assert_equal %w[mise run wt feature/x], call.argv.last(4)
+  end
+
+  def test_destructive_tasks_are_marked_for_a_confirm
+    %w[units:uninstall dashboard:stop wt:rm db:dump:clear].each { assert P.confirm?(it), it }
+    refute P.confirm?("test:rails")
+
+    get "/palette", { w: "wt-01" }, GET
+    body = last_response.body
+    assert_includes body, %(data-palette-name="wt:rm" data-palette-confirm)
+    refute_includes body, %(data-palette-name="test:rails" data-palette-confirm)
+  end
 end

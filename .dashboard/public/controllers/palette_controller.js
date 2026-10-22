@@ -1,8 +1,9 @@
 // On <body>: the task palette. Opens from the header's "tasks" button, ":" or
 // Ctrl-K (on a worktree's page) as a dialog holding GET /palette?w=<W>; typing
 // filters the names by fuzzy subsequence, arrows move, Enter runs the selected
-// task (prompting for its arguments when the row says required/optional) by
-// POSTing task and args to the list's url.
+// task (prompting for its arguments when the row says required/optional, and
+// asking first when the row carries data-palette-confirm) by POSTing task and
+// args to the list's url.
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
@@ -100,7 +101,8 @@ export default class extends Controller {
   }
 
   async run(item) {
-    const { paletteName: task, paletteArgs: kind } = item.dataset
+    const { paletteName: task, paletteArgs: kind, paletteConfirm: question } = item.dataset
+    if (question && !window.confirm(question)) return
     let args = ""
     if (kind) {
       const answer = window.prompt(`${task} arguments (${kind}):`)

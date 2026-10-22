@@ -4,8 +4,9 @@ require "shellwords"
 
 module Dashboard
   # The task palette: every mise task, listed from the workspace root and run
-  # in the selected worktree, in the action panel or (for one that needs a
-  # terminal) through newterm.sh.
+  # in the selected worktree (a workspace-level task at the root, one at a
+  # time with the header's workspace actions), in the action panel or (for one
+  # that needs a terminal) through newterm.sh.
   module Palette
     class BadArgs < Error; end
 
@@ -14,6 +15,11 @@ module Dashboard
     TERMINAL = %w[claude claude:newterm claude:notoken claude:notoken:newterm claude:template:promote claude:template:apply
                   console nvim rails exec logs proxy:logs test:rails_watcher test:javascript_watcher
                   down destroy clean allow-ports].freeze
+    # Tasks about the workspace, not the worktree they are picked on (plus proxy:*).
+    WORKSPACE = %w[wt wt:rm units:install units:uninstall dashboard:autostart dashboard:stop clean destroy
+                   allow-ports].freeze
+    # Stream tasks that undo something: the page asks before running them.
+    CONFIRM = %w[units:uninstall dashboard:stop wt:rm db:dump:clear].freeze
 
     @cache = {}
     @lock = Mutex.new
@@ -36,6 +42,8 @@ module Dashboard
     def self.reset = @lock.synchronize { @cache.clear }
 
     def self.mode(name) = TERMINAL.include?(name) ? :terminal : :stream
+    def self.scope(name) = WORKSPACE.include?(name) || name.start_with?("proxy:") ? :workspace : :worktree
+    def self.confirm?(name) = CONFIRM.include?(name)
 
     def self.argv(task, input)
       words = Shellwords.split(input.to_s)
@@ -49,7 +57,7 @@ module Dashboard
     # The ad-hoc action running argv for the task named name.
     def self.spec(name, argv)
       commands = [argv.freeze].freeze
-      Actions::Spec.new(id: "palette:#{name}", label: name, mode: mode(name), scope: :worktree, target: :worktree,
+      Actions::Spec.new(id: "palette:#{name}", label: name, mode: mode(name), scope: scope(name), target: :worktree,
                         argv: ->(*) { commands }, env: {}, confirm: nil, prompt: nil, github: true, base_ok: true)
     end
   end

@@ -40,9 +40,10 @@ module Dashboard
     def self.header(state, repo:) = view("_header", state:, repo:)
 
     # The palette's task list for the worktree named `name`: each row with its
-    # argument kind (Sources::Tasks.args) and whether it opens a terminal.
+    # argument kind (Sources::Tasks.args), whether it opens a terminal and
+    # whether the page asks before running it.
     def self.palette(tasks, name)
-      rows = tasks.map { [it, Sources::Tasks.args(it.usage), Palette.mode(it.name)] }
+      rows = tasks.map { [it, Sources::Tasks.args(it.usage), Palette.mode(it.name), Palette.confirm?(it.name)] }
       view("_palette", rows:, url: "#{path(name)}/palette")
     end
 
