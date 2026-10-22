@@ -7,7 +7,8 @@ module Dashboard
   # off and every configured filter driver is blanked. GIT_CONFIG_* entries
   # count as command-line config, which wins over files and includes.
   module GitSafety
-    OVERRIDES = { "core.fsmonitor" => "false", "core.hooksPath" => "/dev/null" }.freeze
+    OVERRIDES = { "core.fsmonitor" => "false", "core.hooksPath" => "/dev/null",
+                  "diff.ignoreSubmodules" => "all", "submodule.recurse" => "false" }.freeze
     FILTER_KEYS = '^filter\..*\.(clean|smudge|process)$'
 
     # The filter drivers could not be listed, so no safe environment exists.

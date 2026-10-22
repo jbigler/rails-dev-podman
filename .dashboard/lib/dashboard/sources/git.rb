@@ -31,7 +31,8 @@ module Dashboard
     # `git status --porcelain=v2 --branch` in one worktree.
     module GitStatus
       def self.fetch(path)
-        r = Shell.run(["git", "-C", path, "status", "--porcelain=v2", "--branch"], env: Sources.git_env(path))
+        r = Shell.run(["git", "-C", path, "status", "--porcelain=v2", "--branch", "--ignore-submodules=all"],
+                      env: Sources.git_env(path))
         parse(Sources.check!(r, "git status").stdout)
       end
 

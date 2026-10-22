@@ -45,8 +45,9 @@ class SourcesTest < Minitest::Test
     end
     status = shell.calls.find { it.argv[3] == "status" }
     gh = shell.calls.find { it.argv.first == "gh" }
-    assert_equal "2", status.env["GIT_CONFIG_COUNT"]
-    assert_equal "2", gh.env["GIT_CONFIG_COUNT"]
+    assert_equal "4", status.env["GIT_CONFIG_COUNT"]
+    assert_equal "4", gh.env["GIT_CONFIG_COUNT"]
+    assert_includes status.argv, "--ignore-submodules=all"
     assert_equal "#{ROOT}/master", gh.chdir
   end
 

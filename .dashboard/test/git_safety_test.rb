@@ -30,6 +30,32 @@ class GitSafetyTest < Minitest::Test
     assert File.exist?("#{@dir}/PWNED"), "without GitSafety.env the attack should work"
   end
 
+  # A submodule's own config is not the outer repo's: git status runs git in
+  # the submodule, which would read its filters.
+  def test_submodule_filter_never_runs
+    sub = Dir.mktmpdir("git-safety-sub")
+    git_in sub, "init", "--quiet"
+    File.write("#{sub}/.gitattributes", "*.txt filter=evil\n")
+    File.write("#{sub}/a.txt", "hi\n")
+    git_in sub, "add", "."
+    git_in sub, "commit", "--quiet", "--no-verify", "-m", "init"
+    git "-c", "protocol.file.allow=always", "submodule", "add", "--quiet", sub, "sub"
+    git "commit", "--quiet", "--no-verify", "-m", "sub"
+    git_in "#{@dir}/sub", "config", "filter.evil.clean", %(sh -c "touch #{@dir}/PWNED; cat")
+    mtime = File.mtime("#{@dir}/sub/a.txt")
+    File.write("#{@dir}/sub/a.txt", "hu\n")
+    File.utime(mtime, mtime, "#{@dir}/sub/a.txt")
+    status = ["git", "-C", @dir, "status", "--porcelain=v2", "--branch"]
+
+    Dashboard::Shell.run(status, env: Dashboard::GitSafety.env(@dir))
+    refute File.exist?("#{@dir}/PWNED"), "the submodule's clean filter ran under GitSafety.env"
+
+    Dashboard::Shell.run(status, env: isolated)
+    assert File.exist?("#{@dir}/PWNED"), "without GitSafety.env the attack should work"
+  ensure
+    FileUtils.rm_rf(sub)
+  end
+
   def test_fsmonitor_and_hooks_overridden
     env = Dashboard::GitSafety.env(@dir)
     pairs = Integer(env.fetch("GIT_CONFIG_COUNT")).times.to_h do |n|
@@ -54,8 +80,8 @@ class GitSafetyTest < Minitest::Test
     with_shell(FakeShell.new("git -C #{@dir} config" => Dashboard::Shell::Result.fail("", status: 1))) do
       env = Dashboard::GitSafety.env(@dir)
 
-      assert_equal "2", env["GIT_CONFIG_COUNT"]
-      assert_equal %w[core.fsmonitor core.hooksPath], [env["GIT_CONFIG_KEY_0"], env["GIT_CONFIG_KEY_1"]]
+      assert_equal "4", env["GIT_CONFIG_COUNT"]
+      assert_equal %w[core.fsmonitor core.hooksPath diff.ignoreSubmodules submodule.recurse], 4.times.map { env["GIT_CONFIG_KEY_#{it}"] }
       assert Dashboard::GitSafety::Unsafe < Dashboard::Error
     end
   end
@@ -65,8 +91,10 @@ class GitSafetyTest < Minitest::Test
   # The developer's own git config must not change what these repos do.
   def isolated = { "GIT_CONFIG_GLOBAL" => File::NULL, "GIT_CONFIG_NOSYSTEM" => "1" }
 
-  def git(*args)
-    argv = ["git", "-C", @dir, "-c", "user.name=Test", "-c", "user.email=test@example.com",
+  def git(*args) = git_in(@dir, *args)
+
+  def git_in(dir, *args)
+    argv = ["git", "-C", dir, "-c", "user.name=Test", "-c", "user.email=test@example.com",
             "-c", "commit.gpgsign=false", *args]
     _out, err, status = Open3.capture3(isolated, *argv)
     raise "#{argv.join(' ')}: #{err}" unless status.success?
