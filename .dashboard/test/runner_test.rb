@@ -149,6 +149,13 @@ class RunnerTest < Minitest::Test
     assert_equal "line 1000", lines.first
   end
 
+  # db:dump prints an empty line before its last lines.
+  def test_an_empty_output_line_is_kept_and_the_job_succeeds
+    r = runner(FakeSpawner.new({ "mise run up" => [["wrote it", "", "Dumps are in …"], 0] }))
+    job = finished(r, r.start(A.find("up"), worktree: wt("wt-01")))
+    assert_equal [:ok, ["wrote it", "", "Dumps are in …"]], [job.state, job.lines]
+  end
+
   def test_long_lines_are_cut
     spawner = FakeSpawner.new({ "mise run up" => [["a" * 200 * 1024], 0] })
     r = runner(spawner)

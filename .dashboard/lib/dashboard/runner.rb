@@ -133,7 +133,7 @@ module Dashboard
     # edge scrubs to "?"), KEEP_LINES and KEEP_BYTES at most.
     def append(entry, text)
       cut = text.b.scan(/.{1,#{MAX_LINE}}/mn)
-      cut = [""] if cut.empty?
+      cut = [+""] if cut.empty? # an empty line; unfrozen, force_encoding below changes it in place
       @lock.synchronize do
         lines = entry.job.lines
         cut.each do
