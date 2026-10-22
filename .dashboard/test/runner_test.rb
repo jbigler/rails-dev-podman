@@ -312,6 +312,60 @@ class RunnerTest < Minitest::Test
     refute File.exist?("#{dir}/7.log")
   end
 
+  # $XDG_RUNTIME_DIR is a small tmpfs (it holds the podman socket too): once the
+  # reader has caught up past the cap, the log is truncated in place. The child
+  # pauses after each write so the reader catches up; it reports the largest
+  # size it saw its log reach.
+  def test_real_spawn_caps_the_log
+    limit = 64 * 1024
+    script = <<~RUBY
+      max = 0
+      12.times do |n|
+        $stdout.write(16.times.map { |i| format("%04d %s\n", n * 16 + i, "x" * 1018) }.join)
+        $stdout.flush
+        max = [max, $stdout.stat.size].max
+        sleep 0.15
+      end
+      puts "max=\#{max}"
+    RUBY
+    spawn = R::Spawn.new("#{@logs}/jobs", log_limit: limit)
+    child = spawn.spawn([RbConfig.ruby, "-e", script], env: {}, chdir: Dir.tmpdir, job: 1)
+    lines = []
+    child.each_line { lines << it }
+
+    assert_equal 0, child.wait
+    max = Integer(lines.pop[/\Amax=(\d+)\z/, 1])
+    assert_operator max, :<=, limit + (16 * 1024), "the log outgrew the cap by more than one write"
+    assert_operator max, :>, 0
+    assert_equal (0...192).map { format("%04d", it) }, lines.map { it[0, 4] }, "a line was lost to the truncation"
+    assert_operator File.size("#{@logs}/jobs/1.log"), :<=, limit
+  end
+
+  # A reader that cannot keep up does not let the log grow past twice the cap:
+  # what it had not read yet is dropped, and it carries on with what follows.
+  def test_real_spawn_drops_unread_output_past_twice_the_cap
+    limit = 64 * 1024
+    script = <<~RUBY
+      $stdout.write(256.times.map { |i| format("%04d %s\n", i, "x" * 1018) }.join)
+      $stdout.flush
+      sleep 1
+      puts "end"
+    RUBY
+    log = "#{@logs}/jobs/1.log"
+    child = R::Spawn.new("#{@logs}/jobs", log_limit: limit).spawn([RbConfig.ruby, "-e", script], env: {}, chdir: Dir.tmpdir, job: 1)
+    lines = []
+    child.each_line do
+      sleep 0.01 until File.size(log) >= 256 * 1024 if lines.empty?
+      lines << it
+    end
+
+    assert_equal "end", lines.last
+    kept = lines[0...-1].map { Integer(it[0, 4], 10) }
+    assert_equal (0...kept.size).to_a, kept, "it read from the start"
+    assert_operator kept.size, :<, 256, "nothing was dropped"
+    assert_operator kept.size, :>=, 128
+  end
+
   def test_a_job_dropped_from_retention_loses_its_log
     spawner = FakeSpawner.new
     r = runner(spawner)
