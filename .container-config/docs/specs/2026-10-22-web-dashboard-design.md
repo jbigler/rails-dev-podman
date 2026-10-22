@@ -87,7 +87,10 @@ containers (rails, playwright, claude…) ──✗──▶ 127.0.0.1:<port>   
   module files served from the app, loaded through an import map. Stimulus controllers cover: menus
   and confirm dialogs, the palette, the action-output panel, notifications, copy-to-clipboard.
 - **CSS:** hand-written, no UI kit. The Flexoki palette from the TUI's `theme.rb` as CSS custom
-  properties, light and dark following `prefers-color-scheme`.
+  properties, light and dark following `prefers-color-scheme`, on everything the page draws: dialogs,
+  inputs, focus rings, text selection, scrollbars, checkboxes. Questions and errors go through
+  `public/dialogs.js` (`alert`/`confirm`/`ask`), never `window.alert/confirm/prompt`, whose boxes the
+  page cannot colour. Browser notifications stay the OS's own.
 
 ### Files
 

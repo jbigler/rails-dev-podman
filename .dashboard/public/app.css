@@ -69,6 +69,22 @@ body {
 }
 
 a { color: var(--blue); }
+/* Everything the browser would otherwise colour itself: focus rings, selected
+   text, scrollbars, checkboxes, placeholders. */
+:root { scrollbar-color: var(--border) var(--bg2); }
+::selection { color: var(--text); background: color-mix(in srgb, var(--blue) 30%, var(--bg)); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="text"], input[type="search"] {
+  font: inherit;
+  width: 100%;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: .2rem .4rem;
+}
+input::placeholder { color: var(--muted); }
 h2, h3 { margin: 0 0 .5rem; }
 h2 { font-size: 1.1rem; }
 h3 { font-size: .85rem; color: var(--muted); font-weight: normal; text-transform: lowercase; }
@@ -256,18 +272,19 @@ button.stack-switch:disabled { background: none; text-decoration: none; }
 button[role="switch"]::before { content: "○ "; color: var(--muted); }
 button[role="switch"][aria-checked="true"]::before { content: "● "; color: var(--green); }
 .banner button { margin-left: .5rem; }
-dialog.confirm { color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; }
-dialog.confirm menu { display: flex; gap: .5rem; justify-content: flex-end; padding: 0; margin: .75rem 0 0; }
-dialog.confirm input[type="text"] {
-  font: inherit;
-  width: 100%;
+/* Every dialog: dialogs.js's questions and errors, and the task palette. */
+dialog {
+  max-width: min(36rem, 90vw);
   color: var(--text);
-  background: var(--bg2);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: .2rem .4rem;
+  border-radius: 4px;
 }
-dialog.confirm input[type="text"] + p { margin: .3rem 0 0; font-size: .8rem; }
+/* Flexoki black (--bg in dark), literal: ::backdrop does not inherit custom properties in every browser. */
+dialog::backdrop { background: rgb(16 15 15 / .45); }
+dialog menu { display: flex; gap: .5rem; justify-content: flex-end; padding: 0; margin: .75rem 0 0; }
+.dialog-note { margin: .3rem 0 0; font-size: .8rem; }
+.dialog-message { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .job { border-top: 1px solid var(--border); padding: .3rem 0; }
 .job-head { display: flex; flex-wrap: wrap; gap: .3rem .75rem; align-items: baseline; }
@@ -281,8 +298,7 @@ dialog.confirm input[type="text"] + p { margin: .3rem 0 0; font-size: .8rem; }
 }
 
 /* The task palette (palette_controller.js). */
-dialog.palette { width: min(40rem, 90vw); max-height: 70vh; padding: 0.5rem; }
-dialog.palette input { width: 100%; box-sizing: border-box; }
+dialog.palette { width: min(40rem, 90vw); max-width: none; max-height: 70vh; padding: 0.5rem; }
 .palette-list { list-style: none; margin: 0.5rem 0 0; padding: 0; overflow-y: auto; max-height: 60vh; }
 .palette-list button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0.25rem 0.5rem; }
-.palette-list li.selected button { background: var(--selected, rgba(127, 127, 127, 0.2)); }
+.palette-list button:hover, .palette-list li.selected button { background: var(--sel); }

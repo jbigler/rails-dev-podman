@@ -3,8 +3,9 @@
 // filters the names by fuzzy subsequence, arrows move, Enter runs the selected
 // task (prompting for its arguments when the row says required/optional, and
 // asking first when the row carries data-palette-confirm) by POSTing task and
-// args to the list's url.
+// args to the list's url. Questions and errors use dialogs.js, not the browser's boxes.
 import { Controller } from "@hotwired/stimulus"
+import { alert, ask, confirm } from "../dialogs.js"
 
 export default class extends Controller {
   static targets = ["item"]
@@ -14,7 +15,7 @@ export default class extends Controller {
     const ctrlK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k"
     if (ctrlK || (event.key === ":" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey)) {
       event.preventDefault()
-      this.open()
+      if (!document.querySelector("dialog[open]")) this.open() // not over a question, nor the palette itself
     }
   }
 
@@ -23,7 +24,7 @@ export default class extends Controller {
     if (name === null || this.dialog) return
     const response = await fetch(`/palette?w=${encodeURIComponent(name)}`)
     if (!response.ok) {
-      window.alert(await response.text())
+      await alert(await response.text())
       return
     }
     this.show(await response.text())
@@ -102,13 +103,13 @@ export default class extends Controller {
 
   async run(item) {
     const { paletteName: task, paletteArgs: kind, paletteConfirm: question } = item.dataset
-    if (question && !window.confirm(question)) return
+    if (question && !(await confirm(question))) return
     let args = ""
     if (kind) {
-      const answer = window.prompt(`${task} arguments (${kind}):`)
+      const answer = await ask(`${task} arguments (${kind}):`)
       if (answer === null) return
-      if (kind === "required" && answer.trim() === "") return
-      args = answer.trim()
+      if (kind === "required" && answer === "") return
+      args = answer
     }
     const url = this.list.dataset.paletteUrl
     this.dialog.close()
@@ -116,9 +117,9 @@ export default class extends Controller {
     try {
       const response = await fetch(url, { method: "POST", headers: { "X-Dashboard-Token": token }, body: new URLSearchParams({ task, args }) })
       if (response.status === 403 && response.headers.get("X-Dashboard-Reload") === "1") location.reload()
-      else if (response.status >= 400) window.alert(await response.text())
+      else if (response.status >= 400) await alert(await response.text())
     } catch {
-      window.alert("The dashboard is not reachable.")
+      await alert("The dashboard is not reachable.")
     }
   }
 }
