@@ -1,0 +1,17 @@
+{
+  "session_id": "542bcdcc-3039-4c67-b302-131983c57652",
+  "transcript_path": "/home/appuser/.claude/projects/-home-dev-workspace-myproj-general-work/542bcdcc-3039-4c67-b302-131983c57652.jsonl",
+  "cwd": "/home/dev/workspace/myproj/general-work",
+  "scratchpad_dir": "/tmp/claude-1000/-home-dev-workspace-myproj-general-work/542bcdcc-3039-4c67-b302-131983c57652/scratchpad",
+  "prompt_id": "32b6e882-b96e-4e3f-b4f0-4050ef9613d5",
+  "permission_mode": "bypassPermissions",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "bin/rails db:migrate",
+    "description": "Apply migrations"
+  }
+}

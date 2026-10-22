@@ -1,0 +1,402 @@
+[
+  {
+    "headRefName": "feature/branch-06",
+    "isDraft": true,
+    "number": 10474,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10474"
+  },
+  {
+    "headRefName": "feature/branch-60",
+    "isDraft": false,
+    "number": 10473,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10473"
+  },
+  {
+    "headRefName": "feature/branch-61",
+    "isDraft": false,
+    "number": 10472,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10472"
+  },
+  {
+    "headRefName": "feature/branch-45",
+    "isDraft": false,
+    "number": 10470,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10470"
+  },
+  {
+    "headRefName": "feature/branch-58",
+    "isDraft": false,
+    "number": 10469,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10469"
+  },
+  {
+    "headRefName": "feature/branch-48",
+    "isDraft": false,
+    "number": 10468,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10468"
+  },
+  {
+    "headRefName": "feature/branch-47",
+    "isDraft": false,
+    "number": 10467,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10467"
+  },
+  {
+    "headRefName": "feature/branch-38",
+    "isDraft": false,
+    "number": 10466,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10466"
+  },
+  {
+    "headRefName": "feature/branch-46",
+    "isDraft": false,
+    "number": 10465,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10465"
+  },
+  {
+    "headRefName": "feature/branch-26",
+    "isDraft": false,
+    "number": 10461,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10461"
+  },
+  {
+    "headRefName": "feature/branch-41",
+    "isDraft": false,
+    "number": 10459,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10459"
+  },
+  {
+    "headRefName": "feature/branch-10",
+    "isDraft": false,
+    "number": 10458,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10458"
+  },
+  {
+    "headRefName": "feature/branch-29",
+    "isDraft": true,
+    "number": 10457,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10457"
+  },
+  {
+    "headRefName": "feature/branch-35",
+    "isDraft": true,
+    "number": 10452,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10452"
+  },
+  {
+    "headRefName": "feature/branch-34",
+    "isDraft": false,
+    "number": 10451,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10451"
+  },
+  {
+    "headRefName": "feature/branch-32",
+    "isDraft": false,
+    "number": 10450,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10450"
+  },
+  {
+    "headRefName": "feature/branch-33",
+    "isDraft": false,
+    "number": 10449,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10449"
+  },
+  {
+    "headRefName": "feature/branch-12",
+    "isDraft": true,
+    "number": 10447,
+    "reviewDecision": "",
+    "state": "MERGED",
+    "title": "Example PR 10447"
+  },
+  {
+    "headRefName": "feature/branch-56",
+    "isDraft": false,
+    "number": 10445,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10445"
+  },
+  {
+    "headRefName": "feature/branch-79",
+    "isDraft": true,
+    "number": 10443,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10443"
+  },
+  {
+    "headRefName": "feature/branch-05",
+    "isDraft": false,
+    "number": 10442,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10442"
+  },
+  {
+    "headRefName": "feature/branch-31",
+    "isDraft": false,
+    "number": 10441,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10441"
+  },
+  {
+    "headRefName": "feature/branch-30",
+    "isDraft": true,
+    "number": 10440,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "CLOSED",
+    "title": "Example PR 10440"
+  },
+  {
+    "headRefName": "feature/branch-49",
+    "isDraft": false,
+    "number": 10435,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10435"
+  },
+  {
+    "headRefName": "feature/branch-03",
+    "isDraft": false,
+    "number": 10433,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10433"
+  },
+  {
+    "headRefName": "feature/branch-02",
+    "isDraft": false,
+    "number": 10431,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10431"
+  },
+  {
+    "headRefName": "feature/branch-04",
+    "isDraft": false,
+    "number": 10430,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10430"
+  },
+  {
+    "headRefName": "feature/branch-24",
+    "isDraft": false,
+    "number": 10429,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10429"
+  },
+  {
+    "headRefName": "feature/branch-54",
+    "isDraft": false,
+    "number": 10427,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10427"
+  },
+  {
+    "headRefName": "feature/branch-59",
+    "isDraft": false,
+    "number": 10425,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10425"
+  },
+  {
+    "headRefName": "feature/branch-09",
+    "isDraft": false,
+    "number": 10423,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10423"
+  },
+  {
+    "headRefName": "feature/branch-37",
+    "isDraft": true,
+    "number": 10420,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10420"
+  },
+  {
+    "headRefName": "feature/branch-07",
+    "isDraft": false,
+    "number": 10419,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10419"
+  },
+  {
+    "headRefName": "feature/branch-21",
+    "isDraft": false,
+    "number": 10418,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10418"
+  },
+  {
+    "headRefName": "feature/branch-28",
+    "isDraft": false,
+    "number": 10416,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10416"
+  },
+  {
+    "headRefName": "feature/branch-27",
+    "isDraft": false,
+    "number": 10415,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10415"
+  },
+  {
+    "headRefName": "feature/branch-78",
+    "isDraft": false,
+    "number": 10413,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10413"
+  },
+  {
+    "headRefName": "feature/branch-77",
+    "isDraft": false,
+    "number": 10412,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10412"
+  },
+  {
+    "headRefName": "feature/branch-62",
+    "isDraft": false,
+    "number": 10410,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10410"
+  },
+  {
+    "headRefName": "feature/branch-43",
+    "isDraft": false,
+    "number": 10409,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10409"
+  },
+  {
+    "headRefName": "feature/branch-39",
+    "isDraft": false,
+    "number": 10408,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10408"
+  },
+  {
+    "headRefName": "feature/branch-75",
+    "isDraft": true,
+    "number": 10407,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10407"
+  },
+  {
+    "headRefName": "feature/branch-64",
+    "isDraft": false,
+    "number": 10405,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10405"
+  },
+  {
+    "headRefName": "feature/branch-01",
+    "isDraft": false,
+    "number": 10404,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10404"
+  },
+  {
+    "headRefName": "feature/branch-76",
+    "isDraft": false,
+    "number": 10399,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10399"
+  },
+  {
+    "headRefName": "feature/branch-36",
+    "isDraft": false,
+    "number": 10398,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10398"
+  },
+  {
+    "headRefName": "feature/branch-08",
+    "isDraft": false,
+    "number": 10397,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10397"
+  },
+  {
+    "headRefName": "feature/branch-11",
+    "isDraft": false,
+    "number": 10396,
+    "reviewDecision": "APPROVED",
+    "state": "MERGED",
+    "title": "Example PR 10396"
+  },
+  {
+    "headRefName": "feature/branch-81",
+    "isDraft": true,
+    "number": 10394,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10394"
+  },
+  {
+    "headRefName": "feature/branch-80",
+    "isDraft": true,
+    "number": 10393,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10393"
+  }
+]

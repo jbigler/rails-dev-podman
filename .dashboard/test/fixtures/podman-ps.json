@@ -1,0 +1,299 @@
+[
+  {
+    "Names": [
+      "myproj-traefik"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483020,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-dozzle"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483021,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-home"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483021,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-playwright"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483545,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-redis"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours (healthy)",
+    "StartedAt": 1792483545,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-db"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours (healthy)",
+    "StartedAt": 1792483545,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-rustfs"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours (healthy)",
+    "StartedAt": 1792483545,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-agent"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483909,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-nvim"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792484401,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-master-rails"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours",
+    "StartedAt": 1792485460,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-playwright"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours",
+    "StartedAt": 1792485921,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-redis"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours (healthy)",
+    "StartedAt": 1792485921,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-db"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours (healthy)",
+    "StartedAt": 1792485922,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-rustfs"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours (healthy)",
+    "StartedAt": 1792485922,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-rails"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours",
+    "StartedAt": 1792485924,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-06-agent"
+    ],
+    "State": "running",
+    "Status": "Up 6 hours",
+    "StartedAt": 1792486002,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-01-playwright"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours",
+    "StartedAt": 1792489658,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-01-redis"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792489657,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-01-db"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792489657,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-01-rustfs"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792489658,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-01-rails"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours",
+    "StartedAt": 1792489665,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-redis"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792491902,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-db"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792491902,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-playwright"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours",
+    "StartedAt": 1792491901,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-rustfs"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours (healthy)",
+    "StartedAt": 1792491902,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-rails"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours",
+    "StartedAt": 1792491905,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-stacked-nvim"
+    ],
+    "State": "running",
+    "Status": "Up 5 hours",
+    "StartedAt": 1792492047,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-09-redis"
+    ],
+    "State": "running",
+    "Status": "Up 2 hours (healthy)",
+    "StartedAt": 1792502324,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-09-playwright"
+    ],
+    "State": "running",
+    "Status": "Up 2 hours",
+    "StartedAt": 1792502324,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-09-db"
+    ],
+    "State": "running",
+    "Status": "Up 2 hours (healthy)",
+    "StartedAt": 1792502325,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-09-rustfs"
+    ],
+    "State": "running",
+    "Status": "Up 2 hours (healthy)",
+    "StartedAt": 1792502325,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "myproj-wt-09-rails"
+    ],
+    "State": "running",
+    "Status": "Up 2 hours",
+    "StartedAt": 1792502331,
+    "ExitCode": 0
+  },
+  {
+    "Names": [
+      "omp-myproj--710705"
+    ],
+    "State": "running",
+    "Status": "Up 7 hours",
+    "StartedAt": 1792483583,
+    "ExitCode": 0
+  }
+]

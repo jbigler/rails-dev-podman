@@ -1,0 +1,13 @@
+{
+  "state": "offline",
+  "ts": "2026-10-09T04:48:37Z",
+  "rtk": {
+    "total_commands": 67,
+    "total_input": 20230,
+    "total_output": 10711,
+    "total_saved": 9547,
+    "avg_savings_pct": 47.19228868017795,
+    "total_time_ms": 84955,
+    "avg_time_ms": 1267
+  }
+}

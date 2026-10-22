@@ -34,6 +34,37 @@ module DashboardTestHelpers
 
   def fixture(*path) = File.read(File.join(FIXTURES, *path))
 
+  def ws = Dashboard::Workspace.new(root: ROOT, prefix: "myproj", base_name: "master")
+
+  # FakeShell responses for GitSafety's filter-driver read in each path:
+  # exit 1, no output — the repo configures no filters.
+  def no_filters(*paths)
+    paths.to_h { ["git -C #{it} config --name-only", Dashboard::Shell::Result.new(stdout: "", stderr: "", status: 1, timed_out: false)] }
+  end
+
+  # The fixture machine: 16 worktrees, wt-stacked on a 21-branch stack, pods
+  # up for master, wt-01, wt-06, wt-09 and wt-stacked; only wt-stacked has a
+  # .unit-env file.
+  def fixture_raw
+    s = Dashboard::Sources
+    refs = s::Worktrees.parse(fixture("git-worktree-list.txt"), base_path: "#{ROOT}/master")
+    units = s::Units.parse(fixture("systemctl.master.txt")).merge(s::Units.parse(fixture("systemctl.wt-stacked.txt")))
+    Dashboard::Raw.empty.with(
+      refs:,
+      git: { "master" => s::GitStatus.parse(fixture("git-status.master.txt")),
+             "wt-stacked" => s::GitStatus.parse(fixture("git-status.wt-stacked.txt")) },
+      env: { "wt-stacked" => [NOW, s::UnitEnv.parse(fixture("unit-env.wt-stacked.env"))] },
+      units:,
+      containers: s::Containers.parse(fixture("podman-ps.json")),
+      prs: s::OpenPrs.parse(fixture("gh-pr-list-open.json")),
+      pr_index: s::PrIndex.parse(fixture("gh-pr-list.json")),
+      commits: { "wt-stacked" => 6 },
+      stacks: { "wt-stacked" => s::Stack.parse(fixture("gh-stack-view.wt-stacked.json")) },
+      stale_units: [],
+      autostart: :disabled
+    )
+  end
+
   def with_shell(shell)
     previous = Dashboard::Shell.backend
     Dashboard::Shell.backend = shell

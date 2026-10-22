@@ -1,0 +1,64 @@
+worktree /home/dev/workspace/myproj/master
+HEAD d86de95c2e182508090fe0478ddb237f54751d63
+branch refs/heads/master
+
+worktree /home/dev/workspace/myproj/wt-01
+HEAD 2f396ee065b635e671e6ab4bbaf075fdd25a3fa7
+branch refs/heads/feature/branch-10
+
+worktree /home/dev/workspace/myproj/wt-02
+HEAD ffb58c7e8aed8bc566fefd23f95f9bf8c6dfe43a
+branch refs/heads/feature/branch-13
+
+worktree /home/dev/workspace/myproj/wt-03
+HEAD b9f8e9caf0da3d27c9e6cb107ff43e76b16ebda6
+branch refs/heads/feature/branch-20
+
+worktree /home/dev/workspace/myproj/wt-04
+HEAD 10cdbbbc8cf093d7daeb8867b982a9c13c31e685
+branch refs/heads/feature/branch-22
+
+worktree /home/dev/workspace/myproj/wt-05
+HEAD af9599364b6a74a877d5ff247d0a336662085a60
+branch refs/heads/feature/branch-25
+
+worktree /home/dev/workspace/myproj/wt-06
+HEAD cd95a7cbe13cb2f6e5c5b42ae74f3e77c2db77c8
+branch refs/heads/feature/branch-62
+
+worktree /home/dev/workspace/myproj/wt-07
+HEAD 63bdee1f171d6cb9c6325bfec180290405045ecd
+branch refs/heads/feature/branch-27
+
+worktree /home/dev/workspace/myproj/wt-08
+HEAD edc011e07b5e4242881c768436fd9347a13b2cd6
+branch refs/heads/feature/branch-40
+
+worktree /home/dev/workspace/myproj/wt-09
+HEAD 45d9badce0edbde4dd138ab4dfa514f077e08c74
+branch refs/heads/feature/branch-41
+
+worktree /home/dev/workspace/myproj/wt-10
+HEAD 3958c17761226f903bee2bf1f66939656ead4c62
+branch refs/heads/feature/branch-42
+
+worktree /home/dev/workspace/myproj/wt-11
+HEAD eaf824b3ddb34ea4214a93d794901a6f393825af
+branch refs/heads/feature/branch-44
+
+worktree /home/dev/workspace/myproj/wt-stacked
+HEAD 5a20311b02bf299d327329ea557b89d0e7a97bf9
+branch refs/heads/feature/branch-72
+
+worktree /home/dev/workspace/myproj/wt-13
+HEAD 336cd8a1d920d16a24b8bb8e5948ac45710f87d4
+branch refs/heads/feature/branch-55
+
+worktree /home/dev/workspace/myproj/wt-14
+HEAD f093c478cdb136d0567d83cf8e6c957346f83640
+branch refs/heads/feature/branch-57
+
+worktree /home/dev/workspace/myproj/wt-15
+HEAD def5cccee8258a525dc1a68b6f3a8a2c0d1d39bf
+branch refs/heads/feature/branch-63
+

@@ -1,0 +1,9 @@
+{
+  "CURRENT_WORKTREE_NAME": "master",
+  "WORKTREE_HOST": "master.localhost",
+  "APP_PORT": "13000",
+  "DB_PORT": "55432",
+  "S3_PORT": "19000",
+  "PLAYWRIGHT_HOST_PORT": "18888",
+  "NVIM_PORT": "17000"
+}

@@ -1,0 +1,723 @@
+[
+  {
+    "baseRefName": "feature/branch-65",
+    "commits": [
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "8c4969120e76d63657f3efa4aaf2ce2de4c50092"
+      },
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "654936e8e00129416543363fb871785676843c0e"
+      },
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "360ac22e1d44276fa800c12066df100a87f1ba1e"
+      },
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "cd31984a179441c65d771c59a9fa2c25a6e0d6ad"
+      },
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "45c209eb742eec1bb66233d422d0242111358ae5"
+      },
+      {
+        "authoredDate": "2026-10-13T13:40:37Z",
+        "authors": [
+          {
+            "email": "dev@example.com",
+            "id": "U_dev",
+            "login": "dev",
+            "name": "Dev"
+          }
+        ],
+        "committedDate": "2026-10-13T13:40:37Z",
+        "messageBody": "",
+        "messageHeadline": "Example commit",
+        "oid": "5a20311b02bf299d327329ea557b89d0e7a97bf9"
+      }
+    ],
+    "headRefName": "feature/branch-72",
+    "isDraft": false,
+    "number": 10329,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:44Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169402",
+        "name": "rubocop",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:57Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768041/job/115363169909",
+        "name": "brakeman",
+        "startedAt": "2026-10-13T14:50:05Z",
+        "status": "COMPLETED",
+        "workflowName": "security"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:02Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768218/job/115363219362",
+        "name": "deploy",
+        "startedAt": "2026-10-13T14:50:08Z",
+        "status": "COMPLETED",
+        "workflowName": "Fly Review App on Label"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:27Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416829994/job/115363385039",
+        "name": "deploy",
+        "startedAt": "2026-10-13T14:50:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Fly Review App on Label"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768373/job/115363170592",
+        "name": "resolve_images",
+        "startedAt": "2026-10-13T14:50:05Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830017/job/115363970173",
+        "name": "resolve_images",
+        "startedAt": "2026-10-13T14:51:38Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416610044/job/115362617974",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-10-13T14:48:59Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL - Code Quality"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416611723/job/115362626155",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-10-13T14:49:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL - Code Quality"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:55:23Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364040699",
+        "name": "rubocop",
+        "startedAt": "2026-10-13T14:51:46Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768296/job/115363168112",
+        "name": "check-boxes",
+        "startedAt": "2026-10-13T14:50:15Z",
+        "status": "COMPLETED",
+        "workflowName": "misc"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416829964/job/115363381629",
+        "name": "check-boxes",
+        "startedAt": "2026-10-13T14:50:30Z",
+        "status": "COMPLETED",
+        "workflowName": "misc"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T15:10:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38419700238/job/115373460161",
+        "name": "check-boxes",
+        "startedAt": "2026-10-13T15:10:10Z",
+        "status": "COMPLETED",
+        "workflowName": "misc"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416829979/job/115363644804",
+        "name": "brakeman",
+        "startedAt": "2026-10-13T14:51:00Z",
+        "status": "COMPLETED",
+        "workflowName": "security"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416610044/job/115362617458",
+        "name": "Analyze (ruby)",
+        "startedAt": "2026-10-13T14:48:59Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL - Code Quality"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416611723/job/115362625808",
+        "name": "Analyze (ruby)",
+        "startedAt": "2026-10-13T14:49:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL - Code Quality"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:35Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768373/job/115363170493",
+        "name": "seeds_and_annotations",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:30Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169623",
+        "name": "erblint",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:02Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768218/job/115363252655",
+        "name": "destroy",
+        "startedAt": "2026-10-13T14:50:12Z",
+        "status": "COMPLETED",
+        "workflowName": "Fly Review App on Label"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:27Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416829994/job/115363384214",
+        "name": "destroy",
+        "startedAt": "2026-10-13T14:50:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Fly Review App on Label"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:53:27Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830017/job/115363970017",
+        "name": "seeds_and_annotations",
+        "startedAt": "2026-10-13T14:51:38Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364040838",
+        "name": "erblint",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:19Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768373/job/115363170067",
+        "name": "migrations",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:36Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169385",
+        "name": "archspec",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830017/job/115363969512",
+        "name": "migrations",
+        "startedAt": "2026-10-13T14:51:38Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:24Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364041250",
+        "name": "archspec",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:28Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768373/job/115363309644",
+        "name": "tests",
+        "startedAt": "2026-10-13T14:50:19Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:24Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363170373",
+        "name": "herb",
+        "startedAt": "2026-10-13T14:50:09Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:57:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830017/job/115364133332",
+        "name": "tests",
+        "startedAt": "2026-10-13T14:52:35Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:53:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364041146",
+        "name": "herb",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:28Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768373/job/115363309792",
+        "name": "system_tests",
+        "startedAt": "2026-10-13T14:50:19Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:53Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363168911",
+        "name": "eslint",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:58:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830017/job/115364133608",
+        "name": "system_tests",
+        "startedAt": "2026-10-13T14:52:24Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364040317",
+        "name": "eslint",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:48Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169963",
+        "name": "stylelint",
+        "startedAt": "2026-10-13T14:50:04Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:17Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364040808",
+        "name": "stylelint",
+        "startedAt": "2026-10-13T14:51:46Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:50:57Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169319",
+        "name": "prettier",
+        "startedAt": "2026-10-13T14:50:05Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:52:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364040748",
+        "name": "prettier",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:51:43Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416768014/job/115363169304",
+        "name": "js_tests",
+        "startedAt": "2026-10-13T14:50:05Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T14:53:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/example-org/app/actions/runs/38416830023/job/115364041034",
+        "name": "js_tests",
+        "startedAt": "2026-10-13T14:51:47Z",
+        "status": "COMPLETED",
+        "workflowName": "linters"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-13T15:10:19Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://docs.gitstream.cm/examples/",
+        "name": "gitStream.cm",
+        "startedAt": "2026-10-13T15:10:09Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "Example PR 10329",
+    "body": "",
+    "url": "https://github.com/example-org/app/pull/10329"
+  },
+  {
+    "headRefName": "feature/branch-06",
+    "isDraft": true,
+    "number": 10474,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10474",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-60",
+    "isDraft": false,
+    "number": 10473,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10473",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-61",
+    "isDraft": false,
+    "number": 10472,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10472",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-26",
+    "isDraft": false,
+    "number": 10461,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10461",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-41",
+    "isDraft": false,
+    "number": 10459,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10459",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-10",
+    "isDraft": false,
+    "number": 10458,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10458",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-29",
+    "isDraft": true,
+    "number": 10457,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10457",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-35",
+    "isDraft": true,
+    "number": 10452,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10452",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-32",
+    "isDraft": false,
+    "number": 10450,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10450",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-33",
+    "isDraft": false,
+    "number": 10449,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10449",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-56",
+    "isDraft": false,
+    "number": 10445,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10445",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-79",
+    "isDraft": true,
+    "number": 10443,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "title": "Example PR 10443",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-31",
+    "isDraft": false,
+    "number": 10441,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10441",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-24",
+    "isDraft": false,
+    "number": 10429,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10429",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-37",
+    "isDraft": true,
+    "number": 10420,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10420",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-28",
+    "isDraft": false,
+    "number": 10416,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10416",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-27",
+    "isDraft": false,
+    "number": 10415,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10415",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-78",
+    "isDraft": false,
+    "number": 10413,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10413",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-77",
+    "isDraft": false,
+    "number": 10412,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10412",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-62",
+    "isDraft": false,
+    "number": 10410,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10410",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-75",
+    "isDraft": true,
+    "number": 10407,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10407",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-36",
+    "isDraft": false,
+    "number": 10398,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "title": "Example PR 10398",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-81",
+    "isDraft": true,
+    "number": 10394,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10394",
+    "statusCheckRollup": []
+  },
+  {
+    "headRefName": "feature/branch-80",
+    "isDraft": true,
+    "number": 10393,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "title": "Example PR 10393",
+    "statusCheckRollup": []
+  }
+]

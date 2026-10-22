@@ -11,3 +11,13 @@ end
 
 require_relative "dashboard/shell"
 require_relative "dashboard/git_safety"
+require_relative "dashboard/model"
+require_relative "dashboard/workspace"
+require_relative "dashboard/sources"
+require_relative "dashboard/sources/git"
+require_relative "dashboard/sources/local"
+require_relative "dashboard/sources/gh"
+require_relative "dashboard/sources/tasks"
+require_relative "dashboard/services"
+require_relative "dashboard/agent_status"
+require_relative "dashboard/derive"

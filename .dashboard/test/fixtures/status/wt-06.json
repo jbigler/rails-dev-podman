@@ -1,0 +1,7 @@
+{
+  "state": "waiting",
+  "ts": "2026-10-20T09:14:24.660Z",
+  "agent": "claude-agent-acp",
+  "plan": null,
+  "last": "Both are worse than two thin adapters of about 40 lines each that hold no shared markup. The split is the one the refac…"
+}
