@@ -92,7 +92,7 @@ is fatal on a missing path) and calls `tailscale serve reset`, which clears ever
   entrypoint-app.sh (db prepare/migrate) then bin/dev. Never fetches packages — that is deps@.  
   No home bind mount — ~ is the image's own (Dockerfile pre-creates the parents of the volumes mounted
   under it), because .home/<slug> holds Claude's OAuth token and rails runs agent-written code. Same
-  for exec's transient container. Wants= playwright only; nvim is not part of the stack.  
+  for exec's transient container. Wants= playwright and nvim.  
   rails/nvim/playwright/claude use shared image tags (localhost/${PROJECT_PREFIX}/rails:ruby<ver>-node<ver>
   etc.) — one image per runtime combo across worktrees, never one per worktree. That is why no teardown
   removes images.
@@ -208,8 +208,7 @@ checks it and `mise run allow-ports` lowers it.
 ## mise tasks (.mise/config.toml)
 
 - up(u)/stop(s)/down/restart/status/logs/exec/destroy: lifecycle. up starts rails and systemd resolves
-  the rest through Requires=/Wants=, gated on db/redis/rustfs being *healthy*; it neither starts nvim nor
-  requires its image. stop (which does stop nvim) keeps volumes; down
+  the rest through Requires=/Wants=, gated on db/redis/rustfs being *healthy*. stop keeps volumes; down
   deletes this worktree's three and prompts, defaulting to No. destroy nukes all <prefix>[-_]* resources,
   the rendered units and the folder (type 'destroy' to confirm).
 - units:install/units:uninstall/units:env, doctor, verify, verify:spike, allow-ports: unit and host
@@ -223,8 +222,7 @@ checks it and `mise run allow-ports` lowers it.
   test:rails(tr)/test:rails_watcher(trw, retest)/test:rails_system(trs) forward args to bin/rails;  
   test:javascript(tj)/test:javascript_watcher(tjw) forward args to npx vitest (Vitest + jsdom, no DB, so no depends=up).  
   All go through `podman-wt.sh exec`.
-- nvim(v) runs `podman-wt.sh nvim-up` (starts nvim@ only when inactive, seeds the home, waits until the
-  server answers) and then attaches; its config comes from
+- nvim(v) attaches to the nvim server; its config comes from
   <prefix>_nvim_config, a writable named volume shared by every worktree, so you
   configure nvim from inside the container once. Set NVIM_CONFIG_DIR in the
   workspace-root mise.local.toml to bind a host config read-only instead --

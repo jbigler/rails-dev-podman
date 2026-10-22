@@ -1,9 +1,9 @@
 #!/bin/sh
 # Seed a worktree's container home from the template, idempotently. Called by
-# podman-wt.sh nvim-up, podman-claude.sh and create-worktree.sh — anything that
-# may bind-mount .home/<slug> must run this first. Only nvim and claude do:
-# rails gets no home, because this one holds Claude credentials. Under docker
-# the cost of skipping it was the daemon creating the bind
+# `up`, podman-claude.sh and create-worktree.sh — anything that may bind-mount
+# .home/<slug> must run this first. Only nvim and claude do: rails gets no
+# home, because this one holds Claude credentials. Under docker the cost of
+# skipping it was the daemon creating the bind
 # source as root; under podman it is worse, because podman does not create a
 # missing bind source at all and fails the unit with
 # "statfs <path>: no such file or directory" (exit 125).

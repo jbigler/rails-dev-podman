@@ -103,7 +103,7 @@ _Tip: Set a shell alias for "mise run" to "mr"._
 
 ### Lifecycle
 
-- `mise run up` (`u`) — start this worktree's stack; systemd pulls in db, redis, rustfs, playwright and the proxy
+- `mise run up` (`u`) — start this worktree's stack; systemd pulls in db, redis, rustfs, playwright, nvim and the proxy
 - `mise run stop` (`s`) — stop this worktree's containers, keeping its volumes
 - `mise run restart [service]` — recreate one service (default `rails`)
 - `mise run down` — stop the containers **and** delete this worktree's db, rustfs and node_modules volumes (prompts, defaults to No)
@@ -145,7 +145,7 @@ The dashboard is at `http://wt.localhost`; live logs for every project container
 - `mise run rails` — open a bash shell in this worktree's Rails container
 - `mise run console` (`c`) — Rails console
 - `mise run exec <cmd>` — run a command in the rails container, or in a transient one when the stack is down
-- `mise run nvim` (`v`) — connect to the in-container Neovim via `--remote-ui`, starting its server first if it is not running
+- `mise run nvim` (`v`) — connect to the in-container Neovim via `--remote-ui`
 - `mise run claude` (`ai`) — run Claude Code in the `claude` container (`CLAUDE_NEW_TERM=1` or `claude:newterm` opens a new terminal tab)
 - `mise run claude:rebuild` — rebuild the Claude image with the latest Claude Code
 - `mise run claude:template:promote` / `claude:template:apply` — sync the Claude config set between a worktree home and the template
