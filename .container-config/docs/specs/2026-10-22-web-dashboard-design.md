@@ -94,7 +94,8 @@ containers (rails, playwright, claude…) ──✗──▶ 127.0.0.1:<port>   
 - `.dashboard/` — the app, laid out like `.tui/` was: `Gemfile` (+ lock), gems vendored into
   `.dashboard/vendor/bundle` (git-ignored), `config.ru`, `lib/`, `views/`, `public/` (CSS, vendored
   Turbo/Stimulus, controllers), `test/` (fixtures carried over from `feature/tui:.tui/test/fixtures/`),
-  `docs/` (this file). The root `.gitignore` is an allowlist, so `!/.dashboard/` is added to it.
+  and the root `.gitignore`, an allowlist, gets `!/.dashboard/`. This document and its plan live in
+  `.container-config/docs/{specs,plans}/` with the others.
 - `.container-config/systemd/dashboard.service` — the unit template (see Unit and tasks).
 - `.scripts/newterm.sh` — ported from `feature/tui` (commit `cd708ac`), with `claude-newterm.sh`
   becoming its thin wrapper as on that branch.
@@ -243,11 +244,10 @@ that act on the dashboard itself safe to start from the palette.
 
 **Session environment (my call).** A systemd user service has no `SSH_AUTH_SOCK`, terminal or
 `KITTY_LISTEN_ON`. That matters because an `up` started from the dashboard can regenerate
-`.unit-env/<W>.env` (`ensure_unit_env`):
-
-- `SSH_AGENT_SOCK` would fall back to `/dev/null`, silently cutting the ssh agent off from nvim and
-  claude;
-- `NVIM_BACKGROUND` would fall back to dark.
+`.unit-env/<W>.env` (`ensure_unit_env`), and `SSH_AGENT_SOCK` would then fall back to `/dev/null`,
+silently cutting the ssh agent off from nvim and claude. (`NVIM_BACKGROUND` is not in that file:
+`mise run nvim` pushes it at attach time, and that runs in a terminal the dashboard opens, with
+`KITTY_LISTEN_ON` passed on as below.)
 
 Three changes:
 
@@ -259,8 +259,9 @@ Three changes:
   environment it started with, so without this a dashboard started at boot (autostart with linger)
   or before a re-login would hand out a missing or stale display and ssh-agent socket. Unset
   variables stay unset; a terminal launch that then fails shows newterm.sh's `error:` line.
-- `units-env.sh` keeps the previous file's `SSH_AGENT_SOCK` (if it is still a live socket) and
-  `NVIM_BACKGROUND` when the current environment can't supply them, instead of falling back.
+- `units-env.sh` keeps the previous file's `SSH_AGENT_SOCK` when the current environment has no
+  live agent socket and the previous value still is one, instead of falling back to `/dev/null`;
+  `ensure_unit_env` (lib.sh) stops calling that case stale.
 
 **Retention:** in memory, the last 20 actions, output capped per action; lost on restart.
 
