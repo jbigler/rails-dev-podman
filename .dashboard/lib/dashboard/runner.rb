@@ -13,6 +13,8 @@ module Dashboard
     SCOPE = %w[systemd-run --user --scope --collect --quiet --].freeze
     ANSI = /\e\[[0-9;?]*[ -\/]*[@-~]/
     KEEP_LINES = 5000
+    # Bytes of output a job keeps; the oldest lines go first.
+    KEEP_BYTES = 4 * 1024 * 1024
     # Bytes of one stored line; longer output (or none of it ending in a newline) is cut.
     MAX_LINE = 64 * 1024
     PUBLISH_EVERY = 0.1
@@ -20,8 +22,9 @@ module Dashboard
     CREATE = "wt-create"
 
     # A running job: the locks it holds (worktree names, :workspace), its current
-    # child, a cancel request, output not yet published, and the flusher's wake-up.
-    Entry = Struct.new(:job, :keys, :child, :cancelled, :dirty, :wake)
+    # child, a cancel request, output not yet published, the flusher's wake-up,
+    # and the bytes its lines hold.
+    Entry = Struct.new(:job, :keys, :child, :cancelled, :dirty, :wake, :bytes)
 
     # local: the LocalPoller, poked when a job ends; github: the GithubPoller,
     # hinted when a `github: true` job ends. The default spawner logs to the
@@ -49,7 +52,7 @@ module Dashboard
         end
 
         job = Job.new(id: @last_id += 1, worktree: worktree&.name, label: spec.label, state: :running, started_at: Time.now, lines: [])
-        Entry.new(job:, keys:, cancelled: false, dirty: false, wake: Thread::Queue.new).tap do
+        Entry.new(job:, keys:, cancelled: false, dirty: false, wake: Thread::Queue.new, bytes: 0).tap do
           @running << it
           @logged << job.id
           publish(it)
@@ -126,14 +129,18 @@ module Dashboard
     end
 
     # Stored as lines of at most MAX_LINE bytes (a multibyte character cut at the
-    # edge scrubs to "?").
+    # edge scrubs to "?"), KEEP_LINES and KEEP_BYTES at most.
     def append(entry, text)
       cut = text.b.scan(/.{1,#{MAX_LINE}}/mn)
       cut = [""] if cut.empty?
       @lock.synchronize do
         lines = entry.job.lines
-        cut.each { lines << it.force_encoding(Encoding::UTF_8).scrub("?").gsub(ANSI, "") }
-        lines.shift(lines.size - KEEP_LINES) if lines.size > KEEP_LINES
+        cut.each do
+          line = it.force_encoding(Encoding::UTF_8).scrub("?").gsub(ANSI, "")
+          lines << line
+          entry.bytes += line.bytesize
+        end
+        entry.bytes -= lines.shift.bytesize while lines.size > KEEP_LINES || entry.bytes > KEEP_BYTES
         entry.dirty = true
       end
     end

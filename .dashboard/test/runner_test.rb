@@ -158,6 +158,17 @@ class RunnerTest < Minitest::Test
     assert_equal 200 * 1024, lines.sum(&:bytesize)
   end
 
+  def test_a_job_keeps_at_most_its_byte_budget
+    big = Array.new(100) { |n| format("%04d", n) + ("b" * ((60 * 1024) - 4)) }
+    spawner = FakeSpawner.new({ "mise run up" => [big, 0] })
+    r = runner(spawner)
+    lines = finished(r, r.start(A.find("up"), worktree: wt("wt-01"))).lines
+    assert_operator lines.sum(&:bytesize), :<=, 4 * 1024 * 1024
+    assert_operator lines.sum(&:bytesize), :>, (4 * 1024 * 1024) - (60 * 1024)
+    assert lines.last.start_with?("0099"), "the newest line was dropped"
+    refute lines.first.start_with?("0000"), "the oldest line was kept"
+  end
+
   def test_github_hint_after_stack_push
     github = FakeGithub.new
     local = FakeLocal.new
