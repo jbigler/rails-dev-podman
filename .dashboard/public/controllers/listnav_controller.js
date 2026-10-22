@@ -3,7 +3,9 @@
 // on "/" opens the first. Not while typing, while a <dialog> is open, or with
 // Ctrl/Alt/Meta (Shift only for G). The selection is read from the DOM each
 // time (the row marked selected, else #detail's data-worktree), and the
-// selected row is scrolled into view after every visit and list replace.
+// selected row is scrolled into view after every visit and key move, and after
+// a streamed replace of the list only if it was on screen before (no other
+// frame scrolls the page, so reading output further down is never interrupted).
 import { Controller } from "@hotwired/stimulus"
 import { visit } from "@hotwired/turbo"
 
@@ -12,6 +14,9 @@ const MOVES = { ArrowDown: 1, j: 1, ArrowUp: -1, k: -1, Home: "first", g: "first
 export default class extends Controller {
   connect() {
     this.streamed = (event) => {
+      if (event.target.getAttribute("target") !== "worktrees") return
+      const shown = this.onScreen(this.selected(this.rows()))
+      if (!shown) return
       const render = event.detail.render
       event.detail.render = async (stream) => {
         await render(stream)
@@ -75,5 +80,12 @@ export default class extends Controller {
   reveal() {
     const rows = this.rows()
     this.selected(rows)?.scrollIntoView({ block: "nearest" })
+  }
+
+  // Any part of the row inside the viewport.
+  onScreen(row) {
+    if (!row) return false
+    const box = row.getBoundingClientRect()
+    return box.bottom > 0 && box.top < window.innerHeight
   }
 }
