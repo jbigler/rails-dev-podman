@@ -19,6 +19,16 @@ module Dashboard
     def current_index = branches.index(&:current)
     # 1-based position of HEAD's branch from the bottom.
     def position = current_index&.+(1)
+
+    # The stack with HEAD on `branch`, git's (re-read seconds after a switch)
+    # rather than gh stack's last read; nil when `branch` is off the stack. A
+    # detached HEAD (nil, e.g. mid-rebase) keeps what was read.
+    def at(branch)
+      return self if branch.nil? || branch == current_branch
+      return nil unless branches.any? { it.branch == branch }
+
+      with(current_branch: branch, branches: branches.map { it.with(current: it.branch == branch) })
+    end
   end
   # state: :permission | :question | :working | :reply (a finished turn whose last message asks something)
   #        | :your_turn (any other finished turn) | :idle | :off
@@ -51,11 +61,15 @@ module Dashboard
     end
   end
 
-  # One action run. worktree: its name, nil for a workspace action; state: :running | :ok | :failed | :cancelled;
+  # One action run. worktree: its name, nil for a workspace action; action: the spec id; input: the
+  # prompted or chosen answer, nil without one; state: :running | :ok | :failed | :cancelled;
   # exit_status: the last command's (nil while running or when killed); lines: its output, the last
   # Runner::KEEP_LINES; created: the worktree a successful wt-create added. The Runner owns the
   # mutable one; the Hub holds frozen copies.
-  Job = Struct.new(:id, :worktree, :label, :state, :exit_status, :started_at, :finished_at, :lines, :created, keyword_init: true) do
+  Job = Struct.new(:id, :worktree, :action, :label, :input, :state, :exit_status, :started_at, :finished_at, :lines, :created,
+                   keyword_init: true) do
     def running? = state == :running
+    # The label with its input: "switch to feature/x", "new worktree feature/x".
+    def title = [label, input].compact.join(" ")
   end
 end

@@ -70,7 +70,7 @@ module Dashboard
       fixed("stack-up", "stack up", "gh", "stack", "up", github: true),
       fixed("stack-down", "stack down", "gh", "stack", "down", github: true),
       fixed("restack", "restack", "gh", "stack", "rebase", mode: :terminal),
-      spec("stack-switch", "switch branch", ->(_ws, _wt, input) { [["git", "switch", "--no-guess", input]] },
+      spec("stack-switch", "switch to", ->(_ws, _wt, input) { [["git", "switch", "--no-guess", input]] },
            choices: method(:stack_branches), github: true),
       spec("wt-rm", "remove worktree", ->(_ws, wt, _input) { [mise("wt:rm", wt.name)] },
            **WORKSPACE, target: :worktree, env: ->(discard) { discard ? FORCE : {} }, confirm: "Remove this worktree?", github: true,

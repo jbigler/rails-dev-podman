@@ -18,10 +18,14 @@
     <% if stack?(wt) %>
     <% stack = wt.stack %>
     <% merged = stack.merged %>
+    <% progress, target = stack_progress(state, wt) %>
     <div class="stack-head muted">
       stack · <%= stack.open.size %> open · <%= merged.size %> merged · on <%= stack.trunk %>
       <% if stack.restack_needed? %>
       <span class="yellow">⚠ restack needed</span>
+      <% end %>
+      <% if progress %>
+      <span class="blue stack-progress"><span class="spinner" aria-hidden="true"></span> <%= progress %></span>
       <% end %>
     </div>
     <ol class="stack">
@@ -49,7 +53,7 @@
       </li>
       <% else %>
       <% glyph = review_glyph(bpr) %>
-      <li class="stack-branch">
+      <li class="stack-branch<%= " switching" if b.branch == target %>">
         <span class="muted">├</span> <%== pr_number(b.pr_number, bpr) %> <%== stack_switch(wt, b.branch, disabled: busy) %>
         <span class="stack-marks"><% if b.needs_rebase %><span class="yellow" title="needs restack">⚠</span><% end %><% if glyph %><span class="<%= glyph[1] %>"><%= glyph[0] %></span><% end %></span>
       </li>

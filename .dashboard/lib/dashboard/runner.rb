@@ -48,10 +48,11 @@ module Dashboard
       keys = [(:workspace if spec.scope == :workspace), worktree&.name].compact
       entry = @lock.synchronize do
         if (other = @running.find { it.keys.intersect?(keys) })
-          raise Busy, "busy: #{[other.job.worktree, other.job.label].compact.join(': ')} is running"
+          raise Busy, "busy: #{[other.job.worktree, other.job.title].compact.join(': ')} is running"
         end
 
-        job = Job.new(id: @last_id += 1, worktree: worktree&.name, label: spec.label, state: :running, started_at: Time.now, lines: [])
+        job = Job.new(id: @last_id += 1, worktree: worktree&.name, action: spec.id, label: spec.label, input:, state: :running,
+                      started_at: Time.now, lines: [])
         Entry.new(job:, keys:, cancelled: false, dirty: false, wake: Thread::Queue.new, bytes: 0).tap do
           @running << it
           @logged << job.id
@@ -103,7 +104,7 @@ module Dashboard
       chdir = spec.scope == :workspace ? @ws.root : wt.path
       status = 0
       spec.argv.(@ws, wt, input).each do |argv|
-        argv = [@ws.newterm, "--title", [wt&.name, spec.label].compact.join(": "), "--cwd", chdir, "--", *argv] if spec.mode == :terminal
+        argv = [@ws.newterm, "--title", [wt&.name, entry.job.title].compact.join(": "), "--cwd", chdir, "--", *argv] if spec.mode == :terminal
         child = @lock.synchronize { entry.child = @spawner.spawn(SCOPE + argv, env:, chdir:, job: entry.job.id) unless entry.cancelled }
         return nil unless child
 

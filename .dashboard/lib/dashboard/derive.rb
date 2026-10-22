@@ -19,7 +19,7 @@ module Dashboard
           ahead: git&.ahead, behind: git&.behind, upstream: git&.upstream, dirty_count: git&.dirty_count, env:,
           services: Services.for(ws, ref.name, env, units, containers),
           pr: pr(ref, raw, failed),
-          stack: failed.key?("stacks:#{ref.name}") ? UNKNOWN : raw.stacks[ref.name],
+          stack: failed.key?("stacks:#{ref.name}") ? UNKNOWN : raw.stacks[ref.name]&.at(ref.branch),
           agent: AgentStatus.derive(containers == UNKNOWN ? UNKNOWN : containers[ws.container(ref.name, "claude")], raw.agent_files[ref.name]&.last)
         )
       end

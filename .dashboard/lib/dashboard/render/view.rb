@@ -241,6 +241,16 @@ module Dashboard
       # A worktree's buttons are disabled while one of its jobs runs.
       def busy?(state, wt) = state.jobs.any? { it.running? && it.worktree == wt.name }
 
+      STACK_ACTIONS = [*ACTION_GROUPS.fetch("stack"), "stack-switch"].freeze
+
+      # A running stack action of wt's → [text for the stack head, the branch it switches to or nil], else nil.
+      def stack_progress(state, wt)
+        job = state.jobs.find { it.running? && it.worktree == wt.name && STACK_ACTIONS.include?(it.action) }
+        return unless job
+
+        job.action == "stack-switch" ? ["switching to #{job.input}…", job.input] : ["#{job.title}…", nil]
+      end
+
       # → [[group, [Spec]]] for the detail pane; the stack group only on a stack.
       def action_groups(wt)
         offered = Actions.for_worktree(wt).to_h { [it.id, it] }

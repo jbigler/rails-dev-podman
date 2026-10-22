@@ -76,6 +76,28 @@ class RenderTest < Minitest::Test
     assert_includes html, "restack needed"
   end
 
+  # HEAD follows git's branch, re-read seconds after a switch, not gh stack's
+  # last read: off the stack there is none, detached keeps what was read.
+  def test_stack_head_follows_the_worktree_branch
+    on = ->(branch) { Dashboard::Hub.new(ws, raw: fixture_raw.with(refs: fixture_raw.refs.map { it.name == "wt-stacked" ? it.with(branch:) : it })).snapshot }
+    st = on.("feature/branch-15")
+    assert_includes R.row(wt("wt-stacked", st), selected: false), "8/21"
+    assert_includes R.detail(wt("wt-stacked", st), st)[%r{<li class="stack-branch head">.*?</li>}m], "feature/branch-15"
+    assert_nil wt("wt-stacked", on.("feature/elsewhere")).stack
+    assert_equal 7, wt("wt-stacked", on.(nil)).stack.position
+  end
+
+  def test_a_running_stack_switch_shows_on_the_stack
+    job = Dashboard::Job.new(id: 1, worktree: "wt-stacked", label: "switch to", action: "stack-switch", input: "feature/branch-15",
+                             state: :running, started_at: NOW, lines: [])
+    st = state.with(jobs: [job])
+    html = R.detail(wt("wt-stacked", st), st)
+    assert_match %r{<li class="stack-branch switching">\s*<span class="muted">├</span>[^<]*<span class="pr-num[^>]*>#\d+</span> <button[^>]*>feature/branch-15</button>}m, html
+    assert_includes html[%r{<div class="stack-head.*?</div>}m], "switching to feature/branch-15"
+    assert_includes R.job(job), "wt-stacked: switch to feature/branch-15"
+    refute_includes R.detail(wt("wt-stacked"), state), "switching"
+  end
+
   def test_services_and_logs_links
     html = R.detail(wt("wt-stacked"), state)
     assert_includes html, ":13022"
