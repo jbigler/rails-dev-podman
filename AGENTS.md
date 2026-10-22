@@ -223,9 +223,11 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   enables it to start at login.
 - Security: loopback only. Every request (SSE included) needs an allowed Host (wt.localhost/localhost/127.0.0.1
   with the port — stops DNS rebinding); POSTs also need an allowed Origin and X-Dashboard-Token (stops other
-  pages); a stale token (page from before a restart) → 403 + X-Dashboard-Reload. No login, by the user's
-  decision: single-user host. dashboard:isolation-check (also run by verify) proves no container reaches the
-  port — exit 1 reached, 2 could not probe. Containers run agent-written code; the dashboard drives the host.
+  pages); a stale token (page from before a restart) → 403 + X-Dashboard-Reload. Every response carries
+  X-Frame-Options DENY and CSP frame-ancestors 'none' (an agent's app page cannot frame it to lure clicks).
+  No login, by the user's decision: single-user host. dashboard:isolation-check (also run by verify) proves
+  no container reaches the port — exit 1 reached, 2 could not probe. Containers run agent-written code; the
+  dashboard drives the host.
 - Reading untrusted repos: GitSafety runs every background git/gh read with GIT_COMMON_DIR pointing at a
   host-private shadow ($XDG_RUNTIME_DIR/<prefix>-dashboard/gitcommon, 0700; never mounted into a container).
   Its config is regenerated, when the real master/.git/config's bytes change, from one capped read of that

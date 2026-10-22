@@ -117,4 +117,17 @@ class AppTest < Minitest::Test
     get "/assets/vendor/turbo.es2017-esm.js", {}, HOST
     assert_equal 200, last_response.status
   end
+
+  # Another page (an agent-written app on <W>.localhost) must not frame the
+  # dashboard and lure clicks onto its buttons.
+  def test_no_response_can_be_framed
+    [["/w/wt-01", HOST], ["/healthz", HOST], ["/assets/app.css", HOST], ["/", HOST],
+     ["/w/wt-01", { "HTTP_HOST" => "evil.example:7700" }]].each do |path, env|
+      get path, {}, env
+      assert_equal "DENY", last_response.headers["x-frame-options"], path
+      assert_equal "frame-ancestors 'none'", last_response.headers["content-security-policy"], path
+    end
+    post "/refresh", {}, HOST.merge("HTTP_ORIGIN" => ORIGIN, "HTTP_X_DASHBOARD_TOKEN" => "t")
+    assert_equal "DENY", last_response.headers["x-frame-options"]
+  end
 end

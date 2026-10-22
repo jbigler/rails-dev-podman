@@ -4,8 +4,12 @@ module Dashboard
   # Rack middleware for the spec's Security rules. Every request must carry an
   # allowed Host (stops DNS rebinding); a POST must also come from an allowed
   # Origin with the page's token (stops other pages in the browser). A page
-  # from before a restart holds an old token: its 403 says reload.
+  # from before a restart holds an old token: its 403 says reload. Every
+  # response forbids framing, so no other page can lure clicks onto the
+  # dashboard's own buttons (which would carry its Origin and token).
   class Guard
+    NO_FRAMING = { "x-frame-options" => "DENY", "content-security-policy" => "frame-ancestors 'none'" }.freeze
+
     def initialize(app, port:, token:)
       @app = app
       @token = token
@@ -14,6 +18,13 @@ module Dashboard
     end
 
     def call(env)
+      status, headers, body = check(env)
+      [status, headers.merge(NO_FRAMING), body]
+    end
+
+    private
+
+    def check(env)
       return deny("forbidden host") unless @hosts.include?(env["HTTP_HOST"])
       return @app.call(env) unless env["REQUEST_METHOD"] == "POST"
       return deny("forbidden origin") unless @origins.include?(env["HTTP_ORIGIN"])
@@ -21,8 +32,6 @@ module Dashboard
 
       @app.call(env)
     end
-
-    private
 
     def token?(given) = given.is_a?(String) && Rack::Utils.secure_compare(given, @token)
 
