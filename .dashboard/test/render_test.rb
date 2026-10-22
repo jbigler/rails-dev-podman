@@ -89,14 +89,38 @@ class RenderTest < Minitest::Test
   end
 
   def test_agent_tail_and_rtk
-    rtk = { "total_commands" => 548, "total_input" => 143_022, "total_output" => 97_714, "total_saved" => 45_561, "avg_savings_pct" => 31.86 }
-    file = Dashboard::StatusFile.new(v: 2, state: nil, phase: "done", ts: NOW, message: nil, tool: nil, last_message: "first " * 200 + "the end", rtk:)
-    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:done, since: NOW, last_message: file.last_message)) }
-    st = st.with(raw: st.raw.with(agent_files: { "wt-01" => [NOW, file] }))
-    html = R.detail(wt("wt-01", st), st)
+    file = Dashboard::Sources::AgentFiles.parse(JSON.generate(
+      v: 2, phase: "done", last_message: "first " * 200 + "the end",
+      rtk: { total_commands: 548, total_input: 143_022, total_output: 97_714, total_saved: 45_561, avg_savings_pct: 31.86 }
+    ))
+    html = agent_detail(file)
     assert_includes html, "the end"
     assert_includes html, "…"
     assert_includes html, "rtk 45.6K saved · 32%"
+    assert_includes html, 'title="548 rtk commands · 143.0K raw → 97.7K filtered"'
+  end
+
+  # /status is container-written: a nested rtk field of the wrong type or out of
+  # range is dropped from the chip, never a failed render.
+  def test_rtk_fields_of_the_wrong_type_never_break_the_detail
+    {
+      '{"total_commands":{}}' => nil,
+      '{"total_commands":1,"avg_savings_pct":[]}' => "rtk",
+      '{"total_commands":1e400}' => nil,
+      '{"total_saved":true}' => nil,
+      '{"total_commands":2,"total_saved":true,"avg_savings_pct":"9"}' => "rtk",
+      '{"total_commands":0,"total_saved":5}' => nil
+    }.each do |rtk, chip|
+      html = agent_detail(Dashboard::Sources::AgentFiles.parse(%({"v":2,"phase":"done","rtk":#{rtk}})))
+      shown = html[%r{<span class="rtk"[^>]*>([^<]*)</span>}, 1]
+      chip ? assert_equal(chip, shown, rtk) : assert_nil(shown, rtk)
+    end
+  end
+
+  def agent_detail(file)
+    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:done, since: NOW, last_message: file.last_message)) }
+    st = st.with(raw: st.raw.with(agent_files: { "wt-01" => [NOW, file] }))
+    R.detail(wt("wt-01", st), st)
   end
 
   def test_header_counts_need_input_and_stale_units

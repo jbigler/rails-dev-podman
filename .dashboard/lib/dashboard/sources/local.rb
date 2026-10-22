@@ -83,9 +83,23 @@ module Dashboard
         end
         StatusFile.new(v: h["v"].is_a?(Integer) ? h["v"] : 0, state: str.("state"), phase: str.("phase"), ts:,
                        message: str.("message"), tool: str.("tool"), last_message: str.("last_message"),
-                       rtk: h["rtk"].is_a?(Hash) ? h["rtk"] : nil)
+                       rtk: rtk(h["rtk"]))
       rescue JSON::ParserError
         nil
+      end
+
+      RTK_MAX = 1e15
+
+      # The hook's rtk object as an Rtk: each field kept only when a finite number
+      # in 0...RTK_MAX (JSON can say 1e400, which parses to Infinity); none kept → nil.
+      def self.rtk(h)
+        return nil unless h.is_a?(Hash)
+
+        fields = Rtk.members.to_h do |key|
+          n = h[key.to_s]
+          [key, (n.is_a?(Integer) || n.is_a?(Float)) && n.finite? && n >= 0 && n < RTK_MAX ? n : nil]
+        end
+        fields.values.any? ? Rtk.new(**fields) : nil
       end
     end
 

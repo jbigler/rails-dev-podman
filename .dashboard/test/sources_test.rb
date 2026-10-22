@@ -220,8 +220,17 @@ class SourcesTest < Minitest::Test
 
   def test_status_file_keeps_rtk_savings
     file = S::AgentFiles.parse(fixture("status", "wt-stacked.json"))
-    assert_equal 377_115, file.rtk["total_saved"]
+    assert_equal 377_115, file.rtk.total_saved
     assert_nil S::AgentFiles.parse('{"v":2,"phase":"done","rtk":"junk"}').rtk
+  end
+
+  # Each rtk field: a finite, non-negative number below 1e15, else nil; none left → no rtk.
+  def test_status_file_rtk_fields_are_type_checked
+    rtk = S::AgentFiles.parse('{"rtk":{"total_commands":3,"total_input":{},"total_output":1e400,"total_saved":-1,' \
+                              '"avg_savings_pct":12.5,"total_time_ms":"x"}}').rtk
+    assert_equal Dashboard::Rtk.new(total_commands: 3, total_input: nil, total_output: nil, total_saved: nil, avg_savings_pct: 12.5), rtk
+    assert_nil S::AgentFiles.parse('{"rtk":{"total_commands":1e16,"total_saved":true,"avg_savings_pct":[]}}').rtk
+    assert_nil S::AgentFiles.parse('{"rtk":{}}').rtk
   end
 
   def test_stale_units_names_each_unit

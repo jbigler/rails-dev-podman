@@ -241,7 +241,8 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   else a worktree's config becomes code the host runs unattended. It never runs `mise env`
   (a worktree's mise.local.toml is container-writable); ports/hosts come from .unit-env/<W>.env. Those files and
   the claude status files are read as hostile: regular files only (a FIFO or symlink is refused, opened
-  O_NONBLOCK|O_NOFOLLOW), at most 1 MiB, JSON fields type-checked; a bad one is absent for that worktree only.
+  O_NONBLOCK|O_NOFOLLOW), at most 1 MiB, JSON fields type-checked (nested rtk too: each a finite number in
+  0…1e15, else dropped from the chip); a bad file is absent for that worktree only.
   The palette lists tasks via `mise tasks --json` at the workspace root, never in a worktree.
 - Refresh: local sources every 1/3/5/60 s. GitHub only while a page holds the SSE stream (60 s hot / 300 s),
   on connect/focus (coalesced 10 s) and after GitHub-touching actions (never dropped). A newly viewed

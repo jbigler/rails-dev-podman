@@ -180,13 +180,16 @@ module Dashboard
       end
 
       # The RTK savings chip from the worktree's status file, nil before any rtk command ran.
+      # Shows only the fields the file had (Sources::AgentFiles.rtk dropped the bad ones).
       # → [text, tooltip]
       def rtk(state, name)
         r = state.raw.agent_files[name]&.last&.rtk
-        return nil unless r.is_a?(Hash) && r["total_commands"].to_i.positive?
+        return nil unless r&.total_commands&.positive?
 
-        ["rtk #{tokens(r['total_saved'])} saved · #{r['avg_savings_pct'].to_f.round}%",
-         "#{r['total_commands']} rtk commands · #{tokens(r['total_input'])} raw → #{tokens(r['total_output'])} filtered"]
+        text = ["rtk", ("#{tokens(r.total_saved)} saved" if r.total_saved)].compact.join(" ")
+        text += " · #{r.avg_savings_pct.round}%" if r.avg_savings_pct
+        flow = [("#{tokens(r.total_input)} raw" if r.total_input), ("#{tokens(r.total_output)} filtered" if r.total_output)].compact
+        [text, ["#{r.total_commands.to_i} rtk commands", (flow.join(' → ') if flow.any?)].compact.join(" · ")]
       end
 
       def tokens(n)

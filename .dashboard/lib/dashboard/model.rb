@@ -37,8 +37,10 @@ module Dashboard
   Container   = Data.define(:name, :state, :health, :exit_code, :started_at) do
     def running? = state == "running"
   end
-  # rtk: the hook's RTK savings Hash, or nil.
+  # rtk: the hook's RTK savings (Rtk), or nil.
   StatusFile  = Data.define(:v, :state, :phase, :ts, :message, :tool, :last_message, :rtk)
+  # Each field a finite number in 0...1e15, or nil when the file's was missing or not one.
+  Rtk         = Data.define(:total_commands, :total_input, :total_output, :total_saved, :avg_savings_pct)
   MiseTask    = Data.define(:name, :aliases, :description, :usage)
 
   Raw = Data.define(:refs, :git, :env, :units, :containers, :agent_files, :prs, :pr_index, :commits, :stacks, :stale_units, :autostart) do

@@ -45,6 +45,14 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "✓ 5 merged"
   end
 
+  # Any container can write any /status/<W>.json: a wrong-typed rtk field must not 500 the page.
+  def test_hostile_rtk_field_still_renders_the_page
+    file = Dashboard::Sources::AgentFiles.parse('{"v":2,"phase":"done","rtk":{"total_commands":1e400,"avg_savings_pct":[],"total_saved":true}}')
+    @raw = fixture_raw.with(agent_files: fixture_raw.agent_files.merge("wt-01" => [NOW, file]))
+    get "/w/wt-01", {}, HOST
+    assert_equal 200, last_response.status
+  end
+
   def test_rejects_foreign_host
     get "/w/wt-stacked", {}, "HTTP_HOST" => "evil.example:7700"
     assert_equal 403, last_response.status
