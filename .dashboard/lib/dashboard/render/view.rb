@@ -19,7 +19,9 @@ module Dashboard
 
       def dom_id(prefix, name) = Render.dom_id(prefix, name)
       def path(name) = Render.path(name)
+      def events_path(name) = Render.events_path(name)
       def row(wt, selected:) = Render.row(wt, selected:)
+      def list(state, selected) = Render.list(state, selected)
       def detail(wt, state) = Render.detail(wt, state)
       def header(state, repo:) = Render.header(state, repo:)
 

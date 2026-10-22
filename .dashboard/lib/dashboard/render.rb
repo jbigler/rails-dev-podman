@@ -11,7 +11,7 @@ module Dashboard
   # HTML-escaped unless a template says <%== %>.
   module Render
     VIEWS = File.expand_path("../../views", __dir__)
-    TEMPLATES = %w[layout page _header _row _detail].to_h do |name|
+    TEMPLATES = %w[layout page _header _list _row _detail].to_h do |name|
       [name, Tilt::ErubiTemplate.new(File.join(VIEWS, "#{name}.erb"), escape_html: true, freeze: true)]
     end.freeze
 
@@ -21,7 +21,13 @@ module Dashboard
     # The page's URL for a worktree.
     def self.path(name) = "/w/#{ERB::Util.url_encode(name)}"
 
+    # The page's SSE stream, for the worktree named `name` (nil: none shown).
+    def self.events_path(name) = name ? "/events?w=#{ERB::Util.url_encode(name)}" : "/events"
+
     def self.row(wt, selected:) = view("_row", wt:, selected:)
+
+    # The list container (id "worktrees") with every row; `selected`: the name of the shown worktree, nil for none.
+    def self.list(state, selected) = view("_list", state:, selected:)
     def self.detail(wt, state) = view("_detail", wt:, state:)
 
     # repo: the owner/name the header and the title show.

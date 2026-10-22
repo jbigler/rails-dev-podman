@@ -1,17 +1,11 @@
+<turbo-stream-source src="<%= events_path(selected&.name) %>"></turbo-stream-source>
 <%== header(state, repo:) %>
 <main class="main">
   <nav class="list" aria-label="Worktrees">
     <div class="list-head muted" aria-hidden="true">
       <span>worktree</span><span>branch</span><span>stack</span><span>PR</span><span>svc</span><span>agent</span>
     </div>
-    <div id="worktrees" class="rows">
-      <% state.worktrees.each do |wt| %>
-<%== row(wt, selected: wt.name == selected&.name) %>
-      <% end %>
-    </div>
-    <% if state.worktrees.empty? %>
-    <p class="muted empty-list">loading worktrees…</p>
-    <% end %>
+<%== list(state, selected&.name) %>
   </nav>
   <% if selected %>
 <%== detail(selected, state) %>

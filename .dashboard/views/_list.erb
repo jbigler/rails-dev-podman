@@ -1,0 +1,8 @@
+<div id="worktrees" class="rows">
+  <% state.worktrees.each do |wt| %>
+<%== row(wt, selected: wt.name == selected) %>
+  <% end %>
+  <% if state.worktrees.empty? %>
+  <p class="muted empty-list">loading worktrees…</p>
+  <% end %>
+</div>
