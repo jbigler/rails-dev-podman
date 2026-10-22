@@ -147,6 +147,15 @@ class RunnerTest < Minitest::Test
     assert_equal "line 1000", lines.first
   end
 
+  def test_long_lines_are_cut
+    spawner = FakeSpawner.new({ "mise run up" => [["a" * 200 * 1024], 0] })
+    r = runner(spawner)
+    lines = finished(r, r.start(A.find("up"), worktree: wt("wt-01"))).lines
+    assert_equal 4, lines.size
+    assert(lines.all? { it.bytesize <= R::MAX_LINE })
+    assert_equal 200 * 1024, lines.sum(&:bytesize)
+  end
+
   def test_github_hint_after_stack_push
     github = FakeGithub.new
     local = FakeLocal.new
@@ -232,6 +241,15 @@ class RunnerTest < Minitest::Test
     child.each_line { lines << it }
     assert_equal %w[out err tail], lines
     assert_equal 3, child.wait
+  end
+
+  def test_real_spawn_cuts_output_without_newlines
+    child = R::Spawn.new.spawn(["sh", "-c", "head -c 204800 /dev/zero | tr '\\0' a"], env: {}, chdir: Dir.tmpdir)
+    sizes = []
+    child.each_line { sizes << it.bytesize }
+    assert_equal 0, child.wait
+    assert(sizes.all? { it <= R::MAX_LINE })
+    assert_equal 204_800, sizes.sum
   end
 
   def test_real_spawn_kill_ends_the_group

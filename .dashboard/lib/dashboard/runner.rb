@@ -14,6 +14,8 @@ module Dashboard
     SCOPE = %w[systemd-run --user --scope --collect --quiet --].freeze
     ANSI = /\e\[[0-9;?]*[ -\/]*[@-~]/
     KEEP_LINES = 5000
+    # Bytes of one stored line; longer output (or none of it ending in a newline) is cut.
+    MAX_LINE = 64 * 1024
     PUBLISH_EVERY = 0.1
     # The spec whose success adds a worktree (Job#created).
     CREATE = "wt-create"
@@ -119,11 +121,14 @@ module Dashboard
       @lock.synchronize { entry.job.created = name }
     end
 
+    # Stored as lines of at most MAX_LINE bytes (a multibyte character cut at the
+    # edge scrubs to "?").
     def append(entry, text)
-      line = text.dup.force_encoding(Encoding::UTF_8).scrub("?").gsub(ANSI, "")
+      cut = text.b.scan(/.{1,#{MAX_LINE}}/mn)
+      cut = [""] if cut.empty?
       @lock.synchronize do
         lines = entry.job.lines
-        lines << line
+        cut.each { lines << it.force_encoding(Encoding::UTF_8).scrub("?").gsub(ANSI, "") }
         lines.shift(lines.size - KEEP_LINES) if lines.size > KEEP_LINES
         entry.dirty = true
       end
@@ -189,8 +194,9 @@ module Dashboard
         @waiter = Process.detach(pid)
       end
 
-      # Yields each output line (bytes, without the newline) until EOF, or until
-      # the child has exited and a descendant keeps the pipe open but quiet.
+      # Yields each output line (bytes, without the newline; MAX_LINE bytes at
+      # most, so a long run without one is cut) until EOF, or until the child has
+      # exited and a descendant keeps the pipe open but quiet.
       def each_line
         buffer = String.new(encoding: Encoding::BINARY)
         loop do
@@ -203,6 +209,7 @@ module Dashboard
             while (newline = buffer.index("\n"))
               yield buffer.slice!(0..newline).chomp
             end
+            yield buffer.slice!(0, MAX_LINE) while buffer.bytesize >= MAX_LINE
           elsif !@waiter.alive?
             break
           end

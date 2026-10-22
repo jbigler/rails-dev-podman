@@ -187,6 +187,32 @@ class StreamsTest < Minitest::Test
     assert_equal (2..21).to_h { [it, :ok] }, S.shown_jobs(state)
   end
 
+  # The page handles an older job's event against a snapshot that already dropped
+  # job 1, then the new job's: job 1 must still go.
+  def test_dropped_job_is_removed_on_a_replace_too
+    (1..20).each { hub.publish_job(job(it, state: :ok)) }
+    shown = S.shown_jobs(state)
+    hub.publish_job(job(21, state: :ok)) # drops job 1
+    frames = S.frames([:job, 5], state, sub(nil), jobs: shown)
+    assert_equal ['<turbo-stream action="remove" target="job-1"></turbo-stream>'], frames[0..-2]
+    assert_match(/\A<turbo-stream action="replace" target="job-5">/, frames.last)
+    shown = S.shown_jobs(state, shown, 5)
+    frames = S.frames([:job, 21], state, sub(nil), jobs: shown)
+    assert_equal 1, frames.size
+    assert_match(/\A<turbo-stream action="append" target="actions">/, frames.first)
+    refute_includes S.shown_jobs(state, shown, 21).keys, 1
+  end
+
+  def test_job_dropped_before_its_event_is_removed
+    hub.publish_job(job(1))
+    shown = S.shown_jobs(state)
+    (2..21).each { hub.publish_job(job(it, state: :ok)) }
+    hub.publish_job(job(1, state: :ok)) # finishes, then is the oldest finished one
+    hub.publish_job(job(22, state: :ok))
+    refute(state.jobs.any? { it.id == 1 })
+    assert_equal ['<turbo-stream action="remove" target="job-1"></turbo-stream>'], S.frames([:job, 1], state, sub(nil), jobs: shown)
+  end
+
   def test_events_stream_delivers_jobs
     _, _, stream, thread = open_stream
     assert stream.wait_for('target="detail"'), "no catch-up within 1 s"

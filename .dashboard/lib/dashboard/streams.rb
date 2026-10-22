@@ -75,19 +75,19 @@ module Dashboard
       wt ? turbo("replace", "detail", Render.detail(wt, state)) : gone
     end
 
-    # A job the page shows is replaced; a new one is appended, after removing the
-    # ones the Hub has dropped since. The viewed worktree's detail pane follows
-    # its job starting or ending (the buttons' busy state).
+    # First removes the jobs the page shows that the Hub has dropped since (on
+    # every event: the page may handle an older job's event against a newer
+    # snapshot). Then a job the page shows is replaced, a new one appended. The
+    # viewed worktree's detail pane follows its job starting or ending (the
+    # buttons' busy state); a running job dropped before its end could have been
+    # the viewed worktree's, so the pane is re-rendered then too.
     def self.job(id, state, sub, shown)
+      removed = (shown.keys - state.jobs.map(&:id)).map { turbo("remove", Render.dom_id("job", it.to_s)) }
       job = state.jobs.find { it.id == id }
-      return [] unless job
+      return removed + (shown[id] == :running && sub.viewing ? [detail(sub.viewing, state)] : []) unless job
 
       html = Render.job(job)
-      frames = if shown.key?(id)
-                 [turbo("replace", Render.dom_id("job", id.to_s), html)]
-               else
-                 (shown.keys - state.jobs.map(&:id)).map { turbo("remove", Render.dom_id("job", it.to_s)) } << turbo("append", JOBS, html)
-               end
+      frames = removed << (shown.key?(id) ? turbo("replace", Render.dom_id("job", id.to_s), html) : turbo("append", JOBS, html))
       frames << detail(job.worktree, state) if job.worktree && job.worktree == sub.viewing && shown[id] != job.state
       frames
     end
