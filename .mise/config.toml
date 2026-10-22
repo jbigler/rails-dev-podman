@@ -369,6 +369,24 @@ run = "{{config_root}}/.scripts/quadlet.sh verify"
 description = "Prove no container can connect to the dashboard port (127.0.0.1:WT_DASHBOARD_PORT): throwaway probes on the proxy and every dev network, plus each running playwright container. Exit 1 if any probe connects, 2 if it cannot probe."
 run = "{{config_root}}/.scripts/dashboard-isolation-check.sh"
 
+[tasks."dashboard:serve"]
+description = "Serve the web dashboard on http://127.0.0.1:WT_DASHBOARD_PORT (loopback only, one threaded Falcon worker)."
+dir = "{{config_root}}/.dashboard"
+tools = { ruby = "4.0.7" }
+run = [
+  "bundle check >/dev/null 2>&1 || bundle install --quiet",
+  'exec bundle exec falcon serve --bind "http://127.0.0.1:${WT_DASHBOARD_PORT}" --threaded --count 1',
+]
+
+[tasks."dashboard:test"]
+description = "Run the web dashboard's test suite (minitest on captured fixtures; needs no podman, systemd or gh)."
+dir = "{{config_root}}/.dashboard"
+tools = { ruby = "4.0.7" }
+run = [
+  "bundle check >/dev/null 2>&1 || bundle install --quiet",
+  "bundle exec rake",
+]
+
 [tasks."units:env"]
 description = "Write the unit env file the Quadlet templates read. From a worktree, just that one; from the workspace root, every worktree in ports.registry. up, build and claude rerun it themselves when a .nvmrc, .ruby-version, Gemfile.lock or config change makes it stale; run it by hand only to refresh every worktree at once."
 run = "{{config_root}}/.scripts/units-env.sh"
