@@ -32,13 +32,13 @@ module Dashboard
     # Runs commands for real.
     class Real
       # argv without a shell, in its own process group so a timeout kills the
-      # whole tree. The deadline covers the pipes too: a descendant still
-      # holding stdout/stderr after the child exits is a timeout. A missing
-      # binary is status 127, never an exception.
+      # whole tree, with ChildEnv plus env. The deadline covers the pipes too: a
+      # descendant still holding stdout/stderr after the child exits is a
+      # timeout. A missing binary is status 127, never an exception.
       def run(argv, chdir: nil, timeout: TIMEOUT, env: {})
-        opts = { pgroup: true, in: File::NULL }
+        opts = { pgroup: true, in: File::NULL, unsetenv_others: true }
         opts[:chdir] = chdir if chdir
-        Open3.popen3(env, *argv, **opts) do |i, o, e, thr|
+        Open3.popen3(ChildEnv.with(env), *argv, **opts) do |i, o, e, thr|
           i.close
           out = reader(o)
           err = reader(e)

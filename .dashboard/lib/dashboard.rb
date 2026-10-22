@@ -9,6 +9,7 @@ module Dashboard
   class Error < StandardError; end
 end
 
+require_relative "dashboard/child_env"
 require_relative "dashboard/shell"
 require_relative "dashboard/private_dir"
 require_relative "dashboard/safe_file"

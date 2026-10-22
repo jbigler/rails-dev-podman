@@ -13,8 +13,10 @@ module Dashboard
     plugin :default_headers, "content-type" => "text/html; charset=utf-8"
 
     # The app the unit serves: the workspace found from the working directory,
-    # the pollers running, a token new at every start.
+    # the children's environment captured, the pollers running, a token new at
+    # every start.
     def self.boot
+      ChildEnv.base
       ws = Workspace.discover
       hub = Hub.new(ws)
       schedule = Schedule.new(Time.now)

@@ -10,6 +10,25 @@ class ShellTest < Minitest::Test
     assert_predicate result, :broken?
   end
 
+  # The dashboard runs under `bundle exec`; what it spawns (mise, gh, git, a
+  # terminal) must not load its bundle.
+  def test_children_do_not_inherit_the_dashboards_bundle
+    assert ENV.key?("BUNDLE_GEMFILE"), "the test process should run under Bundler"
+    shell = Dashboard::Shell::Real.new.run(["env"], env: { "EXTRA" => "1" }).stdout
+    child = Dashboard::Runner::Spawn.new.spawn(["env"], env: { "EXTRA" => "1" }, chdir: Dir.tmpdir)
+    spawned = +""
+    child.each_line { spawned << it << "\n" }
+
+    [shell, spawned].each do |text|
+      vars = text.lines(chomp: true).to_h { it.split("=", 2) }
+      assert_empty vars.keys.grep(/\ABUNDLER?_/)
+      refute_match(/bundler/, vars["RUBYOPT"].to_s)
+      refute_match(%r{vendor/bundle}, vars["GEM_HOME"].to_s)
+      assert_equal "1", vars["EXTRA"]
+      assert_equal ENV["HOME"], vars["HOME"]
+    end
+  end
+
   def test_timeout_kills_the_group
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     result = Dashboard::Shell::Real.new.run(["sh", "-c", "sleep 5 & sleep 5"], timeout: 0.3)

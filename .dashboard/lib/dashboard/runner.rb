@@ -166,12 +166,13 @@ module Dashboard
     def copy(job) = job.dup.tap { it.lines = it.lines.dup.freeze }.freeze
 
     # Starts children for real: argv without a shell, in its own process group,
-    # stdin from /dev/null, stdout and stderr on one pipe.
+    # with ChildEnv plus env, stdin from /dev/null, stdout and stderr on one pipe.
     class Spawn
       # → a Child; a command that cannot start is one that printed why and exited 127.
       def spawn(argv, env:, chdir:)
         reader, writer = IO.pipe
-        pid = Process.spawn(env, [argv.first, argv.first], *argv.drop(1), pgroup: true, in: File::NULL, out: writer, err: writer, chdir:)
+        pid = Process.spawn(ChildEnv.with(env), [argv.first, argv.first], *argv.drop(1),
+                            pgroup: true, unsetenv_others: true, in: File::NULL, out: writer, err: writer, chdir:)
         Child.new(pid, reader)
       rescue SystemCallError => e
         reader&.close

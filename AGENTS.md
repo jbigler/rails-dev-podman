@@ -245,7 +245,9 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   on connect/focus (coalesced 10 s) and after GitHub-touching actions (never dropped). A newly viewed
   worktree's stack is read at once.
 - Actions: argv only, no shell. Each child runs in `systemd-run --user --scope --collect` (outlives a dashboard
-  restart), stdin /dev/null, NO_COLOR=1, plus the session env (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
+  restart). Every child (actions and reads) gets exactly the environment the dashboard had before Bundler set
+  up (captured at boot; no BUNDLE_*, RUBYOPT -rbundler/setup or vendor GEM_HOME), plus for actions stdin
+  /dev/null, NO_COLOR=1 and the session env (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
   XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR KITTY_LISTEN_ON) read per child from `systemctl --user show-environment`.
   lib.sh push_session_env pushes them from the calling shell in `mise run dashboard`, start_proxy and proxy:up.
   Scopes: one job per worktree; workspace jobs one at a time. Keeps the last 20 jobs, 5000 lines, 64 KiB per
