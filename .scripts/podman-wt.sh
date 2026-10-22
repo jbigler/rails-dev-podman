@@ -414,7 +414,10 @@ cmd_logs() {
 # load-balances into a container that is not serving, which shows up as
 # intermittent 502s on a host that looks otherwise healthy.
 cmd_exec() {
-  local ct="$P-$W-rails" e extra=()
+  local ct="$P-$W-rails" e extra=() tty=(-i)
+  # -t only on a terminal: the dashboard streams test/ci runs with stdin
+  # closed, and podman's -t needs one; a terminal session still gets a TTY.
+  [[ -t 0 ]] && tty+=(-t)
   (( $# )) || set -- /bin/bash
   # EXEC_ENV carries the per-task overrides compose passed with -e
   # (DISABLE_COVERAGE for the test watcher, DISABLE_LOGCRAFT for the console).
@@ -425,7 +428,7 @@ cmd_exec() {
   # with it, and a ci run should not share a process space with the dev server.
   if [[ "${EXEC_FRESH:-}" != 1 ]] \
      && [[ "$(podman inspect "$ct" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]; then
-    exec podman exec -it ${extra[@]+"${extra[@]}"} "$ct" "$@"
+    exec podman exec "${tty[@]}" ${extra[@]+"${extra[@]}"} "$ct" "$@"
   fi
   require_env
   # Name the actual reason. EXEC_FRESH is a deliberate choice by the caller
@@ -452,7 +455,7 @@ cmd_exec() {
   # unfirewalled and say nothing, hence the hard stop.
   [[ -f "$ROOT/.firewall/hooks.d/$P-firewall.json" ]] \
     || die "no firewall hook descriptor in .firewall/hooks.d. Run: mise run units:install"
-  exec podman --hooks-dir "$ROOT/.firewall/hooks.d" run --rm -it ${extra[@]+"${extra[@]}"} \
+  exec podman --hooks-dir "$ROOT/.firewall/hooks.d" run --rm "${tty[@]}" ${extra[@]+"${extra[@]}"} \
     --annotation "$P.firewall=none" \
     --annotation "$P.firewall.mode=$FIREWALL_MODE" \
     --annotation "$P.firewall.networks=$P-$W-dev,${P}_proxy" \
