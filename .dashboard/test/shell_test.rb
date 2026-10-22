@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "socket"
 
 class ShellTest < Minitest::Test
   def test_missing_binary_is_status_127
@@ -29,6 +30,27 @@ class ShellTest < Minitest::Test
       assert_equal ENV["HOME"], vars["HOME"]
     end
   ensure
+    FileUtils.rm_rf(logs) if logs
+  end
+
+  # Falcon clears close-on-exec on its listening socket. A child that kept it
+  # (an action in its own systemd scope outlives the dashboard) held the port,
+  # and the next start failed with EADDRINUSE until the action ended.
+  def test_children_do_not_inherit_open_sockets
+    server = TCPServer.new("127.0.0.1", 0)
+    server.close_on_exec = false
+    fd = server.fileno.to_s
+    list = ["sh", "-c", "ls /proc/$$/fd"]
+    shell = Dashboard::Shell::Real.new.run(list).stdout.split
+    logs = Dir.mktmpdir("shell-logs")
+    child = Dashboard::Runner::Spawn.new("#{logs}/jobs").spawn(list, env: {}, chdir: Dir.tmpdir, job: 1)
+    spawned = []
+    child.each_line { spawned << it }
+
+    refute_includes shell, fd, "Shell::Real passed the listening socket on"
+    refute_includes spawned, fd, "Runner::Spawn passed the listening socket on"
+  ensure
+    server&.close
     FileUtils.rm_rf(logs) if logs
   end
 

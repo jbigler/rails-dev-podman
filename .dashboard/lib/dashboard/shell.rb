@@ -36,7 +36,8 @@ module Dashboard
       # descendant still holding stdout/stderr after the child exits is a
       # timeout. A missing binary is status 127, never an exception.
       def run(argv, chdir: nil, timeout: TIMEOUT, env: {})
-        opts = { pgroup: true, in: File::NULL, unsetenv_others: true }
+        # close_others: no child gets the dashboard's listening socket (see Runner::Spawn).
+        opts = { pgroup: true, in: File::NULL, unsetenv_others: true, close_others: true }
         opts[:chdir] = chdir if chdir
         Open3.popen3(ChildEnv.with(env), *argv, **opts) do |i, o, e, thr|
           i.close

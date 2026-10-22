@@ -26,8 +26,12 @@ module Dashboard
         out = File.open(path, File::WRONLY | File::CREAT | File::APPEND | File::NOFOLLOW, 0o600)
         reader = File.open(path, File::RDWR | File::NOFOLLOW)
         reader.seek(0, IO::SEEK_END)
+        # close_others: Falcon clears close-on-exec on its listening socket, and
+        # a child in its own scope outlives the dashboard; one that kept the
+        # socket held the port, failing the next start with EADDRINUSE.
         pid = Process.spawn(ChildEnv.with(env), [argv.first, argv.first], *argv.drop(1),
-                            pgroup: true, unsetenv_others: true, in: File::NULL, out:, err: out, chdir:)
+                            pgroup: true, unsetenv_others: true, close_others: true,
+                            in: File::NULL, out:, err: out, chdir:)
         Child.new(pid, reader, @log_limit)
       rescue SystemCallError => e
         reader&.close
