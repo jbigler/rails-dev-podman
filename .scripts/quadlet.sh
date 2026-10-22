@@ -194,12 +194,20 @@ templates() {
 }
 
 # A second workspace's prefix can extend this one's (dev and dev-x), so
-# dev-x-traefik.container matches dev-* without being ours to judge.
+# dev-x-traefik.container matches dev-* without being ours to judge. Prefixes
+# are known from Quadlet's dir (<p>-traefik.container) and from systemd's
+# (<p>-dashboard.service), since either can be installed without the other
+# being visible here.
 other_prefix_owns() {
-  local q
+  local q f b prefixes
+  prefixes="$(installed_prefixes)"
+  for f in "$SYSTEMD_DEST"/*-dashboard.service; do
+    b="$(basename "$f")"
+    prefixes+=$'\n'"${b%-dashboard.service}"
+  done
   while IFS= read -r q; do
-    [[ "$q" != "$PROJECT_PREFIX" && "$1" == "$q-"* ]] && return 0
-  done < <(installed_prefixes)
+    [[ -n "$q" && "$q" != "$PROJECT_PREFIX" && "$1" == "$q-"* ]] && return 0
+  done <<<"$prefixes"
   return 1
 }
 
@@ -503,18 +511,25 @@ cmd_proxy_pull() {
 }
 
 cmd_uninstall() {
-  local f dir removed=0
-  # Disabled first, while its file still exists: a removed unit that was
-  # enabled leaves a dangling default.target.wants/ symlink behind.
-  systemctl --user disable --now "$DASHBOARD_UNIT" 2>/dev/null || true
+  local f removed=0
   shopt -s nullglob
-  for dir in "$DEST" "$SYSTEMD_DEST"; do
-    for f in "$dir"/*; do
-      [[ -f "$f" ]] || continue
-      if head -1 "$f" 2>/dev/null | grep -qF "$MARKER"; then
-        rm -f "$f"; printf 'removed %s\n' "$(basename "$f")"; removed=1
-      fi
-    done
+  # Quadlet's dir: every marker-bearing file, as it always was.
+  for f in "$DEST"/*; do
+    [[ -f "$f" ]] || continue
+    if head -1 "$f" 2>/dev/null | grep -qF "$MARKER"; then
+      rm -f "$f"; printf 'removed %s\n' "$(basename "$f")"; removed=1
+    fi
+  done
+  # systemd's dir is shared with other workspaces' dashboards, which may be
+  # enabled and running, so only this prefix's files go. Each is disabled
+  # first, while its file still exists: a removed unit that was enabled leaves
+  # a dangling default.target.wants/ symlink, and a running one loses its unit.
+  for f in "$SYSTEMD_DEST/${PROJECT_PREFIX}-"*; do
+    [[ -f "$f" ]] || continue
+    head -1 "$f" 2>/dev/null | grep -qF "$MARKER" || continue
+    other_prefix_owns "$(basename "$f")" && continue
+    systemctl --user disable --now "$(basename "$f")" 2>/dev/null || true
+    rm -f "$f"; printf 'removed %s\n' "$(basename "$f")"; removed=1
   done
   (( removed )) || printf 'nothing of ours in %s or %s\n' "$DEST" "$SYSTEMD_DEST"
   if [[ -f "$HOOK_JSON" ]]; then
