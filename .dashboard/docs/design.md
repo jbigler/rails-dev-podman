@@ -56,6 +56,7 @@ without typing mise tasks. It replaces two things:
 | Terminal actions | The backend runs `newterm.sh` to open a host terminal. Nothing interactive in the browser. |
 | Old wt.localhost page | **Replaced and removed**: the home container, its nginx config and index.html go away. |
 | Login | **None.** Loopback plus Host/Origin/token checks; the host is single-user. |
+| Start at login | **Optional, off by default**, switchable from the page and from a mise task. |
 | First version also has | streamed output for actions and tests; the task palette; browser notifications. |
 
 ## Architecture
@@ -177,7 +178,8 @@ One page. My call on layout, modelled on the TUI's:
 
 - **Header:** repo name, "◆ N need input" (hidden at 0; also in the tab title), a stale-units banner
   with an "Install units" button when `check-stale` fails, links to logs.localhost and Traefik
-  (:8080), buttons for "New worktree" and the palette.
+  (:8080), buttons for "New worktree" and the palette, and a settings menu with the "Start at
+  login" switch.
 - **Worktree list** (left): every worktree, alphabetical, base last. Columns: name, branch, stack
   position `k/n`, PR number coloured by state, one services glyph, agent state. A row is a link;
   the selected worktree is in the URL (`/w/<name>`), so a reload or a bookmark keeps it.
@@ -219,6 +221,7 @@ Every action runs with the worktree as cwd unless noted. Modes:
 | new worktree | Prompt, Stream | `mise run wt <input>` (cwd root); select it when done |
 | remove worktree | Confirm, Stream | `mise run wt:rm <W>` (cwd root); a separate "discard uncommitted changes" checkbox adds `FORCE=1`; never offered on the base worktree |
 | install units | Stream | `mise run units:install` (cwd root) |
+| start at login on / off | Stream | `mise run dashboard:autostart on` / `off` (cwd root) |
 | palette | Stream or Terminal | `mise run <task> <args>`; see below |
 
 **Palette.** `mise tasks --json` (cached 60 s), fuzzy filter by name, description shown. Arguments
@@ -233,10 +236,10 @@ is refused); workspace-level actions (new worktree, install units) one at a time
 
 **Children outlive the dashboard (my call).** Every Stream and Terminal child is started through
 `systemd-run --user --scope --collect`, so it gets its own cgroup. Restarting or stopping the
-dashboard's unit (a crash, `proxy:restart`, `proxy:down`) then doesn't kill the Claude or nvim
+dashboard's unit (a crash, `dashboard:stop`, a reinstall) then doesn't kill the Claude or nvim
 windows it opened, or a `wt` halfway through. A Stream action that survives a dashboard restart
 keeps running, but its output is lost: the new process doesn't reattach. This also makes tasks
-that act on the dashboard itself (`proxy:*`) safe to start from the palette.
+that act on the dashboard itself safe to start from the palette.
 
 **Session environment (my call).** A systemd user service has no `SSH_AUTH_SOCK`, terminal or
 `KITTY_LISTEN_ON`. That matters because an `up` started from the dashboard can regenerate
@@ -246,11 +249,16 @@ that act on the dashboard itself (`proxy:*`) safe to start from the palette.
   claude;
 - `NVIM_BACKGROUND` would fall back to dark.
 
-Two changes:
+Three changes:
 
 - `mise run dashboard` and `start_proxy` push the calling shell's `SSH_AUTH_SOCK`, `DISPLAY`,
   `WAYLAND_DISPLAY`, `XDG_CURRENT_DESKTOP` and `KITTY_LISTEN_ON` into the user manager with
   `systemctl --user set-environment` before starting the unit.
+- The dashboard reads those variables from the user manager (`systemctl --user show-environment`)
+  each time it starts a child, and passes the current values on. A running service keeps the
+  environment it started with, so without this a dashboard started at boot (autostart with linger)
+  or before a re-login would hand out a missing or stale display and ssh-agent socket. Unset
+  variables stay unset; a terminal launch that then fails shows newterm.sh's `error:` line.
 - `units-env.sh` keeps the previous file's `SSH_AGENT_SOCK` (if it is still a live socket) and
   `NVIM_BACKGROUND` when the current environment can't supply them, instead of falling back.
 
@@ -285,16 +293,36 @@ Two changes:
   `~/.config/systemd/user/<prefix>-dashboard.service` (Quadlet's dir only takes container units). It
   joins `install`, `uninstall` and `check-stale`. ExecStart runs `mise run dashboard:serve` from the
   workspace root (mise's absolute path baked in at render time), so Ruby and the env come from mise.
-  `Restart=on-failure`. No `[Install]`, like the proxy: nothing starts at login.
-- It starts with the proxy: `proxy:up` / `proxy:restart` / `proxy:down` and podman-wt.sh's
-  `start_proxy` take `dashboard` where they had `home`.
+  `Restart=on-failure`.
+- **Independent of the proxy.** It no longer goes through Traefik, so it has no dependency on it:
+  `proxy:down` / `proxy:restart` leave it running, since it is the page you would bring things back
+  up from. podman-wt.sh's `start_proxy` starts it alongside traefik and dozzle (in place of `home`);
+  `proxy:up` does too. It stops only through `dashboard:stop`, `units:uninstall` or `destroy`.
+- **Start at login: optional, off by default (user's decision).** The unit carries
+  `[Install] WantedBy=default.target`, but `units:install` never enables it, so by default it starts
+  on demand (`mise run dashboard`, `up`, `proxy:up`), like everything else here. Turning autostart on
+  is `systemctl --user enable`; the user manager then starts it at login, or at boot with linger.
+  - The state lives in systemd alone (the enable symlink), not in a settings file. Re-rendering the
+    unit file on `units:install` keeps it; `units:uninstall` and `destroy` disable it first so no
+    dangling symlink is left.
+  - mise tasks `dashboard:autostart` (`on` / `off`, no argument prints the state) own the change.
+  - **The page has the same toggle** (in the header's settings menu), showing
+    `systemctl --user is-enabled` and running `dashboard:autostart on|off` as a Stream action.
+  - With autostart and linger on, it starts before any login session: the page works, and terminal
+    launches fail with newterm.sh's error until a session (or `mise run dashboard`) supplies a
+    display; the per-child environment read above makes them work from then on without a restart.
 - `newterm.sh` needs `DISPLAY` / `WAYLAND_DISPLAY` in the user manager's environment (pushed there
   as described under Actions). `doctor` warns when they are missing. From a service there is no
   parent terminal to open a tab in, so terminals open as new windows unless `newterm.sh` can target a
   running terminal another way (e.g. kitty remote control via the pushed `KITTY_LISTEN_ON`, tmux) —
   a limitation to note, not to fix.
-- mise tasks: `dashboard` (start the unit, open the URL), `dashboard:serve` (foreground; what the
-  unit runs; installs the vendored gems when needed), `dashboard:test`.
+- mise tasks:
+  - `dashboard [browser]`: push the session environment, start the unit if it is not running, wait
+    until it answers, print the URL and open it (the optional browser binary, else `xdg-open`, as
+    `wt:open` does).
+  - `dashboard:stop`, `dashboard:autostart [on|off]`.
+  - `dashboard:serve`: foreground; what the unit runs; installs the vendored gems when needed.
+  - `dashboard:test`.
 - Port: `WT_DASHBOARD_PORT` in `.mise/config.toml`'s env, overridable in the workspace-root
   `mise.local.toml` (a second workspace needs a different one).
 - **Orphaned units.** Removing `home.container` would leave the installed
