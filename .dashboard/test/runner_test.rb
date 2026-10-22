@@ -312,58 +312,96 @@ class RunnerTest < Minitest::Test
     refute File.exist?("#{dir}/7.log")
   end
 
+  LOG_LIMIT = 64 * 1024
+
+  def log_spawn(script, job: 1) = R::Spawn.new("#{@logs}/jobs", log_limit: LOG_LIMIT).spawn([RbConfig.ruby, "-e", script], env: {}, chdir: Dir.tmpdir, job:)
+  def log_file(job = 1) = "#{@logs}/jobs/#{job}.log"
+  def dropped?(line) = line.start_with?("… output dropped (log over ".b)
+
   # $XDG_RUNTIME_DIR is a small tmpfs (it holds the podman socket too): once the
   # reader has caught up past the cap, the log is truncated in place. The child
-  # pauses after each write so the reader catches up; it reports the largest
-  # size it saw its log reach.
+  # never writes while its log is at the cap (the reader is about to empty it),
+  # so no line can land between the last read and the truncate; it reports the
+  # largest size it saw its log reach.
   def test_real_spawn_caps_the_log
-    limit = 64 * 1024
     script = <<~RUBY
       max = 0
       12.times do |n|
         $stdout.write(16.times.map { |i| format("%04d %s\n", n * 16 + i, "x" * 1018) }.join)
         $stdout.flush
         max = [max, $stdout.stat.size].max
-        sleep 0.15
+        deadline = Time.now + 5
+        sleep 0.001 while $stdout.stat.size >= #{LOG_LIMIT} && Time.now < deadline
       end
       puts "max=\#{max}"
     RUBY
-    spawn = R::Spawn.new("#{@logs}/jobs", log_limit: limit)
-    child = spawn.spawn([RbConfig.ruby, "-e", script], env: {}, chdir: Dir.tmpdir, job: 1)
+    child = log_spawn(script)
     lines = []
     child.each_line { lines << it }
 
     assert_equal 0, child.wait
     max = Integer(lines.pop[/\Amax=(\d+)\z/, 1])
-    assert_operator max, :<=, limit + (16 * 1024), "the log outgrew the cap by more than one write"
-    assert_operator max, :>, 0
+    assert_operator max, :<=, LOG_LIMIT + (16 * 1024), "the log outgrew the cap by more than one write"
+    assert_operator max, :>=, LOG_LIMIT
     assert_equal (0...192).map { format("%04d", it) }, lines.map { it[0, 4] }, "a line was lost to the truncation"
-    assert_operator File.size("#{@logs}/jobs/1.log"), :<=, limit
+    assert_operator File.size(log_file), :<=, LOG_LIMIT
   end
 
-  # A reader that cannot keep up does not let the log grow past twice the cap:
-  # what it had not read yet is dropped, and it carries on with what follows.
+  # A child that never pauses and a reader far slower than it: the log is
+  # emptied whenever it reaches twice the cap, unread part and all, and a
+  # marker line says so. Sampled as each line is consumed (the reader looks at
+  # the size after every read and every millisecond of consuming).
   def test_real_spawn_drops_unread_output_past_twice_the_cap
-    limit = 64 * 1024
     script = <<~RUBY
-      $stdout.write(256.times.map { |i| format("%04d %s\n", i, "x" * 1018) }.join)
+      line = "x" * 1017
+      n = 0
+      stop = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 0.5
+      while Process.clock_gettime(Process::CLOCK_MONOTONIC) < stop
+        $stdout.write(format("%06d %s\n", n, line))
+        n += 1
+      end
       $stdout.flush
-      sleep 1
+      # Not so close to twice the cap that "end" itself lands in a dropped part.
+      deadline = Time.now + 5
+      sleep 0.001 while $stdout.stat.size >= #{(2 * LOG_LIMIT) - 1024} && Time.now < deadline
       puts "end"
     RUBY
-    log = "#{@logs}/jobs/1.log"
-    child = R::Spawn.new("#{@logs}/jobs", log_limit: limit).spawn([RbConfig.ruby, "-e", script], env: {}, chdir: Dir.tmpdir, job: 1)
+    child = log_spawn(script)
+    lines = []
+    sizes = []
+    child.each_line do
+      sizes << File.size(log_file)
+      lines << it
+      sleep 0.002
+    end
+
+    assert_equal 0, child.wait
+    # Slack: the child writes ~0.5 GB/s; a GC pause or reschedule between the
+    # reader's look and this sample lets it add a little (unfixed: >100 MiB).
+    assert_operator sizes.max, :<=, (2 * LOG_LIMIT) + (16 * R::LogTail::READ), "the log outgrew twice the cap"
+    assert_equal "end", lines.last
+    assert(lines.any? { dropped?(it) }, "no marker for the dropped output")
+    assert_includes lines, "… output dropped (log over 0.125 MiB)".b
+  end
+
+  # The child is gone with 4x the cap unread: only the last cap's worth is read
+  # (from the next line start), after a marker, so the drain is bounded.
+  def test_real_spawn_drains_only_the_tail_after_exit
+    script = %($stdout.write(256.times.map { |i| format("%04d %s\\n", i, "x" * 1018) }.join))
+    child = log_spawn(script)
     lines = []
     child.each_line do
-      sleep 0.01 until File.size(log) >= 256 * 1024 if lines.empty?
+      child.wait if lines.empty? # hold the reader until the child has exited
       lines << it
     end
 
-    assert_equal "end", lines.last
-    kept = lines[0...-1].map { Integer(it[0, 4], 10) }
-    assert_equal (0...kept.size).to_a, kept, "it read from the start"
-    assert_operator kept.size, :<, 256, "nothing was dropped"
-    assert_operator kept.size, :>=, 128
+    marker = lines.index { dropped?(it) }
+    refute_nil marker, "no marker for the skipped output"
+    head = lines[0...marker].map { Integer(it[0, 4], 10) }
+    tail = lines[(marker + 1)..].map { Integer(it[0, 4], 10) }
+    assert_equal (0...head.size).to_a, head
+    assert_equal (193..255).to_a, tail, "the tail after the marker"
+    assert_operator File.size(log_file), :<=, LOG_LIMIT
   end
 
   def test_a_job_dropped_from_retention_loses_its_log

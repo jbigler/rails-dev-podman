@@ -252,10 +252,14 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
 - Actions: argv only, no shell. Each child runs in `systemd-run --user --scope --collect` and writes
   stdout+stderr to $XDG_RUNTIME_DIR/<prefix>-dashboard/jobs/<id>.log (0600, appended; the dashboard tails it),
   never a pipe, so a dashboard stop or restart leaves it running (its output after that is lost; a job's log
-  goes when the job leaves the last 20, and all at the next start). The tailer empties a log in place once it
-  has read 8 MiB of it and caught up (at 16 MiB if it cannot catch up, dropping the unread part); a child left
-  writing while the dashboard is down has no tailer, so only the tmpfs's size caps that output. Every child
-  (actions and reads) gets
+  goes when the job leaves the last 20, and all at the next start). The tailer (runner/log_tail.rb) keeps a
+  log small: read past 8 MiB and caught up → emptied in place (a line written in that instant can be lost);
+  16 MiB on disk while the child runs → emptied, the unread part dropped, and the job shows
+  "… output dropped (log over 16 MiB)". It looks at the size every read and every 1 ms of consuming, so a log
+  peaks near 16 MiB plus what the child writes between two looks (measured: ~19 MiB under `yes`; up to
+  0.1 s of output when a child bursts after a pause). After the child exits only the last 8 MiB unread is
+  read. A child left writing while the dashboard is down has no tailer, so only the tmpfs's size caps that
+  output. Every child (actions and reads) gets
   exactly the environment the dashboard had before Bundler set up (captured at boot; no BUNDLE_*, RUBYOPT
   -rbundler/setup or vendor GEM_HOME), plus for actions stdin /dev/null, NO_COLOR=1 and the session env
   (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR KITTY_LISTEN_ON) read per child
