@@ -176,20 +176,8 @@ run = "{{config_root}}/.scripts/list-worktrees.sh"
 description = "Open the current worktree URL in a browser. Pass a browser binary name (e.g. firefox) to override xdg-open."
 usage = 'arg "[browser]" help="optional browser binary; defaults to xdg-open"'
 run = """
-  url="http://${WORKTREE_HOST}"
-  browser="${usage_browser:-}"
-  if [ -n "$browser" ]; then
-    if ! command -v "$browser" >/dev/null 2>&1; then
-      echo "Error: '$browser' not found in PATH" >&2
-      exit 1
-    fi
-    exec "$browser" "$url"
-  fi
-  if ! command -v xdg-open >/dev/null 2>&1; then
-    echo "xdg-open not found. Pass a browser binary: mise run wt:open firefox" >&2
-    exit 1
-  fi
-  exec xdg-open "$url"
+  . "{{config_root}}/.scripts/lib.sh"
+  open_url "http://${WORKTREE_HOST}" "${usage_browser:-}"
 """
 
 [tasks."log:trim"]
@@ -391,33 +379,29 @@ run = """
   # ssh agent to the terminals and `up`s it starts, reading them from the user
   # manager -- which may hold none, or a previous login's.
   push_session_env
-  systemctl --user start "$unit"
+  # An explicit start is not refused by a start limit an earlier crash loop
+  # (Restart=on-failure) ran into; it then fails with the real cause again.
+  systemctl --user reset-failed "$unit" 2>/dev/null || true
+  # Show why instead of waiting out the poll: the unit's state and its log.
+  why() {
+    echo "error: $1" >&2
+    systemctl --user status "$unit" --no-pager --lines=0 >&2 || true
+    journalctl --user -u "$unit" -n 40 --no-pager -o cat >&2 || true
+    exit 1
+  }
+  systemctl --user start "$unit" || why "systemctl --user start $unit failed"
   # Host header: the dashboard answers only for its own host names.
   tries=0
   until curl -fsS --max-time 1 -o /dev/null -H "Host: wt.localhost:$WT_DASHBOARD_PORT" \
           "http://127.0.0.1:$WT_DASHBOARD_PORT/healthz" 2>/dev/null; do
+    systemctl --user is-failed --quiet "$unit" && why "$unit failed while starting"
     tries=$((tries + 1))
-    if [ "$tries" -ge 15 ]; then
-      echo "error: dashboard did not answer; journalctl --user -u $unit -n 30" >&2
-      exit 1
-    fi
+    [ "$tries" -lt 15 ] || why "$unit did not answer on 127.0.0.1:$WT_DASHBOARD_PORT within 15 s"
     sleep 1
   done
   url="http://wt.localhost:$WT_DASHBOARD_PORT"
   echo "$url"
-  browser="${usage_browser:-}"
-  if [ -n "$browser" ]; then
-    if ! command -v "$browser" >/dev/null 2>&1; then
-      echo "Error: '$browser' not found in PATH" >&2
-      exit 1
-    fi
-    exec "$browser" "$url"
-  fi
-  if ! command -v xdg-open >/dev/null 2>&1; then
-    echo "xdg-open not found. Pass a browser binary: mise run dashboard firefox" >&2
-    exit 1
-  fi
-  exec xdg-open "$url"
+  open_url "$url" "${usage_browser:-}"
 """
 
 [tasks."dashboard:stop"]

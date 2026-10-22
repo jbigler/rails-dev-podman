@@ -149,3 +149,25 @@ push_session_env() (
   done
   [ "$#" -eq 0 ] || systemctl --user set-environment "$@"
 )
+
+# Open URL $1 in a browser: $2 when given (a binary name), else xdg-open.
+# Detached, never exec'd: when no browser is running yet, xdg-open (or the
+# binary) runs the browser itself in the foreground, which pinned the terminal
+# until the browser closed and let ^C there kill it. setsid -f gives it its own
+# session with no controlling terminal; with all three streams on /dev/null,
+# nothing keeps mise waiting.
+open_url() (
+  if [ -n "${2:-}" ]; then
+    command -v "$2" >/dev/null 2>&1 || { echo "error: '$2' not found in PATH" >&2; exit 1; }
+    set -- "$2" "$1"
+  else
+    command -v xdg-open >/dev/null 2>&1 \
+      || { echo "error: xdg-open not found; pass a browser binary name, e.g. firefox" >&2; exit 1; }
+    set -- xdg-open "$1"
+  fi
+  if command -v setsid >/dev/null 2>&1; then
+    setsid -f "$@" </dev/null >/dev/null 2>&1
+  else
+    nohup "$@" </dev/null >/dev/null 2>&1 &
+  fi
+)
