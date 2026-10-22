@@ -216,6 +216,7 @@ Every action runs with the worktree as cwd unless noted. Modes:
 | claude | Terminal | running `<P>-<W>-claude` → `podman attach` it; else `mise run claude` |
 | share / unshare | Stream | `mise run wt:share` / `wt:unshare` |
 | stack push / up / down | Stream | `gh stack push` / `gh stack up` / `gh stack down` |
+| switch to a stack branch (click its name) | Stream | `git switch --no-guess <branch>`; only the stack's open branches other than HEAD |
 | restack | Terminal | `gh stack rebase` (may stop on conflicts) |
 | open PR | Link | the PR URL from gh |
 | copy branch name | Client | `navigator.clipboard` |

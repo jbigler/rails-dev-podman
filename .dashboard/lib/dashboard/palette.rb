@@ -58,7 +58,7 @@ module Dashboard
     def self.spec(name, argv)
       commands = [argv.freeze].freeze
       Actions::Spec.new(id: "palette:#{name}", label: name, mode: mode(name), scope: scope(name), target: :worktree,
-                        argv: ->(*) { commands }, env: {}, confirm: nil, prompt: nil, github: true, base_ok: true)
+                        argv: ->(*) { commands }, env: {}, confirm: nil, prompt: nil, choices: nil, github: true, base_ok: true)
     end
   end
 end

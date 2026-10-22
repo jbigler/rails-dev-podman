@@ -170,11 +170,12 @@ module Dashboard
     end
 
     # Starts the spec with the request's input (stripped; required when the spec
-    # prompts) → the job id as text/plain, 409 while busy.
+    # prompts, one of its choices when it has them) → the job id as text/plain, 409 while busy.
     def start(spec, wt)
       input = request.params["input"].to_s.strip
       refuse(422, "#{spec.label}: an answer is required") if spec.prompt && input.empty?
-      job = opts[:runner].start(spec, worktree: wt, input: (input if spec.prompt), discard: request.params["discard"] == "1")
+      refuse(422, "#{spec.label}: #{input} is not offered here") if spec.choices && !spec.choices.(wt).include?(input)
+      job = opts[:runner].start(spec, worktree: wt, input: (input if spec.takes_input?), discard: request.params["discard"] == "1")
       response.status = 202
       text(job.id.to_s)
     rescue Runner::Busy => e

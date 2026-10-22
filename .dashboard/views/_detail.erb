@@ -50,7 +50,7 @@
       <% else %>
       <% glyph = review_glyph(bpr) %>
       <li class="stack-branch">
-        <span class="muted">├</span> <%== pr_number(b.pr_number, bpr) %> <%= b.branch %>
+        <span class="muted">├</span> <%== pr_number(b.pr_number, bpr) %> <%== stack_switch(wt, b.branch, disabled: busy) %>
         <span class="stack-marks"><% if b.needs_rebase %><span class="yellow" title="needs restack">⚠</span><% end %><% if glyph %><span class="<%= glyph[1] %>"><%= glyph[0] %></span><% end %></span>
       </li>
       <% end %>

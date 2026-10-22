@@ -254,13 +254,24 @@ module Dashboard
       def restart_spec(s) = action("restart-#{SERVICE_SVC.fetch(s.label)}")
       def action_path(wt, spec) = "#{path(wt.name)}/act/#{spec.id}"
 
-      # A button the action controller turns into a POST to `url` (HTML).
-      def action_button(spec, url, disabled: false, label: spec.label)
-        attrs = { "type" => "button", "data-action" => "action#run", "data-action-url-param" => url,
+      # A button the action controller turns into a POST to `url` (HTML); `input`
+      # is sent as is (one of the spec's choices).
+      def action_button(spec, url, disabled: false, label: spec.label, input: nil, cls: nil, title: nil)
+        attrs = { "type" => "button", "class" => cls, "data-action" => "action#run", "data-action-url-param" => url,
                   "data-action-confirm-param" => spec.confirm, "data-action-prompt-param" => spec.prompt,
-                  "data-action-discard-param" => ("true" if spec.discardable?), "title" => ("opens a terminal" if spec.mode == :terminal) }
+                  "data-action-input-param" => input, "data-action-discard-param" => ("true" if spec.discardable?),
+                  "title" => title || ("opens a terminal" if spec.mode == :terminal) }
         html = attrs.filter_map { |key, value| %( #{key}="#{ERB::Util.html_escape(value)}") unless value.nil? }.join
         %(<button#{html}#{' disabled' if disabled}>#{ERB::Util.html_escape(label)}</button>)
+      end
+
+      # A stack branch's name as a button switching the worktree to it (HTML);
+      # plain text when the action is not offered here.
+      def stack_switch(wt, branch, disabled:)
+        spec = Actions.for_worktree(wt).find { it.id == "stack-switch" }
+        return ERB::Util.html_escape(branch) unless spec&.choices&.(wt)&.include?(branch)
+
+        action_button(spec, action_path(wt, spec), disabled:, label: branch, input: branch, cls: "stack-switch", title: "switch to #{branch}")
       end
 
       # → [glyph, class, word]

@@ -12,10 +12,12 @@ module Dashboard
     # argv: ->(ws, wt, input) { [[String]] }, run in order up to the first failure.
     # env: Hash, or ->(discard) { Hash } for an action with the "discard uncommitted changes" choice.
     # confirm: the question asked first; prompt: the question whose answer is `input` (required).
+    # choices: ->(wt) { [String] }, the only `input`s the action takes (required) — a button carries its own.
     # github: the job's end hints the GitHub poller; base_ok: false keeps it off the base worktree.
-    Spec = Data.define(:id, :label, :mode, :scope, :target, :argv, :env, :confirm, :prompt, :github, :base_ok) do
+    Spec = Data.define(:id, :label, :mode, :scope, :target, :argv, :env, :confirm, :prompt, :choices, :github, :base_ok) do
       def environment(discard) = discardable? ? env.(discard) : env
       def discardable? = env.respond_to?(:call)
+      def takes_input? = !(prompt || choices).nil?
     end
 
     SERVICES = %w[rails db redis rustfs playwright nvim].freeze
@@ -23,8 +25,9 @@ module Dashboard
 
     def self.mise(*args) = ["mise", "run", *args]
 
-    def self.spec(id, label, argv, mode: :stream, scope: :worktree, target: scope, env: {}, confirm: nil, prompt: nil, github: false, base_ok: true)
-      Spec.new(id:, label:, mode:, scope:, target:, argv:, env:, confirm:, prompt:, github:, base_ok:)
+    def self.spec(id, label, argv, mode: :stream, scope: :worktree, target: scope, env: {}, confirm: nil, prompt: nil, choices: nil,
+                  github: false, base_ok: true)
+      Spec.new(id:, label:, mode:, scope:, target:, argv:, env:, confirm:, prompt:, choices:, github:, base_ok:)
     end
 
     # A spec running one fixed command.
@@ -39,6 +42,9 @@ module Dashboard
       r = Shell.run(["podman", "container", "inspect", "--format", "{{.State.Running}}", name])
       r.ok? && r.stdout.strip == "true" ? [["podman", "attach", name]] : [mise("claude")]
     end
+
+    # The stack's open branches other than HEAD: what a stack branch's button switches to.
+    def self.stack_branches(wt) = wt.stack.is_a?(Stack) ? wt.stack.open.reject(&:current).map(&:branch) : []
 
     WORKSPACE = { scope: :workspace }.freeze
 
@@ -64,6 +70,8 @@ module Dashboard
       fixed("stack-up", "stack up", "gh", "stack", "up", github: true),
       fixed("stack-down", "stack down", "gh", "stack", "down", github: true),
       fixed("restack", "restack", "gh", "stack", "rebase", mode: :terminal),
+      spec("stack-switch", "switch branch", ->(_ws, _wt, input) { [["git", "switch", "--no-guess", input]] },
+           choices: method(:stack_branches), github: true),
       spec("wt-rm", "remove worktree", ->(_ws, wt, _input) { [mise("wt:rm", wt.name)] },
            **WORKSPACE, target: :worktree, env: ->(discard) { discard ? FORCE : {} }, confirm: "Remove this worktree?", github: true,
            base_ok: false),
@@ -79,6 +87,6 @@ module Dashboard
 
     # The specs a worktree's detail pane offers.
     def self.for_worktree(wt) = ALL.select { it.target == :worktree && (it.base_ok || !wt.base) }
-    private_class_method :mise, :spec, :fixed, :claude
+    private_class_method :mise, :spec, :fixed, :claude, :stack_branches
   end
 end

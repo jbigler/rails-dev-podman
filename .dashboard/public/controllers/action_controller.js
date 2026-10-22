@@ -1,9 +1,10 @@
 // On <body>: the action buttons. `run` POSTs to the button's url param with
 // the page's token, after its confirm param (confirm()), its prompt param
 // (prompt(), sent as `input`) or, with the discard param, the remove dialog and
-// its "discard uncommitted changes" checkbox (sent as `discard=1`). A job this
-// page started that created a worktree opens it when done ("select it when
-// done"). A 403 that asks for a reload means the server restarted.
+// its "discard uncommitted changes" checkbox (sent as `discard=1`). An input
+// param is sent as `input` as is. A job this page started that created a
+// worktree opens it when done ("select it when done"). A 403 that asks for a
+// reload means the server restarted.
 import { Controller } from "@hotwired/stimulus"
 import { visit } from "@hotwired/turbo"
 
@@ -12,7 +13,7 @@ const started = new Set() // job ids this page started
 export default class extends Controller {
   static targets = ["job"]
 
-  async run({ params: { url, confirm: question, prompt: ask, discard } }) {
+  async run({ params: { url, confirm: question, prompt: ask, discard, input: given } }) {
     const body = new URLSearchParams()
     if (discard) {
       const answer = await this.removeDialog(question)
@@ -25,6 +26,8 @@ export default class extends Controller {
       const input = window.prompt(ask)
       if (input === null || input.trim() === "") return
       body.set("input", input.trim())
+    } else if (given) {
+      body.set("input", given)
     }
 
     const response = await this.post(url, body)

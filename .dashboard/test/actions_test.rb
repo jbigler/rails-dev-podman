@@ -143,6 +143,24 @@ class ActionsTest < Minitest::Test
     assert_equal 404, last_response.status
   end
 
+  # A branch of the stack's open list switches the worktree to it; the
+  # current branch, a merged one, the trunk or anything else is refused.
+  def test_stack_switch_takes_only_an_open_stack_branch
+    assert_equal [["git", "switch", "--no-guess", "feature/branch-15"]], argv("stack-switch", "wt-stacked", "feature/branch-15")
+    ["feature/branch-72", "feature/branch-50", "master", "--orphan=x", ""].each do |branch|
+      post "/w/wt-stacked/act/stack-switch", { input: branch }, POST
+      assert_equal 422, last_response.status, branch
+    end
+    post "/w/wt-01/act/stack-switch", { input: "feature/branch-15" }, POST
+    assert_equal 422, last_response.status
+    assert_empty runner.jobs
+
+    post "/w/wt-stacked/act/stack-switch", { input: "feature/branch-15" }, POST
+    assert_equal 202, last_response.status
+    settle
+    assert_equal ["git", "switch", "--no-guess", "feature/branch-15"], spawner.calls.last.argv.last(4)
+  end
+
   def test_header_buttons
     @raw = fixture_raw.with(stale_units: ["a.container\tdiffers"], autostart: :enabled)
     html = Dashboard::Render.header(hub.snapshot, repo: "r")
@@ -171,5 +189,13 @@ class ActionsTest < Minitest::Test
     refute_includes Dashboard::Render.detail(wt("wt-02"), hub.snapshot), " disabled"
   ensure
     release_all
+  end
+
+  def test_stack_branches_are_switch_buttons
+    html = Dashboard::Render.detail(wt("wt-stacked"), hub.snapshot)
+    assert_includes html, 'data-action-input-param="feature/branch-15"'
+    refute_includes html, 'data-action-input-param="feature/branch-72"' # HEAD
+    refute_includes html, 'data-action-input-param="feature/branch-50"' # merged
+    assert_equal 1, html.scan(/<button[^>]*data-action-input-param="feature\/branch-15"/).size
   end
 end

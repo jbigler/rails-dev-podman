@@ -42,7 +42,7 @@ module Dashboard
     end
 
     # worktree: the Worktree it runs for (nil for a workspace action); input: a
-    # prompted spec's answer; discard: wt-rm's "discard uncommitted changes".
+    # prompted spec's answer or the chosen one of its choices; discard: wt-rm's "discard uncommitted changes".
     # → the Job as it starts. Raises Busy.
     def start(spec, worktree:, input: nil, discard: false)
       keys = [(:workspace if spec.scope == :workspace), worktree&.name].compact
