@@ -113,13 +113,36 @@ section numbers below refer to it. Where it and this document differ, this docum
 | Units | one `systemctl --user show -p Id,ActiveState,SubState,Result …` | 3 s | §5.2 |
 | Containers | one `podman ps -a --format json` | 3 s | §5.2 |
 | Claude status | stat + read `.container-config/status/<W>.json` | 1 s, on mtime change | §6, §7 |
-| PR list | `gh pr list --state all --limit 200 --json …` (repo-wide) | 60 s, after push/restack | §5.2, §5.3 |
-| PR detail (checks, commits) | `gh pr view <n> --json …` | for the worktree shown in the detail pane, 60 s | §5.2, §5.3 |
-| gh stack | `gh stack view --json` in the worktree | for the shown worktree, 60 s, after any stack action | §3.5, §5.4 |
+| Open PRs, with checks | `gh pr list --state open --json number,headRefName,baseRefName,state,isDraft,reviewDecision,title,url,statusCheckRollup` (repo-wide) | see GitHub refresh | §5.2, §5.3 |
+| All PRs, without checks | `gh pr list --state all --limit 200 --json number,headRefName,state,title,url` (`--state` takes one value; this shows "merged" for a worktree whose branch is done) | on demand only, never on the timer | §5.2, §5.3 |
+| gh stack | `gh stack view --json` in the worktree shown in the detail pane | see GitHub refresh | §3.5, §5.4 |
 | Stale units | `quadlet.sh check-stale` | 60 s, after any action | — |
 
 Every command runs with an argv array (never a shell string) and a timeout (5 s; 15 s for gh). A
 failed or timed-out source keeps its last value and marks its cells unknown.
+
+**GitHub refresh (no webhooks, no notifications API).** Webhooks need an endpoint reachable from
+the internet, which this loopback-only server must not have. `gh webhook forward` is documented as
+testing-only, is limited to one per repository and needs repo admin rights, and a relay such as
+smee.io would show every PR event to a third party. The notifications and repo-events endpoints
+can't stand in for polling either: notifications don't reliably report checks finishing, and repo
+events have no check events and can lag by hours. So GitHub is polled, but only when someone is
+looking:
+
+- **On demand:** at startup; when a page connects or its tab regains focus (a Stimulus controller
+  POSTs a refresh hint on `visibilitychange`); right after any action that touches GitHub finishes
+  (stack push/up/down, new worktree, remove worktree). A restack runs in a terminal the dashboard
+  can't watch, so its result shows on the next focus or timer tick. On demand means all three
+  GitHub sources above.
+- **Timer, only while at least one page holds the SSE stream:** open PRs and the shown worktree's
+  stack every 60 s while any open PR has checks pending or the shown worktree has an open PR;
+  otherwise every 5 minutes. With no page connected, no GitHub call is made at all.
+- **One request for all open PRs:** checks come with the list (`statusCheckRollup`), so there is no
+  per-PR `gh pr view`. The commit count shown for a PR is computed locally:
+  `git rev-list --count origin/<baseRefName>..HEAD` in the worktree.
+- Focus and connect hints are coalesced: one arriving while a refresh runs, or within 10 s of the
+  last one, is dropped. A refresh after an action is never dropped; if one is already running, it
+  runs again when that one ends.
 
 **No container-written config turns into host code (my call).** The reads run every few seconds
 with nobody watching, against files containers can write: claude and nvim mount `master/.git`
@@ -293,7 +316,9 @@ have been).
 
 - Minitest, as on `feature/tui`: sources on the captured fixtures (no podman, systemd, gh or network
   needed), agent-state derivation, the Host/Origin/token guard, the palette's argument handling and
-  terminal-task routing, action lifecycle (stream, exit status, cancel, one-per-worktree).
+  terminal-task routing, action lifecycle (stream, exit status, cancel, one-per-worktree), and the
+  GitHub schedule on a fake clock (no calls with no page connected, 60 s vs 5 min, hint coalescing,
+  action refreshes never dropped).
 - The status hook's shell test against the captured payloads.
 - On the host: `mise run verify` including the isolation check; then the page itself — every
   worktree listed with the stack down, `up`/`stop` reflected live, a test run streaming, a terminal
