@@ -14,14 +14,19 @@
 #   - every running playwright container (no firewall hook, its own rules),
 #     against its loopback and against wt.localhost as it resolves in there.
 #
-# Exit 0: nothing reached. 1: something reached. 2: could not probe -- a probe
-# that never ran must not pass for one that was blocked.
+# Exit 0: nothing reached. 1: something reached (even if a later probe could
+# not run). 2: could not probe -- a probe that never ran must not pass for one
+# that was blocked.
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 ROOT="$(find_project_root)"
 
-die() { printf 'error: %s\n' "$*" >&2; exit 2; }
+# Exit 2 means "could not probe", but a probe that already REACHED the port
+# outranks that: the check has its answer, and Task 11's verify maps 2 to a
+# mere warning.
+reached=0
+die() { printf 'error: %s\n' "$*" >&2; exit $(( reached ? 1 : 2 )); }
 
 [[ -n "${PROJECT_PREFIX:-}" ]] || die "PROJECT_PREFIX unset (mise env not loaded)"
 [[ "${WT_DASHBOARD_PORT:-}" =~ ^[0-9]+$ ]] \
@@ -39,8 +44,11 @@ listener_pid=
 cleanup() { [[ -z "$listener_pid" ]] || kill "$listener_pid" 2>/dev/null || true; }
 trap cleanup EXIT
 if ! host_listening; then
-  command -v ruby >/dev/null || die "nothing listens on 127.0.0.1:$port and ruby is not available to start a listener"
-  ruby -rsocket -e 'TCPServer.new("127.0.0.1", ARGV[0].to_i).then { |s| loop { s.accept.close } }' "$port" &
+  # The dashboard's own pinned Ruby, not bare `ruby`: at the workspace root that
+  # can be a mise shim with no version set. mise exec replaces itself with ruby,
+  # so $! is the listener and the EXIT trap kills it.
+  command -v mise >/dev/null || die "nothing listens on 127.0.0.1:$port and mise is not available to start a listener"
+  mise exec ruby@4.0.7 -- ruby -rsocket -e 'TCPServer.new("127.0.0.1", ARGV[0].to_i).then { |s| loop { s.accept.close } }' "$port" &
   listener_pid=$!
   for _ in $(seq 50); do
     host_listening && break
@@ -63,8 +71,6 @@ for f in "$ROOT"/.unit-env/*.env; do
   fi
 done
 [[ -n "$img" ]] || die "no rails image to probe with; build an image first: mise run build"
-
-reached=0
 
 # rc 0: the inner bash connected. 125: podman itself failed; 126/127: the probe
 # command could not run. Those last three mean nothing was tested.
@@ -121,14 +127,20 @@ while IFS= read -r ct; do
   [[ -n "$ct" ]] || continue
   probe_exec "$ct" 127.0.0.1 127.0.0.1
   # Resolved inside the container, where --add-host and its /etc/hosts decide
-  # what wt.localhost means. A name that does not resolve cannot be connected
-  # to, so it counts as blocked.
-  wt_addr="$(podman exec "$ct" getent hosts wt.localhost 2>/dev/null | awk 'NR == 1 { print $1 }')" || true
-  if [[ -n "$wt_addr" ]]; then
-    probe_exec "$ct" "$wt_addr" "wt.localhost($wt_addr)"
-  else
-    printf 'blocked  %s -> wt.localhost:%s (does not resolve)\n' "$ct" "$port"
-  fi
+  # what wt.localhost means. getent's own status, not the pipeline's: 2 is "key
+  # not found", which cannot be connected to and so counts as blocked; anything
+  # else non-zero (container gone: 125, no getent: 127) means nothing was tested.
+  rc=0
+  hosts="$(podman exec "$ct" getent hosts wt.localhost 2>/dev/null)" || rc=$?
+  case "$rc" in
+    0)
+      wt_addr="$(awk 'NR == 1 { print $1 }' <<<"$hosts")"
+      [[ -n "$wt_addr" ]] || die "getent in $ct returned no address for wt.localhost"
+      probe_exec "$ct" "$wt_addr" "wt.localhost($wt_addr)"
+      ;;
+    2) printf 'blocked  %s -> wt.localhost:%s (does not resolve)\n' "$ct" "$port" ;;
+    *) die "probe $ct -> wt.localhost:$port did not run (getent exit $rc)" ;;
+  esac
 done <<<"$playwrights"
 
 exit "$reached"
