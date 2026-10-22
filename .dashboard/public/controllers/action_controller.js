@@ -2,8 +2,9 @@
 // the page's token, after its confirm param (confirm()), its prompt param
 // (prompt(), sent as `input`) or, with the discard param, the remove dialog and
 // its "discard uncommitted changes" checkbox (sent as `discard=1`). A name
-// prompt param asks next, prefilled with the answer's slug (sent as `name`;
-// empty for the default). An input param is sent as `input` as is. A job this
+// prompt param asks next in a dialog whose input stops at NAME_MAX characters,
+// prefilled with the answer's slug (sent as `name`; not sent for the default).
+// An input param is sent as `input` as is. A job this
 // page started that created a worktree opens it when done ("select it when
 // done"). A 403 that asks for a reload means the server restarted.
 import { Controller } from "@hotwired/stimulus"
@@ -11,10 +12,12 @@ import { visit } from "@hotwired/turbo"
 
 const started = new Set() // job ids this page started
 
-// .scripts/lib.sh's sanitize_worktree_name, for the prefill only: the script
-// sanitizes whatever is sent again.
+// .scripts/lib.sh's WORKTREE_NAME_MAX_LEN and sanitize_worktree_name, for the
+// name dialog only: the script sanitizes whatever is sent again. Sanitizing
+// never lengthens, so a typed name capped at NAME_MAX stays within it.
+const NAME_MAX = 40
 const slug = (text) =>
-  text.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase().replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40).replace(/-$/, "")
+  text.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase().replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, NAME_MAX).replace(/-$/, "")
 
 export default class extends Controller {
   static targets = ["job"]
@@ -36,10 +39,10 @@ export default class extends Controller {
         // A PR number's branch is only known once the script asks GitHub.
         const pr = /^\d+$/.test(input.trim())
         const fallback = pr ? "" : slug(input.trim())
-        const name = window.prompt(pr ? `${namePrompt}\nLeave empty for the PR branch's name.` : namePrompt, fallback)
+        const name = await this.nameDialog(pr ? `${namePrompt} Leave empty for the PR branch's name.` : namePrompt, fallback)
         if (name === null) return
         // The prefill kept is no name: the script's default also dodges a taken slug.
-        if (name.trim() !== "" && name.trim() !== fallback) body.set("name", name.trim())
+        if (name !== "" && name !== fallback) body.set("name", name)
       }
     } else if (given) {
       body.set("input", given)
@@ -108,6 +111,49 @@ export default class extends Controller {
       })
       document.body.append(dialog)
       dialog.showModal()
+    })
+  }
+
+  // A one-line input capped at NAME_MAX characters, prefilled with `value`,
+  // showing the name it becomes. → the trimmed answer, null when cancelled.
+  nameDialog(question, value) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement("dialog")
+      dialog.className = "confirm"
+      const form = document.createElement("form")
+      form.method = "dialog"
+      const text = document.createElement("p")
+      text.textContent = question
+      const box = document.createElement("input")
+      box.type = "text"
+      box.maxLength = NAME_MAX
+      box.value = value
+      box.size = NAME_MAX
+      box.spellcheck = false
+      box.autocomplete = "off"
+      const becomes = document.createElement("p")
+      becomes.className = "muted"
+      const show = () => {
+        const typed = box.value.trim()
+        becomes.textContent = `${box.value.length}/${NAME_MAX}` + (typed && slug(typed) !== typed ? ` · becomes ${slug(typed) || "nothing usable"}` : "")
+      }
+      box.addEventListener("input", show)
+      show()
+      // Only "create" submits, so Enter in the box creates; Escape cancels.
+      const cancel = this.dialogButton("cancel", "cancel")
+      cancel.type = "button"
+      cancel.addEventListener("click", () => dialog.close("cancel"))
+      const buttons = document.createElement("menu")
+      buttons.append(cancel, this.dialogButton("create", "ok"))
+      form.append(text, box, becomes, buttons)
+      dialog.append(form)
+      dialog.addEventListener("close", () => {
+        dialog.remove()
+        resolve(dialog.returnValue === "ok" ? box.value.trim() : null)
+      })
+      document.body.append(dialog)
+      dialog.showModal()
+      box.select()
     })
   }
 

@@ -220,7 +220,7 @@ Every action runs with the worktree as cwd unless noted. Modes:
 | restack | Terminal | `gh stack rebase` (may stop on conflicts) |
 | open PR | Link | the PR URL from gh |
 | copy branch name | Client | `navigator.clipboard` |
-| new worktree | Prompt, Stream | `mise run wt <input> [--name <name>]` (cwd root); a second prompt asks the worktree's name, prefilled with the branch's slug (empty for a PR number: the script resolves it); kept or blank = no `--name`; select it when done |
+| new worktree | Prompt, Stream | `mise run wt <input> [--name <name>]` (cwd root); a second question, a dialog whose input stops at 40 characters (lib.sh's WORKTREE_NAME_MAX_LEN) and shows the name it becomes, asks the worktree's name, prefilled with the branch's slug (empty for a PR number: the script resolves it); kept or blank = no `--name`; select it when done |
 | remove worktree | Confirm, Stream | `mise run wt:rm <path>` (cwd root; the path, since a name can also be a branch); a separate "discard uncommitted changes" checkbox adds `FORCE=1`; never offered on the base worktree |
 | install units | Stream | `mise run units:install` (cwd root) |
 | start at login on / off | Stream | `mise run dashboard:autostart on` / `off` (cwd root) |

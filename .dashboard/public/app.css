@@ -258,6 +258,16 @@ button[role="switch"][aria-checked="true"]::before { content: "● "; color: var
 .banner button { margin-left: .5rem; }
 dialog.confirm { color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; }
 dialog.confirm menu { display: flex; gap: .5rem; justify-content: flex-end; padding: 0; margin: .75rem 0 0; }
+dialog.confirm input[type="text"] {
+  font: inherit;
+  width: 100%;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: .2rem .4rem;
+}
+dialog.confirm input[type="text"] + p { margin: .3rem 0 0; font-size: .8rem; }
 
 .job { border-top: 1px solid var(--border); padding: .3rem 0; }
 .job-head { display: flex; flex-wrap: wrap; gap: .3rem .75rem; align-items: baseline; }

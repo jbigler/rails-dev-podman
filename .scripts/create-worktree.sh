@@ -83,6 +83,17 @@ if [ -n "$(name_problem "$default_name")" ]; then
   [ -z "$(name_problem "$default_name")" ] || default_name=""
 fi
 
+# Says what a typed or passed name became, when that is not what was given.
+# A name is cut at WORKTREE_NAME_MAX_LEN; said so when that is what changed it.
+say_used() {
+  [ "$1" = "$2" ] && return 0
+  if [ "${#2}" -eq "$WORKTREE_NAME_MAX_LEN" ] && [ "${#1}" -gt "$WORKTREE_NAME_MAX_LEN" ]; then
+    echo "Using worktree name: $2 (cut at ${WORKTREE_NAME_MAX_LEN} characters)"
+  else
+    echo "Using worktree name: $2"
+  fi
+}
+
 # A blank --name is no --name.
 if [ -n "$(printf '%s' "$requested_name" | tr -d ' \t\n')" ]; then
   clean_name=$(sanitize_worktree_name "$requested_name")
@@ -91,12 +102,13 @@ if [ -n "$(printf '%s' "$requested_name" | tr -d ' \t\n')" ]; then
     echo "Error: can't name the worktree '${requested_name}': ${problem}" >&2
     exit 1
   fi
+  say_used "$requested_name" "$clean_name"
 elif [ -t 0 ]; then
   while :; do
     if [ -n "$default_name" ]; then
-      printf 'Worktree name [%s]: ' "$default_name"
+      printf 'Worktree name, up to %s characters [%s]: ' "$WORKTREE_NAME_MAX_LEN" "$default_name"
     else
-      printf 'Worktree name: '
+      printf 'Worktree name, up to %s characters: ' "$WORKTREE_NAME_MAX_LEN"
     fi
     # read trims surrounding blanks, so a blank answer reads as empty: the default.
     answer=""
@@ -106,7 +118,7 @@ elif [ -t 0 ]; then
     [ -z "$problem" ] && break
     echo "  Can't use that: ${problem}"
   done
-  [ -z "$answer" ] || [ "$answer" = "$clean_name" ] || echo "Using worktree name: ${clean_name}"
+  [ -z "$answer" ] || say_used "$answer" "$clean_name"
 else
   clean_name="$default_name"
   if [ -z "$clean_name" ]; then
