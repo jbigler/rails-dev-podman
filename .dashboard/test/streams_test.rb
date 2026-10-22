@@ -184,6 +184,16 @@ class StreamsTest < Minitest::Test
     assert_includes frame, "300 earlier lines"
   end
 
+  def test_running_job_shows_its_unfinished_line_escaped
+    hub.publish_job(job(1).tap { it.partial = "..F<x>" })
+    frame = one(S.frames([:job, 1], state, sub(nil), jobs: {}))
+    assert_includes frame, %(hello &lt;b&gt;\n<span class="job-partial" title="still being written: no line end yet">..F&lt;x&gt;</span></pre>)
+    hub.publish_job(job(2, lines: []).tap { it.partial = "Password: " })
+    assert_match(%r{<pre class="job-output"><span class="job-partial"[^>]*>Password: </span></pre>}, one(S.frames([:job, 2], state, sub(nil), jobs: {})))
+    hub.publish_job(job(3, state: :ok).tap { it.partial = "stale" })
+    refute_includes one(S.frames([:job, 3], state, sub(nil), jobs: {})), "stale"
+  end
+
   def test_a_job_starting_or_ending_rerenders_the_viewed_detail
     hub.publish_job(job(1))
     frames = S.frames([:job, 1], state, sub("wt-01"), jobs: {})

@@ -64,10 +64,11 @@ module Dashboard
   # One action run. worktree: its name, nil for a workspace action; action: the spec id; input: the
   # prompted or chosen answer, nil without one; state: :running | :ok | :failed | :cancelled;
   # exit_status: the last command's (nil while running or when killed); lines: its output, the last
-  # Runner::KEEP_LINES; created: the worktree a successful wt-create added. The Runner owns the
-  # mutable one; the Hub holds frozen copies.
-  Job = Struct.new(:id, :worktree, :action, :label, :input, :state, :exit_status, :started_at, :finished_at, :lines, :created,
-                   keyword_init: true) do
+  # Runner::KEEP_LINES; partial: while it runs, output after the last line end (test dots, a
+  # prompt), nil when none; created: the worktree a successful wt-create added. The Runner owns
+  # the mutable one; the Hub holds frozen copies.
+  Job = Struct.new(:id, :worktree, :action, :label, :input, :state, :exit_status, :started_at, :finished_at, :lines, :partial,
+                   :created, keyword_init: true) do
     def running? = state == :running
     # The label with its input: "switch to feature/x", "new worktree feature/x".
     def title = [label, input].compact.join(" ")

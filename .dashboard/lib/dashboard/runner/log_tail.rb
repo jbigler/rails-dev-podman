@@ -38,12 +38,15 @@ module Dashboard
         @skip = false  # read from mid-line: drop up to the next newline
         @checked = 0
         @nap = CHECK
+        @shown = "".b # the unfinished line last passed to `partial`
       end
 
       # Yields each line (bytes, without the newline; MAX_LINE bytes at most,
       # so a long run without one is cut) until the child has exited and the
-      # log is read. Closes the log.
-      def each_line(&)
+      # log is read. Closes the log. partial: ->(bytes), told the text after the
+      # last newline whenever it changes ("" once it is a line), so a reader can
+      # show output that has no line end yet (test dots, prompts).
+      def each_line(partial: nil, &)
         loop do
           exited = !@alive.call
           chunk = @io.read(READ)
@@ -52,6 +55,7 @@ module Dashboard
           feed(chunk, &) if chunk
           marker(&)
           trim
+          show(partial, @buffer)
           if chunk
             @nap = CHECK
             next
@@ -62,11 +66,19 @@ module Dashboard
           @nap = [@nap * 2, POLL].min
         end
         yield @buffer unless @buffer.empty?
+        show(partial, "".b)
       ensure
         @io.close
       end
 
       private
+
+      def show(partial, text)
+        return if partial.nil? || text == @shown
+
+        @shown = text.dup
+        partial.(@shown.dup)
+      end
 
       def feed(chunk, &)
         @buffer << chunk

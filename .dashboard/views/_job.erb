@@ -12,8 +12,9 @@
     <button type="button" data-action="action#cancel" data-action-url-param="/jobs/<%= job.id %>/cancel">cancel</button>
     <% end %>
   </div>
-  <% unless lines.empty? %>
+  <% partial = job.partial if job.running? && !job.partial.to_s.empty? %>
+  <% unless lines.empty? && partial.nil? %>
   <pre class="job-output"><% if hidden.positive? %><span class="muted">… <%= hidden %> earlier lines</span>
-<% end %><%= lines.join("\n") %></pre>
+<% end %><%= lines.join("\n") %><% if partial %><%= "\n" unless lines.empty? %><span class="job-partial" title="still being written: no line end yet"><%= partial %></span><% end %></pre>
   <% end %>
 </article>

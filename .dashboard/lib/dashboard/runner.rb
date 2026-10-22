@@ -110,7 +110,7 @@ module Dashboard
         child = @lock.synchronize { entry.child = @spawner.spawn(SCOPE + argv, env:, chdir:, job: entry.job.id) unless entry.cancelled }
         return nil unless child
 
-        child.each_line { append(entry, it) }
+        child.each_line(partial: ->(text) { pending(entry, text) }) { append(entry, it) }
         status = child.wait
         break unless status == 0
       end
@@ -148,6 +148,16 @@ module Dashboard
       end
     end
 
+    # The output after the last line end, as append stores a line; a carriage
+    # return (a progress counter redrawing itself) shows only its latest state.
+    def pending(entry, text)
+      shown = text.force_encoding(Encoding::UTF_8).scrub("?").gsub(ANSI, "").split("\r").reject(&:empty?).last
+      @lock.synchronize do
+        entry.job.partial = shown
+        entry.dirty = true
+      end
+    end
+
     # Publishes new output at most every PUBLISH_EVERY seconds until the job ends.
     def flush(entry)
       @lock.synchronize { publish(entry) if entry.dirty } until entry.wake.pop(timeout: PUBLISH_EVERY)
@@ -167,6 +177,7 @@ module Dashboard
                     else :failed
                     end
         job.finished_at = Time.now
+        job.partial = nil
         @running.delete(entry)
         publish(entry)
         forget_dropped

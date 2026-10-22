@@ -156,6 +156,31 @@ class RunnerTest < Minitest::Test
     assert_equal [:ok, ["wrote it", "", "Dumps are in …"]], [job.state, job.lines]
   end
 
+  # Minitest's dots carry no newline until the summary: shown as they come,
+  # gone once the job ends; a carriage-return counter shows its latest state.
+  def test_the_unfinished_line_shows_while_the_job_runs
+    spawner = FakeSpawner.new({ "mise run up" => [["started", { partial: "\e[32m..\e[0m" }, { partial: "10%\r20%\r" }], 0] },
+                              hold: ["mise run up"])
+    r = runner(spawner)
+    job = r.start(A.find("up"), worktree: wt("wt-01"))
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 1
+    sleep 0.005 until hub.snapshot.jobs.find { it.id == job.id }&.partial == "20%" || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+    shown = hub.snapshot.jobs.find { it.id == job.id }
+    assert_equal [["started"], "20%"], [shown.lines, shown.partial]
+    r.cancel(job.id)
+    assert_nil finished(r, job).partial
+  end
+
+  def test_real_spawn_reports_the_unfinished_line
+    child = real_spawn(["sh", "-c", "printf 'dots ..'; sleep 0.3; printf '.\\nnext'"])
+    lines = []
+    partials = []
+    child.each_line(partial: ->(text) { partials << text }) { lines << it }
+    assert_equal ["dots ...", "next"], lines
+    assert_includes partials, "dots .."
+    assert_equal "", partials.last
+  end
+
   def test_long_lines_are_cut
     spawner = FakeSpawner.new({ "mise run up" => [["a" * 200 * 1024], 0] })
     r = runner(spawner)

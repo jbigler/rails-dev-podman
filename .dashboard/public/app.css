@@ -296,6 +296,11 @@ dialog menu { display: flex; gap: .5rem; justify-content: flex-end; padding: 0; 
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* Output with no line end yet (test dots, a prompt): shown as it comes, a blinking caret after it. */
+.job-partial { color: var(--muted); }
+.job-partial::after { content: "▍"; color: var(--blue); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .job-partial::after { animation: none; } }
 
 /* The task palette (palette_controller.js). */
 dialog.palette { width: min(40rem, 90vw); max-width: none; max-height: 70vh; padding: 0.5rem; }

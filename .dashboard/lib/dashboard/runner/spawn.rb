@@ -65,9 +65,10 @@ module Dashboard
       end
 
       # Yields each output line (LogTail#each_line) while the child runs, then
-      # what it left in the log. Leaving early (the dashboard stopping) only
-      # stops the reading; the child goes on writing to the file.
-      def each_line(&) = @tail.each_line(&)
+      # what it left in the log; partial: LogTail's unfinished-line callback.
+      # Leaving early (the dashboard stopping) only stops the reading; the
+      # child goes on writing to the file.
+      def each_line(partial: nil, &) = @tail.each_line(partial:, &)
 
       # → the exit status, nil when a signal ended it.
       def wait = @waiter.value.exitstatus
@@ -92,7 +93,7 @@ module Dashboard
 
     # A command that could not start: its reason as output, exit 127.
     Unstarted = Data.define(:message) do
-      def each_line = yield(message)
+      def each_line(partial: nil) = yield(message)
       def wait = 127
       def kill = nil
     end

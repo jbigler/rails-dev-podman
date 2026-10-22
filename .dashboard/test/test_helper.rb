@@ -46,8 +46,9 @@ class FakeSpawner
       @killed = false
     end
 
-    def each_line(&)
-      @lines.each(&)
+    # A { partial: text } entry reports an unfinished line instead of yielding a line.
+    def each_line(partial: nil)
+      @lines.each { it.is_a?(Hash) ? partial&.(it.fetch(:partial).b) : yield(it) }
       @gate&.pop
     end
 

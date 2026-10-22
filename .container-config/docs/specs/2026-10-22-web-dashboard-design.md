@@ -200,8 +200,9 @@ One page. My call on layout, modelled on the TUI's:
 Every action runs with the worktree as cwd unless noted. Modes:
 
 - **Stream:** spawn the command (own process group, stdin `/dev/null`, `NO_COLOR=1`), stream its
-  output to the action panel, report exit status, refresh the affected sources when it ends. Cancel
-  kills the process group.
+  output to the action panel line by line, plus, while it runs, the output after the last line end
+  (test dots, a prompt; after a carriage return only its latest state) marked as unfinished; report
+  exit status, refresh the affected sources when it ends. Cancel kills the process group.
 - **Terminal:** `newterm.sh --title "<W>: <label>" --cwd <worktree> -- <argv>`; the page shows
   "opened <label>" or newterm.sh's `error:` line.
 - **Link:** a plain link, no server round trip.
