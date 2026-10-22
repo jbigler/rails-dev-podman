@@ -11,13 +11,14 @@ no Docker anywhere in the runtime — the last Compose version is tagged docker-
 
 - master/ — base worktree (has .git dir); canonical app.
 - <slug>/ — linked worktrees (have .git file).
-- .scripts/ — bash helpers (worktree actions, bootstrap, lib).
+- .scripts/ — bash helpers (worktree actions, bootstrap, lib, newterm.sh terminal launcher).
+- .dashboard/ — the web dashboard (Ruby, Roda + Falcon, minitest); a host process, see Dashboard below.
 - .mise/config.toml — mise tasks + base env; local.toml.template rendered per worktree.
 - .mise/tasks/ — task files: wt/rm, tags.
-- .container-config/ — quadlet/ (unit templates, worktree + proxy), Dockerfile, Dockerfile.playwright,  
-  entrypoints, .env, initdb/, db-dumps/, firewall/ (egress firewall hook + allowlists), home-template/ (seeds .home/<slug>),  
-  proxy/ (index.html + home-nginx.conf for the wt.localhost dashboard), git-hooks/ (backups of
-  master/.git/hooks — see git-guard below).
+- .container-config/ — quadlet/ (unit templates, worktree + proxy), systemd/ (plain user-unit templates:
+  dashboard.service), Dockerfile, Dockerfile.playwright, entrypoints, .env, initdb/, db-dumps/,
+  firewall/ (egress firewall hook + allowlists), home-template/ (seeds .home/<slug>),
+  status/ (git-ignored claude status files), git-hooks/ (backups of master/.git/hooks — see git-guard below).
 - .firewall/ — (git-ignored) firewall runtime: hooks.d/ (hook descriptor rendered by units:install, the
   --hooks-dir every firewalled container passes), state/<container-id> (profiles, mode, resolved
   addresses; read by fw:show), hook.log.
@@ -187,23 +188,63 @@ Unit mechanics worth knowing before editing a template:
 - podman will not create a missing bind-mount source the way the Docker daemon did; `up` preflights
   every Volume= source and seed-home.sh runs first.
 
-## Proxy (.container-config/quadlet/, proxy.network + traefik/dozzle/home)
+## Proxy (.container-config/quadlet/, proxy.network + traefik/dozzle)
 
-One Traefik v3.7 stack as user units (<prefix>-traefik, -dozzle, -home).  
+One Traefik v3.7 stack as user units (<prefix>-traefik, -dozzle). The dashboard is not part of it (see Dashboard).  
 Docker-compat provider over podman's socket (`systemctl --user enable --now podman.socket`) —
-verified end to end by `mise run verify`, exposedByDefault=false, entrypoint web:80, dashboard :8080. Preserve encoded URL chars (S3).  
-wt.localhost home page; wt.localhost/api→Traefik API; logs.localhost→Dozzle (live logs, all project  
-containers, DOZZLE_FILTER=name=${PROJECT_PREFIX}). The worktree units pull the proxy in via Wants=, so `up` needs no proxy step.  
-wt.localhost cards show claude badge (working/waiting): claude-status-hook.sh (hook events, registered  
-idempotently by entrypoint-claude.sh into shared settings.json) writes .container-config/status/<slug>.json  
-(git-ignored); home nginx serves it at /status/ (JSON autoindex, home-nginx.conf). wt:rm cleans the file.  
-Host ports (80/8080, also nvim/ruby-debug in worktree stack) bind 127.0.0.1 only — Host-header routing would  
+verified end to end by `mise run verify`, exposedByDefault=false, entrypoint web:80, Traefik API :8080. Preserve encoded URL chars (S3).  
+logs.localhost→Dozzle (live logs, all project containers, DOZZLE_FILTER=name=${PROJECT_PREFIX}).
+The worktree units pull the proxy in via Wants=, so `up` needs no proxy step.  
+Claude status: claude-status-hook.sh (v2: state/ts/rtk plus phase/event/message/tool/last_message), registered
+per event idempotently by entrypoint-claude.sh into shared settings.json, writes
+.container-config/status/<slug>.json (git-ignored); the dashboard reads it from disk. wt:rm cleans the file.  
+Host ports (80/8080, the dashboard port, also nvim/ruby-debug in worktree stack) bind 127.0.0.1 only — Host-header routing would  
 otherwise expose all worktrees + password-less VNC to LAN. Containers can't reach loopback-bound host ports, so  
 Traefik has static IP PODMAN_TRAEFIK_IP (default 10.214.0.2, subnet PODMAN_PROXY_SUBNET 10.214.0.0/24 —
 not 10.213, which docker's proxy held; netavark refuses a subnet already in use) on the proxy net;
 worktree --add-host entries point WORKTREE_HOST/S3/UI there instead of host-gateway.
 Rootless podman cannot publish :80 below net.ipv4.ip_unprivileged_port_start — `mise run doctor`
 checks it and `mise run allow-ports` lowers it.
+units:install removes orphaned rendered units of this prefix (marker line, template gone — how the old
+<prefix>-home.container went) and check-stale reports them.
+
+## Dashboard (.dashboard/)
+
+- What: one page at http://wt.localhost:${WT_DASHBOARD_PORT} (default 7700) — worktrees, git/PR/stack state,
+  units, containers, claude status, actions with streamed output, a task palette. Not routed through Traefik.
+- Process: host unit <prefix>-dashboard.service, rendered by units:install into ~/.config/systemd/user from
+  .container-config/systemd/dashboard.service. ExecStart `<mise> run dashboard:serve` (Falcon `--threaded
+  --count 1` on 127.0.0.1:${WT_DASHBOARD_PORT}); DASHBOARD_MISE_DIR is prepended to PATH because `mise run`
+  does not put mise on it and actions run `mise` by name. check-stale renders @@MISE@@ from the calling
+  shell's `command -v mise`: keep one mise on PATH, or the unit reads stale until units:install.
+- Lifecycle: `mise run dashboard [browser]` starts it, waits on /healthz, opens the page. Independent of the
+  proxy: proxy:down/restart leave it; start_proxy and proxy:up start it; it stops via dashboard:stop,
+  units:uninstall, destroy. Never enabled by units:install; dashboard:autostart on|off (or the page's switch)
+  enables it to start at login.
+- Security: loopback only. Every request (SSE included) needs an allowed Host (wt.localhost/localhost/127.0.0.1
+  with the port — stops DNS rebinding); POSTs also need an allowed Origin and X-Dashboard-Token (stops other
+  pages); a stale token (page from before a restart) → 403 + X-Dashboard-Reload. No login, by the user's
+  decision: single-user host. dashboard:isolation-check (also run by verify) proves no container reaches the
+  port — exit 1 reached, 2 could not probe. Containers run agent-written code; the dashboard drives the host.
+- Reading untrusted repos: GitSafety runs every background git/gh read with core.fsmonitor=false,
+  core.hooksPath=/dev/null and every configured filter driver blanked, failing closed if the config read
+  fails — else a worktree's config becomes code the host runs unattended. It never runs `mise env`
+  (a worktree's mise.local.toml is container-writable); ports/hosts come from .unit-env/<W>.env. The palette
+  lists tasks via `mise tasks --json` at the workspace root, never in a worktree.
+- Refresh: local sources every 1/3/5/60 s. GitHub only while a page holds the SSE stream (60 s hot / 300 s),
+  on connect/focus (coalesced 10 s) and after GitHub-touching actions (never dropped). A newly viewed
+  worktree's stack is read at once.
+- Actions: argv only, no shell. Each child runs in `systemd-run --user --scope --collect` (outlives a dashboard
+  restart), stdin /dev/null, NO_COLOR=1, plus the session env (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
+  XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR KITTY_LISTEN_ON) read per child from `systemctl --user show-environment`.
+  lib.sh push_session_env pushes them from the calling shell in `mise run dashboard`, start_proxy and proxy:up.
+  Scopes: one job per worktree; workspace jobs one at a time. Keeps the last 20 jobs, 5000 lines, 64 KiB per
+  line. Terminal actions go through .scripts/newterm.sh. podman-wt.sh exec passes -t only when stdin is a
+  terminal, since the dashboard streams with stdin closed; units-env.sh keeps a still-live previous
+  SSH_AGENT_SOCK when the caller has no agent socket.
+- Rule: the dashboard changes state only through mise tasks (and their scripts); never reimplement one in Ruby.
+- Test: `mise run dashboard:test` — minitest on captured fixtures plus the hook shell test; needs no podman,
+  systemd, gh or network.
 
 ## mise tasks (.mise/config.toml)
 
@@ -212,7 +253,10 @@ checks it and `mise run allow-ports` lowers it.
   deletes this worktree's three and prompts, defaulting to No. destroy nukes all <prefix>[-_]* resources,
   the rendered units and the folder (type 'destroy' to confirm).
 - units:install/units:uninstall/units:env, doctor, verify, verify:spike, allow-ports: unit and host
-  management. `up` refuses to start when an installed unit no longer matches its template.
+  management. `up` refuses to start when an installed unit no longer matches its template. verify also checks
+  the dashboard's /healthz and runs dashboard:isolation-check (1 → fail, 2 → warn).
+- dashboard/dashboard:serve/dashboard:stop/dashboard:autostart/dashboard:test/dashboard:isolation-check;
+  see Dashboard above.
 - rails/console(c)/ci: all route through `podman-wt.sh exec`, which uses the running rails container
   when it is up and a transient one otherwise. The transient container carries
   --label traefik.enable=false, or Traefik load-balances the worktree host onto something not serving
@@ -262,11 +306,12 @@ checks it and `mise run allow-ports` lowers it.
   template onto this worktree's home (or --all for every home); apply never touches credentials,  
   sessions, or other state.
 - claude runs in the current window; CLAUDE_NEW_TERM=1 or claude:newterm delegates to
-  .scripts/claude-newterm.sh, which detects the host terminal (env fingerprint, then process tree) then
-  escalates: new tab (tmux/kitty/wezterm/konsole/gnome-terminal/xfce4-terminal/terminator/iTerm2) → new
-  window of that same terminal → new window of any emulator found ($TERMINAL first, then kitty, wezterm,
-  ghostty, alacritty, foot, konsole, gnome-terminal, xfce4-terminal, terminator, xterm) → current window
-  only when nothing is launchable (no emulator, or no DISPLAY/WAYLAND_DISPLAY off macOS).
+  .scripts/claude-newterm.sh, a wrapper over .scripts/newterm.sh (shared with the dashboard), which detects the
+  host terminal (env fingerprint, then process tree) then escalates: new tab
+  (tmux/kitty/wezterm/konsole/gnome-terminal/xfce4-terminal/terminator/iTerm2) → new window of that same terminal
+  → new window of any emulator found ($TERMINAL first, then kitty, wezterm, ghostty, alacritty, foot, konsole,
+  gnome-terminal, xfce4-terminal, terminator, xterm) → current window only when nothing is launchable and the
+  script itself runs on a TTY.
 
 ## Host-side Rails DB access
 

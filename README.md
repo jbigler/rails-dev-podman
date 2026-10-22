@@ -118,19 +118,31 @@ _Tip: Set a shell alias for "mise run" to "mr"._
 
 - `mise run doctor` — check the rootless podman prerequisites and print fixes
 - `mise run config:init` — create the workspace-root `mise.local.toml` if missing
-- `mise run units:install` / `mise run units:uninstall` — render `.container-config/quadlet/` into `~/.config/containers/systemd/`, or remove it
+- `mise run units:install` / `mise run units:uninstall` — render `.container-config/quadlet/` into `~/.config/containers/systemd/` and the dashboard unit into `~/.config/systemd/user/`, or remove them (install also removes orphaned units whose template is gone)
 - `mise run units:env` — regenerate the unit env file (run from the workspace root to do every worktree)
 - `mise run allow-ports` — lower `net.ipv4.ip_unprivileged_port_start` to 80 so rootless podman can publish Traefik's `:80`
-- `mise run verify` — check that Traefik actually discovered the proxy containers over the podman socket
+- `mise run verify` — check that Traefik discovered the proxy containers over the podman socket, that `logs.localhost` routes, that the dashboard answers and that no container can reach its port
 
 ### Proxy
 
-- `mise run proxy:up` / `proxy:down` / `proxy:restart` — the shared Traefik, Dozzle and dashboard stack
+- `mise run proxy:up` / `proxy:down` / `proxy:restart` — the shared Traefik and Dozzle stack (`proxy:up` also starts the dashboard; `down`/`restart` leave it running)
 - `mise run proxy:status` — its unit and container state, plus its URLs
-- `mise run proxy:logs [service]` — follow a proxy service's journal (default traefik)
-- `mise run proxy:pull` — pull updated traefik/dozzle/nginx images and recreate the containers
+- `mise run proxy:logs [service]` — follow a proxy container's output (default traefik)
+- `mise run proxy:pull` — pull updated traefik/dozzle images and recreate the containers
 
-The dashboard is at `http://wt.localhost`; live logs for every project container at `http://logs.localhost`.
+Live logs for every project container are at `http://logs.localhost`.
+
+### Dashboard
+
+A web page for every worktree — git, PR and stack state, units, containers, Claude status, one-click actions with streamed output and a task palette — served by a host process (not a container, not behind Traefik) on loopback at `http://wt.localhost:7700` (`WT_DASHBOARD_PORT`).
+
+- `mise run dashboard [browser]` — start the `<prefix>-dashboard` user unit if needed and open the page
+- `mise run dashboard:stop` — stop it (actions it started keep running)
+- `mise run dashboard:autostart [on|off]` — start it at login, or print the current state (also a switch on the page; `units:install` never enables it)
+- `mise run dashboard:isolation-check` — prove no container can connect to the dashboard port
+- `mise run dashboard:test` — run its test suite (needs no podman, systemd, gh or network)
+
+There is no login: it answers only on 127.0.0.1, only for its own host names, and POSTs need the page's token and origin. Keep a single `mise` on your `PATH`; the unit bakes in its path, and a different one makes it read stale until `mise run units:install`. Details in AGENTS.md.
 
 ### Worktrees
 

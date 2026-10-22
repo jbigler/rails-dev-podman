@@ -213,7 +213,7 @@ other_prefix_owns() {
 
 # Installed files of ours -- this prefix, marker line first -- whose template
 # is gone. Walking only the templates never sees them, so a deleted template
-# (home.container) would leave its unit installed and running for good.
+# (the removed home.container) would leave its unit installed and running for good.
 orphans() {
   local f want
   want="$(templates | cut -f2)"
@@ -492,7 +492,7 @@ cmd_proxy_restart() {
   cmd_proxy_status
 }
 
-# traefik, dozzle and home log with k8s-file, so their output is in podman logs,
+# traefik and dozzle log with k8s-file, so their output is in podman logs,
 # not the unit journal.
 cmd_proxy_logs() {
   require_prefix
@@ -502,11 +502,11 @@ cmd_proxy_logs() {
   exec podman logs -f --tail 100 "$ct"
 }
 
-# The three proxy images are registry images, so this is a plain pull plus a
+# The two proxy images are registry images, so this is a plain pull plus a
 # recreate -- no --ignore-buildable equivalent needed.
 cmd_proxy_pull() {
   require_prefix
-  podman pull docker.io/traefik:v3.7 docker.io/amir20/dozzle:latest docker.io/library/nginx:alpine
+  podman pull docker.io/traefik:v3.7 docker.io/amir20/dozzle:latest
   cmd_proxy_restart
 }
 
@@ -807,15 +807,16 @@ cmd_allow_ports() {
 
 # Answer the one thing `podman ps` cannot: has Traefik actually discovered the
 # containers through the podman socket? Deliberately queries Traefik's API on
-# its published port rather than through its own routing (wt.localhost/api),
-# so it still reports correctly when discovery is exactly what is broken.
+# its published port rather than through its own routing, so it still reports
+# correctly when discovery is exactly what is broken. Then checks the
+# dashboard, which is a host process outside Traefik, and its isolation.
 cmd_verify() {
   FAILED=0
   local api="http://127.0.0.1:8080/api"
 
   printf '\n== proxy containers ==\n'
   local c
-  for c in traefik dozzle home; do
+  for c in traefik dozzle; do
     if [[ "$(podman inspect "${PROJECT_PREFIX}-$c" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]; then
       ok "${PROJECT_PREFIX}-$c running"
     else
@@ -846,7 +847,7 @@ cmd_verify() {
             podman logs ${PROJECT_PREFIX}-traefik"
   else
     printf '%s\n' "$routers" | sed 's/^/      /'
-    for want in wt-home wt-logs wt-api; do
+    for want in wt-logs; do
       if printf '%s\n' "$routers" | grep -q "^${want}@"; then
         ok "$want discovered"
       else
@@ -856,34 +857,32 @@ cmd_verify() {
   fi
 
   printf '\n== end-to-end routing ==\n'
-  local host code
-  for host in wt.localhost logs.localhost; do
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H "Host: $host" \
-      http://127.0.0.1/ 2>/dev/null || echo 000)"
-    case "$code" in
-      2*|3*) ok "http://$host -> $code" ;;
-      *)     bad "http://$host -> $code" ;;
-    esac
-  done
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H "Host: logs.localhost" \
+    http://127.0.0.1/ 2>/dev/null || echo 000)"
+  case "$code" in
+    2*|3*) ok "http://logs.localhost -> $code" ;;
+    *)     bad "http://logs.localhost -> $code" ;;
+  esac
 
-  # The dashboard fetches /api/http/routers same-origin, which only works if
-  # the wt-api router (Host(wt.localhost) && PathPrefix(/api) -> api@internal)
-  # wins over wt-home. When it does not, the request falls through to nginx and
-  # comes back as an HTML 404 -- which the dashboard reports as
-  # "Failed to load: Unexpected token '<'". Checking the API on :8080 directly
-  # does NOT catch this, because that bypasses Traefik's own routing.
-  local ctype
-  ctype="$(curl -s -o /dev/null -w '%{content_type}' --max-time 5 \
-    -H 'Host: wt.localhost' http://127.0.0.1/api/http/routers 2>/dev/null || echo none)"
-  case "$ctype" in
-    application/json*) ok "wt.localhost/api routes to Traefik's API (JSON)" ;;
-    text/html*)        bad "wt.localhost/api returns HTML, not JSON: the wt-api router is not
-        intercepting, so the request is falling through to nginx. The
-        dashboard will show \"Failed to load: Unexpected token '<'\".
-        Compare Traefik's own view:
-            curl -s http://127.0.0.1:8080/api/http/routers | grep -o '\"name\":\"wt-api[^\"]*\"'
-            curl -s http://127.0.0.1:8080/api/overview" ;;
-    *)                 bad "wt.localhost/api returned content-type '$ctype'" ;;
+  printf '\n== dashboard (host process, not routed) ==\n'
+  local port="${WT_DASHBOARD_PORT:?WT_DASHBOARD_PORT unset (mise env not loaded)}"
+  # Host header: the dashboard answers only for its own host names.
+  if curl -fsS --max-time 5 -o /dev/null -H "Host: wt.localhost:$port" \
+      "http://127.0.0.1:$port/healthz" 2>/dev/null; then
+    ok "dashboard answers at http://wt.localhost:$port"
+  else
+    bad "dashboard not answering on 127.0.0.1:$port: mise run dashboard;
+        journalctl --user -u $DASHBOARD_UNIT -n 30"
+  fi
+
+  # Exit 2 is "could not probe", not "reached": a warning, not a failure.
+  local rc=0
+  "$(dirname "${BASH_SOURCE[0]}")/dashboard-isolation-check.sh" || rc=$?
+  case "$rc" in
+    0) ok "no container reaches the dashboard port" ;;
+    1) bad "a container reached the dashboard port (see REACHED above)" ;;
+    *) warn "dashboard isolation could not be fully probed (exit $rc)" ;;
   esac
 
   printf '\n'
