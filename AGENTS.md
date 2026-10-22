@@ -244,10 +244,13 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
 - Refresh: local sources every 1/3/5/60 s. GitHub only while a page holds the SSE stream (60 s hot / 300 s),
   on connect/focus (coalesced 10 s) and after GitHub-touching actions (never dropped). A newly viewed
   worktree's stack is read at once.
-- Actions: argv only, no shell. Each child runs in `systemd-run --user --scope --collect` (outlives a dashboard
-  restart). Every child (actions and reads) gets exactly the environment the dashboard had before Bundler set
-  up (captured at boot; no BUNDLE_*, RUBYOPT -rbundler/setup or vendor GEM_HOME), plus for actions stdin
-  /dev/null, NO_COLOR=1 and the session env (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
+- Actions: argv only, no shell. Each child runs in `systemd-run --user --scope --collect` and writes
+  stdout+stderr to $XDG_RUNTIME_DIR/<prefix>-dashboard/jobs/<id>.log (0600, appended; the dashboard tails it),
+  never a pipe, so a dashboard stop or restart leaves it running (its output after that is lost; a job's log
+  goes when the job leaves the last 20, and all at the next start). Every child (actions and reads) gets
+  exactly the environment the dashboard had before Bundler set up (captured at boot; no BUNDLE_*, RUBYOPT
+  -rbundler/setup or vendor GEM_HOME), plus for actions stdin /dev/null, NO_COLOR=1 and the session env
+  (SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY
   XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR KITTY_LISTEN_ON) read per child from `systemctl --user show-environment`.
   lib.sh push_session_env pushes them from the calling shell in `mise run dashboard`, start_proxy and proxy:up.
   Scopes: one job per worktree; workspace jobs one at a time. Keeps the last 20 jobs, 5000 lines, 64 KiB per

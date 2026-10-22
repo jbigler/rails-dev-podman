@@ -41,11 +41,15 @@ class RunnerTest < Minitest::Test
   def setup
     @shell_was = Dashboard::Shell.backend
     Dashboard::Shell.backend = FakeShell.new # SessionEnv's systemctl is not stubbed: only NO_COLOR
+    @logs = Dir.mktmpdir("runner-logs")
   end
 
   def teardown
     Dashboard::Shell.backend = @shell_was
+    FileUtils.rm_rf(@logs)
   end
+
+  def real_spawn(argv, env: {}, chdir: Dir.tmpdir, job: 1) = R::Spawn.new("#{@logs}/jobs").spawn(argv, env:, chdir:, job:)
 
   def hub = @hub ||= Dashboard::Hub.new(ws, raw: fixture_raw)
   def wt(name) = hub.snapshot.worktrees.find { it.name == name }
@@ -234,7 +238,7 @@ class RunnerTest < Minitest::Test
   end
 
   def test_real_spawn_merges_output_and_reports_status
-    child = R::Spawn.new.spawn(["sh", "-c", "echo out; echo err >&2; printf tail; exit 3"], env: { "NO_COLOR" => "1" }, chdir: Dir.tmpdir)
+    child = real_spawn(["sh", "-c", "echo out; echo err >&2; printf tail; exit 3"], env: { "NO_COLOR" => "1" })
     lines = []
     child.each_line { lines << it }
     assert_equal %w[out err tail], lines
@@ -242,7 +246,7 @@ class RunnerTest < Minitest::Test
   end
 
   def test_real_spawn_cuts_output_without_newlines
-    child = R::Spawn.new.spawn(["sh", "-c", "head -c 204800 /dev/zero | tr '\\0' a"], env: {}, chdir: Dir.tmpdir)
+    child = real_spawn(["sh", "-c", "head -c 204800 /dev/zero | tr '\\0' a"])
     sizes = []
     child.each_line { sizes << it.bytesize }
     assert_equal 0, child.wait
@@ -251,7 +255,7 @@ class RunnerTest < Minitest::Test
   end
 
   def test_real_spawn_kill_ends_the_group
-    child = R::Spawn.new.spawn(["sh", "-c", "sleep 10 & wait"], env: {}, chdir: Dir.tmpdir)
+    child = real_spawn(["sh", "-c", "sleep 10 & wait"])
     reader = Thread.new { child.each_line { nil } }
     child.kill
     assert reader.join(2), "output did not end after the kill"
@@ -259,10 +263,63 @@ class RunnerTest < Minitest::Test
   end
 
   def test_real_spawn_missing_binary
-    child = R::Spawn.new.spawn(["/nonexistent/binary"], env: {}, chdir: Dir.tmpdir)
+    child = real_spawn(["/nonexistent/binary"])
     lines = []
     child.each_line { lines << it }
     assert_match(/\Aerror: /, lines.first)
     assert_equal 127, child.wait
+  end
+
+  # The dashboard stopping (the reader gone) must not end a job halfway: the
+  # child writes after the reader left and still runs to the end.
+  def test_real_spawn_child_outlives_its_reader
+    Dir.mktmpdir do |dir|
+      marker = "#{dir}/done"
+      child = real_spawn(["sh", "-c", "echo one; sleep 0.3; echo two; touch #{marker}"], chdir: dir)
+      child.each_line { break }
+      assert_equal 0, child.wait
+      assert File.exist?(marker), "the child died after its reader went away"
+    end
+  end
+
+  def test_real_spawn_logs_privately_and_forgets
+    dir = "#{@logs}/jobs"
+    Dir.mkdir(dir, 0o700)
+    File.write("#{dir}/1.log", "from the last run\n")
+    spawn = R::Spawn.new(dir)
+    refute File.exist?("#{dir}/1.log"), "a log from an earlier run survived"
+
+    2.times do |n|
+      child = spawn.spawn(["sh", "-c", "echo run#{n}"], env: {}, chdir: Dir.tmpdir, job: 7)
+      lines = []
+      child.each_line { lines << it }
+      assert_equal ["run#{n}"], lines, "each command reads only its own output"
+    end
+    assert_equal "run0\nrun1\n", File.read("#{dir}/7.log")
+    assert_equal 0o600, File.stat("#{dir}/7.log").mode & 0o777
+    spawn.forget(7)
+    refute File.exist?("#{dir}/7.log")
+  end
+
+  def test_a_job_dropped_from_retention_loses_its_log
+    spawner = FakeSpawner.new
+    r = runner(spawner)
+    jobs = (Dashboard::Hub::KEEP_JOBS + 1).times.map { finished(r, r.start(A.find("up"), worktree: wt("wt-01"))) }
+    assert_equal [jobs.first.id], spawner.forgotten
+  end
+
+  class RaisingLocal
+    def poke = raise("poke failed")
+  end
+
+  def test_a_failing_poke_still_ends_the_job
+    reporting = Thread.report_on_exception
+    Thread.report_on_exception = false
+    r = runner(FakeSpawner.new, local: RaisingLocal.new)
+    job = finished(r, r.start(A.find("up"), worktree: wt("wt-01")))
+    assert_equal :ok, job.state
+    finished(r, r.start(A.find("up"), worktree: wt("wt-01")))
+  ensure
+    Thread.report_on_exception = reporting
   end
 end

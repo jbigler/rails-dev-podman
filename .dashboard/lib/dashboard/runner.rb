@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require "io/wait"
-
 module Dashboard
   # Runs action specs as jobs, one thread each (spec "Actions"). Every child
-  # starts in its own transient scope, so it outlives a dashboard restart. The
-  # Hub gets a frozen copy of the job when it starts, at most every
-  # PUBLISH_EVERY seconds while it prints, and when it ends.
+  # starts in its own transient scope and writes to a log file rather than a
+  # pipe (Runner::Spawn), so it outlives a dashboard stop or restart. The Hub
+  # gets a frozen copy of the job when it starts, at most every PUBLISH_EVERY
+  # seconds while it prints, and when it ends.
   class Runner
     # The worktree, or for a workspace action the workspace, already has a running job.
     class Busy < Error; end
@@ -25,8 +24,9 @@ module Dashboard
     Entry = Struct.new(:job, :keys, :child, :cancelled, :dirty, :wake)
 
     # local: the LocalPoller, poked when a job ends; github: the GithubPoller,
-    # hinted when a `github: true` job ends.
-    def initialize(hub:, ws:, spawner: Spawn.new, github: nil, local: nil)
+    # hinted when a `github: true` job ends. The default spawner logs to the
+    # workspace's PrivateDir.
+    def initialize(hub:, ws:, spawner: Spawn.new(File.join(PrivateDir.for(ws.prefix), "jobs")), github: nil, local: nil)
       @hub = hub
       @ws = ws
       @spawner = spawner
@@ -35,6 +35,7 @@ module Dashboard
       @lock = Mutex.new
       @running = []
       @last_id = 0
+      @logged = []
     end
 
     # worktree: the Worktree it runs for (nil for a workspace action); input: a
@@ -50,7 +51,9 @@ module Dashboard
         job = Job.new(id: @last_id += 1, worktree: worktree&.name, label: spec.label, state: :running, started_at: Time.now, lines: [])
         Entry.new(job:, keys:, cancelled: false, dirty: false, wake: Thread::Queue.new).tap do
           @running << it
+          @logged << job.id
           publish(it)
+          forget_dropped
         end
       end
       started = @lock.synchronize { copy(entry.job) }
@@ -85,6 +88,7 @@ module Dashboard
         append(entry, "error: #{e.message}")
         nil
       end
+    ensure
       finish(entry, spec, status)
     end
 
@@ -97,7 +101,7 @@ module Dashboard
       status = 0
       spec.argv.(@ws, wt, input).each do |argv|
         argv = [@ws.newterm, "--title", [wt&.name, spec.label].compact.join(": "), "--cwd", chdir, "--", *argv] if spec.mode == :terminal
-        child = @lock.synchronize { entry.child = @spawner.spawn(SCOPE + argv, env:, chdir:) unless entry.cancelled }
+        child = @lock.synchronize { entry.child = @spawner.spawn(SCOPE + argv, env:, chdir:, job: entry.job.id) unless entry.cancelled }
         return nil unless child
 
         child.each_line { append(entry, it) }
@@ -139,10 +143,12 @@ module Dashboard
       @lock.synchronize { publish(entry) if entry.dirty } until entry.wake.pop(timeout: PUBLISH_EVERY)
     end
 
-    # The pollers first, so the ended job is the last thing a page learns.
+    # The pollers first, so the ended job is the last thing a page learns; the
+    # job leaves @running even when they raise, or its locks would stay held.
     def finish(entry, spec, status)
       @local&.poke
       @github&.hint(:action) if spec.github
+    ensure
       @lock.synchronize do
         job = entry.job
         job.exit_status = status
@@ -153,8 +159,18 @@ module Dashboard
         job.finished_at = Time.now
         @running.delete(entry)
         publish(entry)
+        forget_dropped
       end
       entry.wake << :done
+    end
+
+    # Deletes the logs of jobs the Hub no longer keeps. Caller holds @lock.
+    def forget_dropped
+      kept = @hub.snapshot.jobs.map(&:id)
+      (@logged - kept).each do |id|
+        @spawner.forget(id)
+        @logged.delete(id)
+      end
     end
 
     # Caller holds @lock, so a copy never overtakes a later one.
@@ -164,88 +180,5 @@ module Dashboard
     end
 
     def copy(job) = job.dup.tap { it.lines = it.lines.dup.freeze }.freeze
-
-    # Starts children for real: argv without a shell, in its own process group,
-    # with ChildEnv plus env, stdin from /dev/null, stdout and stderr on one pipe.
-    class Spawn
-      # → a Child; a command that cannot start is one that printed why and exited 127.
-      def spawn(argv, env:, chdir:)
-        reader, writer = IO.pipe
-        pid = Process.spawn(ChildEnv.with(env), [argv.first, argv.first], *argv.drop(1),
-                            pgroup: true, unsetenv_others: true, in: File::NULL, out: writer, err: writer, chdir:)
-        Child.new(pid, reader)
-      rescue SystemCallError => e
-        reader&.close
-        Unstarted.new("error: #{argv.first}: #{e.message}")
-      ensure
-        writer&.close
-      end
-    end
-
-    # A started child process and the read end of its output pipe.
-    class Child
-      # Seconds the pipe may stay quiet after the child exited before reading stops.
-      POLL = 0.2
-      # Seconds between TERM and KILL.
-      GRACE = 3
-
-      def initialize(pid, io)
-        @pid = pid
-        @io = io
-        @waiter = Process.detach(pid)
-      end
-
-      # Yields each output line (bytes, without the newline; MAX_LINE bytes at
-      # most, so a long run without one is cut) until EOF, or until the child has
-      # exited and a descendant keeps the pipe open but quiet.
-      def each_line
-        buffer = String.new(encoding: Encoding::BINARY)
-        loop do
-          if @io.wait_readable(POLL)
-            chunk = @io.read_nonblock(65_536, exception: false)
-            break if chunk.nil?
-            next if chunk == :wait_readable
-
-            buffer << chunk
-            while (newline = buffer.index("\n"))
-              yield buffer.slice!(0..newline).chomp
-            end
-            yield buffer.slice!(0, MAX_LINE) while buffer.bytesize >= MAX_LINE
-          elsif !@waiter.alive?
-            break
-          end
-        end
-        yield buffer unless buffer.empty?
-      ensure
-        @io.close
-      end
-
-      # → the exit status, nil when a signal ended it.
-      def wait = @waiter.value.exitstatus
-
-      def kill
-        signal("TERM")
-        Thread.new do
-          sleep GRACE
-          signal("KILL")
-        end
-        nil
-      end
-
-      private
-
-      def signal(name)
-        Process.kill(name, -@pid)
-      rescue Errno::ESRCH, Errno::EPERM
-        nil
-      end
-    end
-
-    # A command that could not start: its reason as output, exit 127.
-    Unstarted = Data.define(:message) do
-      def each_line = yield(message)
-      def wait = 127
-      def kill = nil
-    end
   end
 end

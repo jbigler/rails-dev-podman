@@ -61,10 +61,11 @@ class FakeSpawner
     @hold = hold
     @lock = Mutex.new
     @calls = []
+    @forgotten = []
     @gates = Hash.new { |gates, command| gates[command] = Thread::Queue.new }
   end
 
-  def spawn(argv, env:, chdir:)
+  def spawn(argv, env:, chdir:, job:)
     command = argv.drop(SCOPE.size).join(" ")
     @lock.synchronize do
       @calls << Call.new(argv:, env:, chdir:)
@@ -74,6 +75,8 @@ class FakeSpawner
   end
 
   def calls = @lock.synchronize { @calls.dup }
+  def forget(job) = @lock.synchronize { @forgotten << job }
+  def forgotten = @lock.synchronize { @forgotten.dup }
   def commands = calls.map { it.argv.drop(SCOPE.size).join(" ") }
   def release(command) = @lock.synchronize { @gates[command] } << :go
 end

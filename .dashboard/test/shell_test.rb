@@ -15,7 +15,8 @@ class ShellTest < Minitest::Test
   def test_children_do_not_inherit_the_dashboards_bundle
     assert ENV.key?("BUNDLE_GEMFILE"), "the test process should run under Bundler"
     shell = Dashboard::Shell::Real.new.run(["env"], env: { "EXTRA" => "1" }).stdout
-    child = Dashboard::Runner::Spawn.new.spawn(["env"], env: { "EXTRA" => "1" }, chdir: Dir.tmpdir)
+    logs = Dir.mktmpdir("shell-logs")
+    child = Dashboard::Runner::Spawn.new("#{logs}/jobs").spawn(["env"], env: { "EXTRA" => "1" }, chdir: Dir.tmpdir, job: 1)
     spawned = +""
     child.each_line { spawned << it << "\n" }
 
@@ -27,6 +28,8 @@ class ShellTest < Minitest::Test
       assert_equal "1", vars["EXTRA"]
       assert_equal ENV["HOME"], vars["HOME"]
     end
+  ensure
+    FileUtils.rm_rf(logs) if logs
   end
 
   def test_timeout_kills_the_group
