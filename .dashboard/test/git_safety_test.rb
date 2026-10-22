@@ -41,6 +41,25 @@ class GitSafetyTest < Minitest::Test
     assert_equal "0", env["GIT_OPTIONAL_LOCKS"]
   end
 
+  def test_unreadable_filter_config_fails_closed
+    timed_out = Dashboard::Shell::Result.new(stdout: "", stderr: "", status: nil, timed_out: true)
+    [timed_out, Dashboard::Shell::Result.fail("fatal: bad config", status: 128)].each do |result|
+      with_shell(FakeShell.new("git -C #{@dir} config" => result)) do
+        assert_raises(Dashboard::GitSafety::Unsafe) { Dashboard::GitSafety.env(@dir) }
+      end
+    end
+  end
+
+  def test_no_filter_keys_is_core_overrides_only
+    with_shell(FakeShell.new("git -C #{@dir} config" => Dashboard::Shell::Result.fail("", status: 1))) do
+      env = Dashboard::GitSafety.env(@dir)
+
+      assert_equal "2", env["GIT_CONFIG_COUNT"]
+      assert_equal %w[core.fsmonitor core.hooksPath], [env["GIT_CONFIG_KEY_0"], env["GIT_CONFIG_KEY_1"]]
+      assert Dashboard::GitSafety::Unsafe < Dashboard::Error
+    end
+  end
+
   private
 
   # The developer's own git config must not change what these repos do.

@@ -18,4 +18,13 @@ class ShellTest < Minitest::Test
     assert result.timed_out
     assert_operator elapsed, :<, 2
   end
+
+  def test_timeout_holds_when_a_descendant_keeps_the_pipes
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    result = Dashboard::Shell::Real.new.run(["sh", "-c", "sleep 3 & echo hi"], timeout: 0.3)
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    assert result.timed_out
+    assert_operator elapsed, :<, 2
+  end
 end

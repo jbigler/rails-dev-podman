@@ -32,18 +32,23 @@ module Dashboard
     # Runs commands for real.
     class Real
       # argv without a shell, in its own process group so a timeout kills the
-      # whole tree. A missing binary is status 127, never an exception.
+      # whole tree. The deadline covers the pipes too: a descendant still
+      # holding stdout/stderr after the child exits is a timeout. A missing
+      # binary is status 127, never an exception.
       def run(argv, chdir: nil, timeout: TIMEOUT, env: {})
         opts = { pgroup: true, in: File::NULL }
         opts[:chdir] = chdir if chdir
         Open3.popen3(env, *argv, **opts) do |i, o, e, thr|
           i.close
-          out = Thread.new { o.read }
-          err = Thread.new { e.read }
-          unless thr.join(timeout)
+          out = reader(o)
+          err = reader(e)
+          deadline = now + timeout
+          unless [thr, out, err].all? { it.join([deadline - now, 0].max) }
             kill_group(thr.pid)
+            o.close
+            e.close
             thr.join
-            return Result.new(stdout: out.value.to_s, stderr: err.value.to_s, status: nil, timed_out: true)
+            return Result.new(stdout: out.value, stderr: err.value, status: nil, timed_out: true)
           end
           Result.new(stdout: out.value, stderr: err.value, status: thr.value.exitstatus, timed_out: false)
         end
@@ -52,6 +57,18 @@ module Dashboard
       end
 
       private
+
+      def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      # Reads to EOF, or until the pipe is closed under it; returns what it got.
+      def reader(io)
+        Thread.new do
+          buf = +""
+          loop { buf << io.readpartial(4096) }
+        rescue EOFError, IOError
+          buf
+        end
+      end
 
       def kill_group(pid)
         Process.kill("TERM", -pid)

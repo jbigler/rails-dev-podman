@@ -10,13 +10,25 @@ module Dashboard
     OVERRIDES = { "core.fsmonitor" => "false", "core.hooksPath" => "/dev/null" }.freeze
     FILTER_KEYS = '^filter\..*\.(clean|smudge|process)$'
 
+    # The filter drivers could not be listed, so no safe environment exists.
+    # Callers treat it as a failed read.
+    class Unsafe < Error; end
+
     # Not cached: a filter can arrive through any include.path file, whose
     # mtime no cache key here would see.
     def self.env(path)
-      base = config_env(OVERRIDES)
-      read = Shell.run(["git", "-C", path, "config", "--name-only", "--get-regexp", FILTER_KEYS], env: base)
-      filters = read.ok? ? read.stdout.lines(chomp: true).reject(&:empty?) : []
-      config_env(OVERRIDES.merge(filters.to_h { [it, ""] }))
+      config_env(OVERRIDES.merge(filter_keys(path).to_h { [it, ""] }))
+    end
+
+    # Exit 1 with no output is "no match"; anything else short of success
+    # (a timeout, a config git cannot parse) fails closed.
+    def self.filter_keys(path)
+      read = Shell.run(["git", "-C", path, "config", "--name-only", "--get-regexp", FILTER_KEYS],
+                       env: config_env(OVERRIDES))
+      return [] if !read.timed_out && read.status == 1 && read.stdout.empty?
+      raise Unsafe, "cannot list filter drivers in #{path}: #{read.error_line}" unless read.ok?
+
+      read.stdout.lines(chomp: true).reject(&:empty?)
     end
 
     def self.config_env(pairs)
@@ -27,6 +39,6 @@ module Dashboard
       end
       env
     end
-    private_class_method :config_env
+    private_class_method :filter_keys, :config_env
   end
 end
