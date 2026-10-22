@@ -81,37 +81,6 @@
     <% end %>
   </section>
 
-  <section class="block agent">
-    <h3>agent
-      <% if (chip = rtk(state, wt.name)) %>
-      <span class="rtk" title="<%= chip[1] %>"><%= chip[0] %></span>
-      <% end %>
-    </h3>
-    <% a = wt.agent %>
-    <% if unknown?(a) %>
-    <p class="muted">?</p>
-    <% elsif a.needs_input? %>
-    <p class="accent"><strong>◆ <%= a.state == :permission ? "needs permission" : "question" %><%= " · #{age(a.since)}" if a.since %></strong></p>
-    <% if a.message %>
-    <p class="message"><%= a.message %></p>
-    <% end %>
-    <% elsif a.state == :working %>
-    <p class="blue">● working<%= " · #{age(a.since)}" if a.since %></p>
-    <% if a.tool %>
-    <p class="muted tool"><%= a.tool %></p>
-    <% end %>
-    <% elsif a.state == :done %>
-    <p>· done<%= " #{age(a.since)} ago" if a.since %><% if a.last_message %> <span class="muted">· last message</span><% end %></p>
-    <% if a.last_message %>
-    <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
-    <% end %>
-    <% elsif a.state == :idle %>
-    <p class="muted">· idle</p>
-    <% else %>
-    <p class="muted">○ off</p>
-    <% end %>
-  </section>
-
   <section class="block services">
     <h3>services</h3>
     <% if unknown?(wt.services) %>
@@ -155,6 +124,37 @@
       <%== action_button(spec, action_path(wt, spec), disabled: busy) %>
       <% end %>
     </div>
+    <% end %>
+  </section>
+
+  <section class="block agent">
+    <h3>agent
+      <% if (chip = rtk(state, wt.name)) %>
+      <span class="rtk" title="<%= chip[1] %>"><%= chip[0] %></span>
+      <% end %>
+    </h3>
+    <% a = wt.agent %>
+    <% if unknown?(a) %>
+    <p class="muted">?</p>
+    <% elsif a.needs_input? %>
+    <p class="accent"><strong>◆ <%= a.state == :permission ? "needs permission" : "question" %><%= " · #{age(a.since)}" if a.since %></strong></p>
+    <% if a.message %>
+    <p class="message"><%= a.message %></p>
+    <% end %>
+    <% elsif a.state == :working %>
+    <p class="blue">● working<%= " · #{age(a.since)}" if a.since %></p>
+    <% if a.tool %>
+    <p class="muted tool"><%= a.tool %></p>
+    <% end %>
+    <% elsif a.state == :done %>
+    <p>· done<%= " #{age(a.since)} ago" if a.since %><% if a.last_message %> <span class="muted">· last message</span><% end %></p>
+    <% if a.last_message %>
+    <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
+    <% end %>
+    <% elsif a.state == :idle %>
+    <p class="muted">· idle</p>
+    <% else %>
+    <p class="muted">○ off</p>
     <% end %>
   </section>
 </section>

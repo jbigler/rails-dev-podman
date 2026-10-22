@@ -93,6 +93,13 @@ class RenderTest < Minitest::Test
     assert_includes down, 'aria-disabled="true"'
   end
 
+  # The agent block changes height with every status update, so it sits last: nothing below it jumps.
+  def test_agent_block_is_the_last_detail_block
+    html = R.detail(wt("wt-stacked"), state)
+    blocks = html.scan(/<section class="block ([\w-]+)/).flatten
+    assert_equal %w[pr-block services links actions agent], blocks
+  end
+
   def test_agent_tail_and_rtk
     file = Dashboard::Sources::AgentFiles.parse(JSON.generate(
       v: 2, phase: "done", last_message: "first " * 200 + "the end",
