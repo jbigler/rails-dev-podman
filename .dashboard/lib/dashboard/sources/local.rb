@@ -70,18 +70,20 @@ module Dashboard
         Sources.reread(names, known, ws.method(:status_file)) { parse(it) }
       end
 
+      # Each field must have its type, else it is absent (v: 0); not an object → nil.
       def self.parse(text)
         h = JSON.parse(text)
         return nil unless h.is_a?(Hash)
 
+        str = ->(key) { h[key].is_a?(String) ? h[key] : nil }
         ts = begin
-          Time.iso8601(h["ts"].to_s)
+          str.("ts")&.then { Time.iso8601(it) }
         rescue ArgumentError
           nil
         end
-        rtk = h["rtk"].is_a?(Hash) ? h["rtk"] : nil
-        StatusFile.new(v: h["v"].to_i, state: h["state"], phase: h["phase"], ts:, message: h["message"], tool: h["tool"],
-                       last_message: h["last_message"], rtk:)
+        StatusFile.new(v: h["v"].is_a?(Integer) ? h["v"] : 0, state: str.("state"), phase: str.("phase"), ts:,
+                       message: str.("message"), tool: str.("tool"), last_message: str.("last_message"),
+                       rtk: h["rtk"].is_a?(Hash) ? h["rtk"] : nil)
       rescue JSON::ParserError
         nil
       end

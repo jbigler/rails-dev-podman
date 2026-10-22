@@ -177,6 +177,47 @@ class SourcesTest < Minitest::Test
     end
   end
 
+  # /status is writable from every claude container: no file there may block,
+  # exhaust memory or break the poll for the other worktrees.
+  def test_hostile_status_files_are_absent_for_that_worktree_only
+    Dir.mktmpdir do |root|
+      w = Dashboard::Workspace.new(root:, prefix: "p", base_name: "master")
+      FileUtils.mkdir_p(w.status_dir)
+      File.write(w.status_file("good"), fixture("status", "wt-01.json"))
+      File.mkfifo(w.status_file("fifo"))
+      File.symlink(w.status_file("good"), w.status_file("link"))
+      File.open(w.status_file("huge"), "w") { it.write("{\"v\":2,\"message\":\"#{'x' * (2 * 1024 * 1024)}\"}") }
+      names = %w[good fifo link huge]
+      known = names.to_h { [it, Time.at(0)] }
+
+      read = Thread.new { S::AgentFiles.fetch(w, names, known) }
+      assert read.join(2), "a FIFO status file blocked the poll"
+      assert_equal ["good"], read.value[:changed].keys
+      assert_equal %w[fifo link huge], read.value[:gone]
+    end
+  end
+
+  def test_status_file_fields_of_the_wrong_type
+    ['{"v":{}}', '{"v":"2","state":5,"phase":[],"ts":{},"message":1,"tool":{},"last_message":[],"rtk":[1]}'].each do |text|
+      file = S::AgentFiles.parse(text)
+      assert_equal 0, file.v
+      assert_equal [nil] * 7, [file.state, file.phase, file.ts, file.message, file.tool, file.last_message, file.rtk], text
+    end
+    assert_nil S::AgentFiles.parse("true")
+    assert_nil S::AgentFiles.parse("[]")
+  end
+
+  def test_hostile_unit_env_file_is_refused
+    Dir.mktmpdir do |root|
+      w = Dashboard::Workspace.new(root:, prefix: "p", base_name: "master")
+      FileUtils.mkdir_p(File.dirname(w.unit_env_file("a")))
+      File.mkfifo(w.unit_env_file("a"))
+      read = Thread.new { S::UnitEnv.fetch(w, %w[a], { "a" => Time.at(0) }) }
+      assert read.join(2), "a FIFO .unit-env file blocked the poll"
+      assert_equal({ changed: {}, gone: ["a"] }, read.value)
+    end
+  end
+
   def test_status_file_keeps_rtk_savings
     file = S::AgentFiles.parse(fixture("status", "wt-stacked.json"))
     assert_equal 377_115, file.rtk["total_saved"]

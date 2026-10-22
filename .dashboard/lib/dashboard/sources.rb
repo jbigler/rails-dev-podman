@@ -30,18 +30,20 @@ module Dashboard
 
     # Files re-read only when their mtime changed. known: name => mtime already
     # loaded. → { changed: name => [mtime, parsed], gone: [names] }; a file the
-    # block parses to nil is skipped.
+    # block parses to nil is skipped. These files are container-writable: one
+    # that is not a regular file (a FIFO, a symlink) or is over SafeFile::LIMIT
+    # counts as gone, for that name only.
     def self.reread(names, known, path_of)
       changed = {}
       gone = []
       names.each do |name|
         path = path_of.(name)
-        mtime = File.mtime(path)
+        mtime = File.lstat(path).mtime
         next if mtime == known[name]
 
-        parsed = yield File.read(path)
+        parsed = yield SafeFile.read(path).force_encoding(Encoding::UTF_8).scrub
         changed[name] = [mtime, parsed] unless parsed.nil?
-      rescue SystemCallError
+      rescue SystemCallError, SafeFile::Refused
         gone << name if known.key?(name)
       end
       { changed:, gone: }
