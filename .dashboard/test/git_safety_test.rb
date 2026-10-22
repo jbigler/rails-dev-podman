@@ -144,6 +144,32 @@ class GitSafetyTest < Minitest::Test
     refute File.exist?("#{shadow}/hooks")
   end
 
+  # gh-stack lstat-checks <common>/worktrees and each worktree's admin dir and
+  # refuses symlinks ("worktree administration path … is not a directory"), so
+  # the shadow mirrors them as real directories whose entries link to the
+  # real files — and follows worktrees being added and removed.
+  def test_shadow_mirrors_worktree_admin_dirs_as_real_directories
+    shadow = @safety.env(@ws).fetch("GIT_COMMON_DIR")
+    admin = "#{shadow}/worktrees/wt"
+
+    assert File.lstat("#{shadow}/worktrees").directory?, "worktrees must be a real directory"
+    assert File.lstat(admin).directory?, "a worktree's admin dir must be a real directory"
+    assert_equal File.realpath("#{@base}/.git/worktrees/wt/HEAD"), File.realpath("#{admin}/HEAD")
+    refute File.exist?("#{admin}/config.worktree")
+
+    git "worktree", "add", "--quiet", "-b", "other", "#{@root}/other", "origin/master"
+    @safety.env(@ws)
+    assert File.lstat("#{shadow}/worktrees/other").directory?, "a new worktree did not reach the shadow"
+
+    git "worktree", "remove", "--force", @wt
+    @safety.env(@ws)
+    refute File.exist?(admin), "a removed worktree stayed in the shadow"
+
+    with_git_safety(@safety) do
+      assert_equal %w[master other], S::Worktrees.fetch(@ws).map(&:name)
+    end
+  end
+
   def test_non_regular_or_huge_config_fails_closed_without_blocking
     config = "#{@base}/.git/config"
     real = File.binread(config)

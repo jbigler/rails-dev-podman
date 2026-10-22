@@ -241,7 +241,9 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
   worktreeConfig a container writes ever reaches git, however it races the read. git lists the file (one
   `git config --list`); the dashboard writes the kept entries in one pass, and more than 2,000 of them fails
   closed, so a bloated config cannot hold the pollers. objects, refs, packed-refs,
-  worktrees, HEAD, shallow, gh-stack and reftable are symlinked; info/ and hooks/ are not. Overrides stay as
+  HEAD, shallow, gh-stack and reftable are symlinked; info/ and hooks/ are not. worktrees/ is a real directory
+  with a real directory per worktree whose entries link to the real admin files (no config.worktree): gh-stack
+  lstats both levels and refuses symlinks. It follows worktrees being added and removed. Overrides stay as
   defence in depth (core.fsmonitor=false, core.hooksPath=/dev/null, diff.ignoreSubmodules=all,
   submodule.recurse=false, GIT_OPTIONAL_LOCKS=0) and git status passes --ignore-submodules=all: a
   submodule's own config is never sanitized. A shadow that cannot be built fails the read closed (`?`) —
