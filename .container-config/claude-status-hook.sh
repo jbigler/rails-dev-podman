@@ -19,7 +19,11 @@ dir="${WT_STATUS_DIR:-/status}"
 [ -n "${WORKTREE_NAME:-}" ] && [ -d "$dir" ] || exit 0
 
 in=$(mktemp)
-trap 'rm -f "$in"' EXIT
+tmp=""
+# Exit 2 from a UserPromptSubmit or PreToolUse hook blocks the prompt or the
+# tool. Recording status must never do that, so any failure exits 1: Claude
+# reports it and carries on.
+trap 'status=$?; rm -f "$in" ${tmp:+"$tmp"}; [ "$status" = 0 ] || exit 1' EXIT
 cat > "$in"
 
 event=$(jq -r '.hook_event_name // empty' "$in" 2>/dev/null || true)
@@ -36,15 +40,21 @@ esac
 # container's per-worktree home, so the global figure is already scoped to this
 # worktree. ~4ms; falls back to null so a missing or broken rtk never costs us
 # the status file.
-rtk=$(rtk gain --format json 2>/dev/null | jq -c '.summary' 2>/dev/null) || rtk=""
+rtk=$(rtk gain --format json 2>/dev/null \
+  | jq -cs 'if length == 1 then .[0].summary // null else null end' 2>/dev/null) || rtk="null"
 [ -n "$rtk" ] || rtk="null"
 
+# Exactly one JSON object, else {}: an empty, cut-off or doubled file must
+# never reach --argjson, where it would fail every later event too.
 file="$dir/${WORKTREE_NAME}.json"
 prev="{}"
-[ -f "$file" ] && prev=$(jq -c 'if type == "object" then . else {} end' "$file" 2>/dev/null || echo "{}")
+[ -f "$file" ] && { prev=$(jq -cs 'if length == 1 and (.[0] | type) == "object" then .[0] else {} end' "$file" 2>/dev/null) || prev="{}"; }
+[ -n "$prev" ] || prev="{}"
 
-# Temp + rename so the dashboard never reads a half-written file.
-tmp="$dir/.${WORKTREE_NAME}.tmp"
+# Temp + rename so the dashboard never reads a half-written file. A temp of its
+# own: subagents fire these hooks alongside the main session, and a shared name
+# let one hook rename another's half-written temp into place.
+tmp=$(mktemp "$dir/.${WORKTREE_NAME}.XXXXXX")
 jq -c \
   --argjson prev "$prev" \
   --argjson rtk "$rtk" \
@@ -104,4 +114,5 @@ jq -c \
       $base + {phase: "offline"}
     end
 ' "$in" > "$tmp"
+chmod 644 "$tmp" # mktemp's 0600; the dashboard reads it on the host
 mv "$tmp" "$file"

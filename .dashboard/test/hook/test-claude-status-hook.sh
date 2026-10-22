@@ -67,4 +67,46 @@ check "SessionEnd: offline" '.phase == "offline" and .state == "offline"'
 
 check "web dashboard fields still present" 'has("state") and has("ts") and has("rtk")'
 
+# --- Never blocks Claude: exit 2 from a UserPromptSubmit/PreToolUse hook blocks
+# the prompt or tool, so bad state must not turn into jq's exit 2.
+status_of() { set +e; sh "$hook" < "$1" 2>/dev/null; echo $?; set -e; }
+expect() { # expect "<description>" <status> '<jq boolean expression>'
+  if [ "$2" = 0 ] && jq -e "$3" "$f" >/dev/null 2>&1; then echo "ok   - $1"
+  else echo "FAIL - $1 (exit $2)"; echo "       file: $(cat "$f" 2>/dev/null)"; fail=1; fi
+}
+
+: > "$f"
+expect "an empty status file starts fresh" "$(status_of "$p/UserPromptSubmit.json")" '.phase == "working" and .v == 2'
+
+printf '%s\n%s\n' '{"phase":"done"}' '{"phase":"idle"}' > "$f"
+expect "two concatenated status documents start fresh" "$(status_of "$p/UserPromptSubmit.json")" '.phase == "working"'
+
+bin=$(mktemp -d)
+printf '#!/bin/sh\necho %s\necho %s\n' "'{\"summary\":{\"total_commands\":1}}'" "'{\"summary\":{\"total_commands\":2}}'" > "$bin/rtk"
+chmod +x "$bin/rtk"
+expect "rtk printing two documents gives rtk null" "$(PATH="$bin:$PATH" status_of "$p/PreToolUse.Bash.json")" '.rtk == null and .tool == "Bash: ls -la"'
+printf '#!/bin/sh\necho %s\n' "'{\"summary\":{\"total_commands\":3}}'" > "$bin/rtk"
+expect "rtk's summary is kept" "$(PATH="$bin:$PATH" status_of "$p/PreToolUse.Bash.json")" '.rtk.total_commands == 3'
+rm -rf "$bin"
+
+# Subagents fire hooks alongside the main session, in the same worktree.
+statuses=$(mktemp)
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  for e in UserPromptSubmit PreToolUse.Bash PostToolUse; do
+    (set +e; sh "$hook" < "$p/$e.json" 2>/dev/null; echo $? >> "$statuses") &
+  done
+done
+wait
+if [ "$(sort -u "$statuses")" = 0 ] && jq -e '.v == 2' "$f" >/dev/null 2>&1 && [ -z "$(find "$dir" -name '.general-work.*' ! -name '*.lock')" ]; then
+  echo "ok   - 60 concurrent hooks: all exit 0, the file is whole, no temp files left"
+else
+  echo "FAIL - concurrent hooks: exits $(sort "$statuses" | uniq -c | tr '\n' ' ')"; echo "       file: $(cat "$f")"; ls -a "$dir"; fail=1
+fi
+rm -f "$statuses"
+
+chmod 555 "$dir"
+s=$(status_of "$p/UserPromptSubmit.json")
+chmod 755 "$dir"
+if [ "$s" != 2 ] && [ "$s" != 0 ]; then echo "ok   - a failure exits $s (reported), never 2 (blocks)"; else echo "FAIL - unwritable status dir exits $s"; fail=1; fi
+
 [ "$fail" = 0 ] && echo "all passed" || { echo "FAILED"; exit 1; }
