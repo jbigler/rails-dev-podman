@@ -83,12 +83,16 @@ module Dashboard
 
     # `gh stack view --json` in one worktree (§3.5).
     module Stack
+      # What gh-stack says on a branch outside any stack (and on the trunk).
+      # Every other failure is a failed read, not "no stack".
+      NO_STACK = /is not part of a stack|belongs to multiple stacks/
+
       def self.fetch(ws, path)
         r = Shell.run(%w[gh stack view --json], chdir: path, timeout: Shell::GH_TIMEOUT, env: Sources.git_env(ws))
-        raise Failed, "gh stack view: #{r.error_line}" if r.broken?
-        return nil unless r.ok? # any other non-zero exit: not in a stack
+        return parse(r.stdout) if r.ok?
+        return nil if !r.broken? && "#{r.stderr}\n#{r.stdout}".match?(NO_STACK)
 
-        parse(r.stdout)
+        raise Failed, "gh stack view: #{r.error_line}"
       end
 
       def self.parse(text)

@@ -6,6 +6,10 @@ require "minitest/autorun"
 require "tmpdir"
 require "fileutils"
 require_relative "../lib/dashboard"
+require "stringio"
+
+# Log lines (failed reads, guarded errors) go to a buffer, not the test output.
+Dashboard.log_io = StringIO.new
 
 # Replays canned results for argv prefixes and records every call, so no test
 # needs podman, systemd, gh or mise.

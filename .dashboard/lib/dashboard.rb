@@ -7,6 +7,14 @@ require "open3"
 module Dashboard
   # Base of every error the dashboard raises on purpose.
   class Error < StandardError; end
+
+  # Where the dashboard logs (stderr, i.e. the unit's journal). Tests swap it
+  # for a buffer so their output stays clean.
+  class << self
+    attr_writer :log_io
+
+    def log(message) = (@log_io || $stderr).puts("dashboard: #{message}")
+  end
 end
 
 require_relative "dashboard/child_env"

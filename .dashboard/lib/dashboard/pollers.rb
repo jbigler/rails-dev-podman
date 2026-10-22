@@ -7,10 +7,13 @@ module Dashboard
 
     private
 
-    # A raised Sources::Failed keeps the previous value and marks the key failed.
+    # A raised Sources::Failed keeps the previous value and marks the key
+    # failed. A new or changed failure is also logged (the journal), since the
+    # page only shows `?`.
     def read(key)
       @hub.apply(key, yield)
     rescue Sources::Failed => e
+      Dashboard.log("#{Array(key).join(':')}: #{e.message}") unless @hub.snapshot.failed[Array(key).join(":")] == e.message
       @hub.apply(key, nil, failed: e.message)
     end
 
@@ -18,7 +21,7 @@ module Dashboard
     def guarded
       yield
     rescue StandardError => e
-      warn "dashboard: #{self.class.name}: #{e.class}: #{e.message}"
+      Dashboard.log("#{self.class.name}: #{e.class}: #{e.message}")
     end
   end
 

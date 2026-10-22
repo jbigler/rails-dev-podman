@@ -155,7 +155,19 @@ class SourcesTest < Minitest::Test
     with_shell(FakeShell.new("gh stack view" => R.fail(fixture("gh-stack-view.master.json")))) do
       assert_nil S::Stack.fetch(ws, "/r/master")
     end
+    not_in = R.fail(%(✗ current branch "feature/x" is not part of a stack), status: 2)
+    with_shell(FakeShell.new("gh stack view" => not_in)) { assert_nil S::Stack.fetch(ws, "/r/master") }
     with_shell(FakeShell.new) { assert_raises(S::Failed) { S::Stack.fetch(ws, "/r/master") } }
+  end
+
+  # Any other failure (auth, a git error, an unreadable catalog) is not "no
+  # stack": it shows as unknown, and its message reaches the log.
+  def test_stack_other_errors_are_failures_not_no_stack
+    broken = R.fail("error: failed to load stack catalog: permission denied", status: 1)
+    with_shell(FakeShell.new("gh stack view" => broken)) do
+      error = assert_raises(S::Failed) { S::Stack.fetch(ws, "/r/master") }
+      assert_match(/failed to load stack catalog/, error.message)
+    end
   end
 
   def test_repo_from_remote_url
