@@ -42,7 +42,7 @@ class ActionsTest < Minitest::Test
     refute runner.jobs.any?(&:running?), "a job still runs after 1 s"
   end
 
-  def argv(id, name = "wt-01", input = nil) = A.find(id).argv.(ws, name && wt(name), input)
+  def argv(id, name = "wt-01", input = nil, wt_name = nil) = A.find(id).argv.(ws, name && wt(name), input, wt_name)
 
   def test_down_is_forced
     assert_equal({ "FORCE" => "1" }, A.find("down").env)
@@ -58,8 +58,9 @@ class ActionsTest < Minitest::Test
     assert_equal [%w[mise run test:rails_system]], argv("test-system")
     assert_equal [%w[mise run rails]], argv("shell")
     assert_equal [%w[gh stack push]], argv("stack-push")
-    assert_equal [%w[mise run wt:rm wt-01]], argv("wt-rm")
+    assert_equal [["mise", "run", "wt:rm", "#{ROOT}/wt-01"]], argv("wt-rm")
     assert_equal [%w[mise run wt feature/x]], argv("wt-create", nil, "feature/x")
+    assert_equal [%w[mise run wt 123 --name short]], argv("wt-create", nil, "123", "short")
     assert_equal [%w[mise run dashboard:autostart off]], argv("autostart-off", nil)
     assert_equal :terminal, A.find("restack").mode
     assert_equal %i[workspace workspace], [A.find("wt-rm").scope, A.find("wt-create").scope]
@@ -122,6 +123,18 @@ class ActionsTest < Minitest::Test
     assert_nil runner.jobs.last.worktree
   ensure
     release_all
+  end
+
+  # The name prompt's answer becomes --name; a blank one is the script's default.
+  def test_wt_create_passes_the_name
+    post "/act/wt-create", { input: "feature/x", name: " my wt " }, POST
+    assert_equal 202, last_response.status
+    settle
+    assert_equal %w[wt feature/x --name my\ wt], spawner.calls.last.argv.last(4)
+    post "/act/wt-create", { input: "feature/y", name: "  " }, POST
+    settle
+    assert_equal %w[run wt feature/y], spawner.calls.last.argv.last(3)
+    assert_includes Dashboard::Render.header(hub.snapshot, repo: "r"), "data-action-name-prompt-param="
   end
 
   def test_discard_reaches_wt_rm

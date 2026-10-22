@@ -114,7 +114,7 @@ class RunnerTest < Minitest::Test
     finished(r, r.start(A.find("wt-rm"), worktree: wt("wt-03"), discard: true))
     down, keep, discard = spawner.calls
     assert_equal "1", down.env["FORCE"]
-    assert_equal %w[mise run wt:rm wt-02], keep.argv.last(4)
+    assert_equal ["mise", "run", "wt:rm", "#{ROOT}/wt-02"], keep.argv.last(4)
     assert_equal ROOT, keep.chdir
     refute keep.env.key?("FORCE")
     assert_equal "1", discard.env["FORCE"]

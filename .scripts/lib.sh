@@ -8,7 +8,9 @@ WORKTREE_NAME_MAX_LEN=40
 # trailing '-', cap at $WORKTREE_NAME_MAX_LEN chars, then strip any trailing
 # '-' that the cap may have left behind.
 sanitize_worktree_name() {
-  echo "$1" \
+  # printf, not echo: a typed name may start with '-' or hold backslashes; and
+  # newlines become blanks, so a name is always one line.
+  printf '%s' "$1" | tr '\n' ' ' \
     | sed 's/[^a-zA-Z0-9]/-/g' \
     | tr '[:upper:]' '[:lower:]' \
     | sed 's/--*/-/g; s/^-//; s/-$//' \

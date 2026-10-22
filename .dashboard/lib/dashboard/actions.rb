@@ -9,12 +9,15 @@ module Dashboard
     # worktree, its folder) or :workspace (every workspace action, ROOT).
     # target: what the button belongs to — :worktree (the detail pane, POST
     # /w/<W>/act/<id>) or :workspace (the header, POST /act/<id>).
-    # argv: ->(ws, wt, input) { [[String]] }, run in order up to the first failure.
+    # argv: ->(ws, wt, input, name) { [[String]] }, run in order up to the first failure.
     # env: Hash, or ->(discard) { Hash } for an action with the "discard uncommitted changes" choice.
     # confirm: the question asked first; prompt: the question whose answer is `input` (required).
+    # name_prompt: asked after `prompt`, prefilled with the default (the page's slug of the branch);
+    # its answer is `name`, blank for the default.
     # choices: ->(wt) { [String] }, the only `input`s the action takes (required) — a button carries its own.
     # github: the job's end hints the GitHub poller; base_ok: false keeps it off the base worktree.
-    Spec = Data.define(:id, :label, :mode, :scope, :target, :argv, :env, :confirm, :prompt, :choices, :github, :base_ok) do
+    Spec = Data.define(:id, :label, :mode, :scope, :target, :argv, :env, :confirm, :prompt, :name_prompt, :choices, :github,
+                       :base_ok) do
       def environment(discard) = discardable? ? env.(discard) : env
       def discardable? = env.respond_to?(:call)
       def takes_input? = !(prompt || choices).nil?
@@ -25,19 +28,19 @@ module Dashboard
 
     def self.mise(*args) = ["mise", "run", *args]
 
-    def self.spec(id, label, argv, mode: :stream, scope: :worktree, target: scope, env: {}, confirm: nil, prompt: nil, choices: nil,
-                  github: false, base_ok: true)
-      Spec.new(id:, label:, mode:, scope:, target:, argv:, env:, confirm:, prompt:, choices:, github:, base_ok:)
+    def self.spec(id, label, argv, mode: :stream, scope: :worktree, target: scope, env: {}, confirm: nil, prompt: nil, name_prompt: nil,
+                  choices: nil, github: false, base_ok: true)
+      Spec.new(id:, label:, mode:, scope:, target:, argv:, env:, confirm:, prompt:, name_prompt:, choices:, github:, base_ok:)
     end
 
     # A spec running one fixed command.
     def self.fixed(id, label, *argv, **)
       commands = [argv.freeze].freeze
-      spec(id, label, ->(_ws, _wt, _input) { commands }, **)
+      spec(id, label, ->(*) { commands }, **)
     end
 
     # podman attach to the worktree's running Claude container, else start one.
-    def self.claude(ws, wt, _input)
+    def self.claude(ws, wt, *)
       name = ws.container(wt.name, "claude")
       r = Shell.run(["podman", "container", "inspect", "--format", "{{.State.Running}}", name])
       r.ok? && r.stdout.strip == "true" ? [["podman", "attach", name]] : [mise("claude")]
@@ -53,7 +56,7 @@ module Dashboard
       fixed("stop", "stop", *mise("stop")),
       fixed("down", "down", *mise("down"), env: FORCE, confirm: "Stop this worktree and delete its db, rustfs and node_modules volumes?"),
       *SERVICES.map { fixed("restart-#{it}", "restart #{it}", *mise("restart", it)) },
-      spec("restart-all", "restart all", ->(_ws, _wt, _input) { [mise("stop"), mise("up")] }),
+      spec("restart-all", "restart all", ->(*) { [mise("stop"), mise("up")] }),
       fixed("test", "test", *mise("test")),
       fixed("test-rails", "test rails", *mise("test:rails")),
       fixed("test-javascript", "test javascript", *mise("test:javascript")),
@@ -70,13 +73,15 @@ module Dashboard
       fixed("stack-up", "stack up", "gh", "stack", "up", github: true),
       fixed("stack-down", "stack down", "gh", "stack", "down", github: true),
       fixed("restack", "restack", "gh", "stack", "rebase", mode: :terminal),
-      spec("stack-switch", "switch to", ->(_ws, _wt, input) { [["git", "switch", "--no-guess", input]] },
+      spec("stack-switch", "switch to", ->(_ws, _wt, input, _name) { [["git", "switch", "--no-guess", input]] },
            choices: method(:stack_branches), github: true),
-      spec("wt-rm", "remove worktree", ->(_ws, wt, _input) { [mise("wt:rm", wt.name)] },
+      # The path, never the name: a name can also be another worktree's branch (wt:rm refuses that as ambiguous).
+      spec("wt-rm", "remove worktree", ->(_ws, wt, *) { [mise("wt:rm", wt.path)] },
            **WORKSPACE, target: :worktree, env: ->(discard) { discard ? FORCE : {} }, confirm: "Remove this worktree?", github: true,
            base_ok: false),
-      spec("wt-create", "new worktree", ->(_ws, _wt, input) { [mise("wt", input)] },
-           **WORKSPACE, github: true, prompt: "Branch, PR number or new branch name:"),
+      spec("wt-create", "new worktree", ->(_ws, _wt, input, name) { [mise("wt", input, *(["--name", name] if name))] },
+           **WORKSPACE, github: true, prompt: "Branch, PR number or new branch name:",
+           name_prompt: "Worktree name (its folder, hosts and units; need not match the branch):"),
       fixed("units-install", "install units", *mise("units:install"), **WORKSPACE),
       fixed("autostart-on", "start at login: on", *mise("dashboard:autostart", "on"), **WORKSPACE),
       fixed("autostart-off", "start at login: off", *mise("dashboard:autostart", "off"), **WORKSPACE)

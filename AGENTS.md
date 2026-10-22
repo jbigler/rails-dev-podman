@@ -35,9 +35,13 @@ no Docker anywhere in the runtime — the last Compose version is tagged docker-
 
 ## Worktree lifecycle
 
-mise run wt <branch|PR#|new-branch> → .scripts/create-worktree.sh:
+mise run wt <branch|PR#|new-branch> [--name <worktree-name>] → .scripts/create-worktree.sh:
 
-1. Resolve branch (PR# via gh), sanitize name (lower, no-alphanum→-, cap 40; hash suffix for collision).
+1. Resolve branch (PR# via gh). Choose the worktree name, which need not match the branch: --name, else
+   in a terminal ask `Worktree name [<default>]:` (blank = default; re-asks on a taken or empty name),
+   else the default — the branch's slug, with a hash suffix when taken. Every name goes through
+   sanitize_worktree_name (lower, no-alphanum→-, cap 40), so spaces become '-' and a name with no
+   letters or digits is refused.
 2. git worktree add (local/remote branch or new from HEAD).
 3. Allocate next WORKTREE_ID = max(registry)+1, append slug:ID to ports.registry (only after add succeeds).
 4. Render mise.local.toml from .mise/local.toml.template (WORKTREE_ID).
@@ -45,7 +49,9 @@ mise run wt <branch|PR#|new-branch> → .scripts/create-worktree.sh:
 6. Seed untracked files from master/ per .container-config/worktree-seed.txt.
 7. mise trust -y && mise install in new dir.
 
-mise run wt:rm <branch|dir> → .scripts/remove-worktree.sh: reject base;  
+mise run wt:rm <branch|name|path> → .scripts/remove-worktree.sh: resolve by absolute path (what the dashboard and
+clean pass), else the branch checked out in a worktree, else an exact worktree name — never the branch's
+slug, which can be another worktree's name; a branch and a name hitting two worktrees is refused; reject base;
 reject dirty worktree unless FORCE=1; stop the worktree's units (systemd owns the containers, so  
 `podman stop` alone would let Restart=on-failure bring them back); remove its containers, its three  
 volumes and its network **by exact name** — a `name=^<prefix>-<slug>-` filter is an unanchored regex  

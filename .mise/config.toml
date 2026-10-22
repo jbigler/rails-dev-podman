@@ -164,9 +164,12 @@ run = """
 """
 
 [tasks.wt]
-description = "Create a worktree: mise run wt <branch|PR#|new-branch-name>"
-usage = 'arg "<branch>" help="existing branch name, PR number, or new branch name"'
-run = '{{config_root}}/.scripts/create-worktree.sh "$usage_branch"'
+description = "Create a worktree: mise run wt <branch|PR#|new-branch-name> [--name <worktree-name>]. Asks for the worktree's name (default: the branch's) when run in a terminal without --name."
+usage = '''
+arg "<branch>" help="existing branch name, PR number, or new branch name"
+flag "--name <name>" help="the worktree's name (directory, hosts, units), sanitized like a branch name; default: asked in a terminal, else the branch's"
+'''
+run = '{{config_root}}/.scripts/create-worktree.sh "$usage_branch" "${usage_name:-}"'
 
 [tasks."wt:ls"]
 description = "List all worktrees"

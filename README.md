@@ -146,10 +146,10 @@ There is no login: it answers only on 127.0.0.1, only for its own host names, an
 
 ### Worktrees
 
-- `mise run wt <branch | PR# | new-branch>` — create a new git worktree with its own mise.local.toml and ports
+- `mise run wt <branch | PR# | new-branch> [--name <worktree-name>]` — create a new git worktree with its own mise.local.toml and ports; asks for the worktree's name (default: the branch's) unless `--name` is given or there is no terminal
 - `mise run wt:ls` — list all worktrees
 - `mise run wt:open [browser]` — open the current worktree URL (`xdg-open` by default)
-- `mise run wt:rm <branch | dir-name>` — fully remove a worktree: its units, containers, volumes and network, its git registration, ports.registry entry, container home and folder (refuses on the base worktree)
+- `mise run wt:rm <branch | worktree-name | path>` — fully remove a worktree: its units, containers, volumes and network, its git registration, ports.registry entry, container home and folder (refuses on the base worktree, and on a branch and name that point at two worktrees)
 - `mise run wt:share` / `wt:unshare` — expose this one worktree (app + S3) over the tailnet for phone testing
 
 ### Development

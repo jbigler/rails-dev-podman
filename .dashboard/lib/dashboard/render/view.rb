@@ -269,6 +269,7 @@ module Dashboard
       def action_button(spec, url, disabled: false, label: spec.label, input: nil, cls: nil, title: nil)
         attrs = { "type" => "button", "class" => cls, "data-action" => "action#run", "data-action-url-param" => url,
                   "data-action-confirm-param" => spec.confirm, "data-action-prompt-param" => spec.prompt,
+                  "data-action-name-prompt-param" => spec.name_prompt,
                   "data-action-input-param" => input, "data-action-discard-param" => ("true" if spec.discardable?),
                   "title" => title || ("opens a terminal" if spec.mode == :terminal) }
         html = attrs.filter_map { |key, value| %( #{key}="#{ERB::Util.html_escape(value)}") unless value.nil? }.join

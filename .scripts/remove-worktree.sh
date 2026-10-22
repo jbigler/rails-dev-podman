@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-input="${1:?Usage: mise run wt:rm <branch|dir-name>}"
+input="${1:?Usage: mise run wt:rm <branch|worktree-name|path>}"
 
 . "$(dirname "$0")/lib.sh"
 root=$(find_project_root)
@@ -11,21 +11,51 @@ run_git() {
   git -C "$git_dir" "$@"
 }
 
-# Sanitize the same way as creation. Note: this only resolves the
-# canonical (un-hashed) slug. If the worktree was created with a hash
-# suffix due to name collision, pass the full directory name directly.
-clean_name=$(sanitize_worktree_name "$input")
+# → the name of the worktree directory at path $1 if it sits directly under the
+# root; nothing otherwise. Physical paths, so a symlinked root still matches.
+name_at() {
+  case "$(basename "$1")" in .|..) return 0 ;; esac
+  (
+    parent=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || exit 0
+    [ "$parent" = "$(cd "$root" && pwd -P)" ] && [ -d "$1" ] && basename "$1"
+  ) || true
+}
+
+# Which worktree. A worktree's name need not match its branch (wt --name), so
+# a guess from the branch's slug could pick another branch's worktree; this
+# never guesses:
+# - an absolute path (what the dashboard and `clean` pass): that directory;
+# - a branch checked out in a worktree: that worktree;
+# - a worktree directory's name: that one.
+# A branch and a name pointing at two different worktrees is refused.
+clean_name=""
+case "$input" in
+  /*)
+    clean_name=$(name_at "${input%/}")
+    ;;
+  *)
+    by_branch=$(run_git worktree list --porcelain \
+      | awk -v b="branch refs/heads/${input}" '/^worktree / { p = substr($0, 10) } $0 == b { print p }')
+    [ -z "$by_branch" ] || by_branch=$(name_at "$by_branch")
+    by_name=""
+    case "$input" in
+      ''|.|..|*/*) ;;
+      *) [ -d "${root}/${input}" ] && by_name="$input" ;;
+    esac
+    if [ -n "$by_branch" ] && [ -n "$by_name" ] && [ "$by_branch" != "$by_name" ]; then
+      echo "Error: '${input}' is ambiguous: branch ${input} is checked out in '${by_branch}'," >&2
+      echo "but '${by_name}' is another worktree's name. Pass the path of the one to remove:" >&2
+      echo "  mise run wt:rm ${root}/${by_branch}" >&2
+      echo "  mise run wt:rm ${root}/${by_name}" >&2
+      exit 1
+    fi
+    clean_name="${by_branch:-$by_name}"
+    ;;
+esac
 worktree_dir="${root}/${clean_name}"
 
-# If the un-hashed slug doesn't exist, try the input verbatim — it may
-# already be the hash-suffixed dir name.
-if [ ! -d "$worktree_dir" ] && [ -d "${root}/${input}" ]; then
-  clean_name="$input"
-  worktree_dir="${root}/${input}"
-fi
-
-if [ ! -d "$worktree_dir" ]; then
-  echo "Worktree not found: $worktree_dir"
+if [ -z "$clean_name" ]; then
+  echo "Worktree not found: ${input}"
   echo ""
   echo "Known worktrees:"
   run_git worktree list

@@ -42,9 +42,10 @@ module Dashboard
     end
 
     # worktree: the Worktree it runs for (nil for a workspace action); input: a
-    # prompted spec's answer or the chosen one of its choices; discard: wt-rm's "discard uncommitted changes".
+    # prompted spec's answer or the chosen one of its choices; name: the answer to
+    # its name_prompt (nil for the default); discard: wt-rm's "discard uncommitted changes".
     # → the Job as it starts. Raises Busy.
-    def start(spec, worktree:, input: nil, discard: false)
+    def start(spec, worktree:, input: nil, name: nil, discard: false)
       keys = [(:workspace if spec.scope == :workspace), worktree&.name].compact
       entry = @lock.synchronize do
         if (other = @running.find { it.keys.intersect?(keys) })
@@ -61,7 +62,7 @@ module Dashboard
         end
       end
       started = @lock.synchronize { copy(entry.job) }
-      Thread.new { run(entry, spec, worktree, input, discard) }.name = "job-#{entry.job.id}"
+      Thread.new { run(entry, spec, worktree, [input, name], discard) }.name = "job-#{entry.job.id}"
       started
     end
 
@@ -84,10 +85,11 @@ module Dashboard
 
     private
 
-    def run(entry, spec, wt, input, discard)
+    # answers: [input, name].
+    def run(entry, spec, wt, answers, discard)
       Thread.new { flush(entry) }.name = "job-#{entry.job.id}-flush"
       status = begin
-        execute(entry, spec, wt, input, discard)
+        execute(entry, spec, wt, answers, discard)
       rescue StandardError => e
         append(entry, "error: #{e.message}")
         nil
@@ -98,12 +100,12 @@ module Dashboard
 
     # Runs the spec's commands up to the first failure. → the last exit status
     # (nil when killed or cancelled before a command started).
-    def execute(entry, spec, wt, input, discard)
+    def execute(entry, spec, wt, answers, discard)
       before = refs if spec.id == CREATE
       env = SessionEnv.current.merge(spec.environment(discard))
       chdir = spec.scope == :workspace ? @ws.root : wt.path
       status = 0
-      spec.argv.(@ws, wt, input).each do |argv|
+      spec.argv.(@ws, wt, *answers).each do |argv|
         argv = [@ws.newterm, "--title", [wt&.name, entry.job.title].compact.join(": "), "--cwd", chdir, "--", *argv] if spec.mode == :terminal
         child = @lock.synchronize { entry.child = @spawner.spawn(SCOPE + argv, env:, chdir:, job: entry.job.id) unless entry.cancelled }
         return nil unless child

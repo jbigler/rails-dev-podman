@@ -1,19 +1,25 @@
 // On <body>: the action buttons. `run` POSTs to the button's url param with
 // the page's token, after its confirm param (confirm()), its prompt param
 // (prompt(), sent as `input`) or, with the discard param, the remove dialog and
-// its "discard uncommitted changes" checkbox (sent as `discard=1`). An input
-// param is sent as `input` as is. A job this page started that created a
-// worktree opens it when done ("select it when done"). A 403 that asks for a
-// reload means the server restarted.
+// its "discard uncommitted changes" checkbox (sent as `discard=1`). A name
+// prompt param asks next, prefilled with the answer's slug (sent as `name`;
+// empty for the default). An input param is sent as `input` as is. A job this
+// page started that created a worktree opens it when done ("select it when
+// done"). A 403 that asks for a reload means the server restarted.
 import { Controller } from "@hotwired/stimulus"
 import { visit } from "@hotwired/turbo"
 
 const started = new Set() // job ids this page started
 
+// .scripts/lib.sh's sanitize_worktree_name, for the prefill only: the script
+// sanitizes whatever is sent again.
+const slug = (text) =>
+  text.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase().replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40).replace(/-$/, "")
+
 export default class extends Controller {
   static targets = ["job"]
 
-  async run({ params: { url, confirm: question, prompt: ask, discard, input: given } }) {
+  async run({ params: { url, confirm: question, prompt: ask, namePrompt, discard, input: given } }) {
     const body = new URLSearchParams()
     if (discard) {
       const answer = await this.removeDialog(question)
@@ -26,6 +32,15 @@ export default class extends Controller {
       const input = window.prompt(ask)
       if (input === null || input.trim() === "") return
       body.set("input", input.trim())
+      if (namePrompt) {
+        // A PR number's branch is only known once the script asks GitHub.
+        const pr = /^\d+$/.test(input.trim())
+        const fallback = pr ? "" : slug(input.trim())
+        const name = window.prompt(pr ? `${namePrompt}\nLeave empty for the PR branch's name.` : namePrompt, fallback)
+        if (name === null) return
+        // The prefill kept is no name: the script's default also dodges a taken slug.
+        if (name.trim() !== "" && name.trim() !== fallback) body.set("name", name.trim())
+      }
     } else if (given) {
       body.set("input", given)
     }

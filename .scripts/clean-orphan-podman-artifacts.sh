@@ -147,7 +147,8 @@ sweep_finished_worktrees() {
   esac
   for slug in "${candidates[@]}"; do
     echo ""
-    "$root/.scripts/remove-worktree.sh" "$slug" || echo "warn: wt:rm $slug failed; continuing" >&2
+    # The path, never the bare name: a name can also be some other worktree's branch.
+    "$root/.scripts/remove-worktree.sh" "$root/$slug" || echo "warn: wt:rm $slug failed; continuing" >&2
   done
   echo ""
 }
