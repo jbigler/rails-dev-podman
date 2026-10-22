@@ -1,0 +1,10 @@
+<ul class="palette-list" data-palette-url="<%= url %>">
+  <% rows.each do |task, args, mode| %>
+  <li data-palette-target="item" data-palette-name="<%= task.name %>"<% if args %> data-palette-args="<%= args %>"<% end %><% if mode == :terminal %> title="opens a terminal"<% end %>>
+    <button type="button" data-action="palette#pick" tabindex="-1">
+      <strong><%= task.name %></strong><% if args %> <span class="muted">‹<%= args %> args›</span><% end %>
+      <span class="muted"><%= task.description %></span>
+    </button>
+  </li>
+  <% end %>
+</ul>

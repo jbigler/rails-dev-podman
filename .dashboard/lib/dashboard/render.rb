@@ -11,7 +11,7 @@ module Dashboard
   # HTML-escaped unless a template says <%== %>.
   module Render
     VIEWS = File.expand_path("../../views", __dir__)
-    TEMPLATES = %w[layout page _header _list _row _detail _job].to_h do |name|
+    TEMPLATES = %w[layout page _header _list _row _detail _job _palette].to_h do |name|
       [name, Tilt::ErubiTemplate.new(File.join(VIEWS, "#{name}.erb"), escape_html: true, freeze: true)]
     end.freeze
 
@@ -38,6 +38,13 @@ module Dashboard
 
     # repo: the owner/name the header and the title show.
     def self.header(state, repo:) = view("_header", state:, repo:)
+
+    # The palette's task list for the worktree named `name`: each row with its
+    # argument kind (Sources::Tasks.args) and whether it opens a terminal.
+    def self.palette(tasks, name)
+      rows = tasks.map { [it, Sources::Tasks.args(it.usage), Palette.mode(it.name)] }
+      view("_palette", rows:, url: "#{path(name)}/palette")
+    end
 
     # The list, the detail pane of the worktree named `selected` (nil: none) and the action panel.
     def self.page(state, selected, repo:) = view("page", state:, repo:, selected: state.worktrees.find { it.name == selected })

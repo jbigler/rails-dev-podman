@@ -87,6 +87,33 @@ module Dashboard
         start(spec, nil)
       end
 
+      # The palette's list for worktree ?w= (name, description, argument kind).
+      r.get "palette" do
+        name = r.params["w"].to_s
+        not_found unless opts[:hub].snapshot.worktrees.any? { it.name == name }
+        Render.palette(Palette.tasks(opts[:ws]), name)
+      rescue Sources::Failed => e
+        refuse(502, e.message)
+      end
+
+      # A palette task (form: task, args) in the worktree → 202 with the job id.
+      r.post "w", String, "palette" do |encoded|
+        name = Rack::Utils.unescape_path(encoded)
+        wt = opts[:hub].snapshot.worktrees.find { it.name == name }
+        task = Palette.tasks(opts[:ws]).find { it.name == r.params["task"] }
+        refuse(404, "no such task") unless wt && task
+        argv = Palette.argv(task, r.params["args"])
+        job = opts[:runner].start(Palette.spec(task.name, argv), worktree: wt)
+        response.status = 202
+        text(job.id.to_s)
+      rescue Palette::BadArgs => e
+        refuse(422, e.message)
+      rescue Sources::Failed => e
+        refuse(502, e.message)
+      rescue Runner::Busy => e
+        refuse(409, e.message)
+      end
+
       r.post "jobs", Integer, "cancel" do |id|
         not_found unless opts[:runner].cancel(id)
         no_content

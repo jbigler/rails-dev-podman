@@ -221,3 +221,10 @@ dialog.confirm menu { display: flex; gap: .5rem; justify-content: flex-end; padd
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* The task palette (palette_controller.js). */
+dialog.palette { width: min(40rem, 90vw); max-height: 70vh; padding: 0.5rem; }
+dialog.palette input { width: 100%; box-sizing: border-box; }
+.palette-list { list-style: none; margin: 0.5rem 0 0; padding: 0; overflow-y: auto; max-height: 60vh; }
+.palette-list button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0.25rem 0.5rem; }
+.palette-list li.selected button { background: var(--selected, rgba(127, 127, 127, 0.2)); }

@@ -7,6 +7,7 @@
   <% end %>
   <nav class="header-links" aria-label="Tools">
     <%== action_button(action("wt-create"), "/act/wt-create") %>
+    <button type="button" data-action="palette#open" title="run a mise task (: or Ctrl-K)">tasks</button>
     <button type="button" hidden data-notify-target="ask" data-action="notify#ask">notifications</button>
     <a href="<%= logs_home %>" target="_blank" rel="noopener">logs</a>
     <a href="<%= traefik_url %>" target="_blank" rel="noopener">traefik</a>
