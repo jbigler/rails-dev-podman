@@ -113,6 +113,7 @@ code { font-family: var(--mono); }
 .row .c-branch { color: var(--purple); }
 .row .c-branch.muted { color: var(--muted); }
 .empty-list { padding: .5rem; }
+.list-hint { margin: .4rem 0 0; padding: 0 .5rem; font-size: .8rem; }
 
 .detail {
   border: 1px solid var(--border);

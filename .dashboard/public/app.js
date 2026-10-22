@@ -8,6 +8,7 @@ import ActionController from "./controllers/action_controller.js"
 import PanelController from "./controllers/panel_controller.js"
 import ClipboardController from "./controllers/clipboard_controller.js"
 import PaletteController from "./controllers/palette_controller.js"
+import ListnavController from "./controllers/listnav_controller.js"
 
 export const application = Application.start()
 window.Stimulus = application
@@ -17,6 +18,7 @@ application.register("action", ActionController)
 application.register("panel", PanelController)
 application.register("clipboard", ClipboardController)
 application.register("palette", PaletteController)
+application.register("listnav", ListnavController)
 
 // The header carries the tab title ("◆ N · wt · repo"); a streamed header brings a new one.
 document.addEventListener("turbo:before-stream-render", (event) => {

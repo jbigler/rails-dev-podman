@@ -211,7 +211,8 @@ units:install removes orphaned rendered units of this prefix (marker line, templ
 ## Dashboard (.dashboard/)
 
 - What: one page at http://wt.localhost:${WT_DASHBOARD_PORT} (default 7700) — worktrees, git/PR/stack state,
-  units, containers, claude status, actions with streamed output, a task palette. Not routed through Traefik.
+  units, containers, claude status, actions with streamed output, a task palette (`:`/Ctrl-K). ↑↓/k j open
+  the previous/next worktree, Home End/g G the first/last (not while typing or in a dialog). Not routed through Traefik.
 - Process: host unit <prefix>-dashboard.service, rendered by units:install into ~/.config/systemd/user from
   .container-config/systemd/dashboard.service. ExecStart `<mise> run dashboard:serve` (Falcon `--threaded
   --count 1` on 127.0.0.1:${WT_DASHBOARD_PORT}); DASHBOARD_MISE_DIR is prepended to PATH because `mise run`

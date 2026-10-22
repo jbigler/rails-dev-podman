@@ -30,6 +30,11 @@ class RenderTest < Minitest::Test
     refute_includes R.row(wt("wt-01"), selected: false), "aria-current"
   end
 
+  def test_list_has_the_keyboard_hint
+    html = R.list(state, "wt-01")
+    assert_match(%r{<p class="muted list-hint"[^>]*>↑↓ select</p>}, html)
+  end
+
   def test_unknown_cells_render_question_marks
     unknown = wt("wt-stacked").with(ahead: U, behind: U, dirty_count: U, services: U, stack: U, pr: U, agent: U)
     row = R.row(unknown, selected: false)
