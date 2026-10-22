@@ -215,8 +215,10 @@ button:disabled { color: var(--muted); cursor: not-allowed; background: var(--bg
 
 /* actions */
 .services-table button { font-size: .75rem; }
-.actions .action-group { display: flex; flex-wrap: wrap; gap: .3rem; align-items: baseline; margin: .2rem 0; }
-.actions .action-group > span { min-width: 5.5rem; font-size: .8rem; }
+/* Label in a fixed column; the buttons wrap within their own column, never under the label. */
+.actions .action-group { display: grid; grid-template-columns: 5.5rem 1fr; column-gap: .3rem; align-items: baseline; margin: .2rem 0; }
+.actions .action-group > span { font-size: .8rem; }
+.actions .action-buttons { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; }
 .settings { position: relative; }
 .settings summary { cursor: pointer; list-style: none; }
 .settings-menu {

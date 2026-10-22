@@ -120,9 +120,11 @@
     <% action_groups(wt).each do |group, specs| %>
     <div class="action-group">
       <span class="muted"><%= group %></span>
-      <% specs.each do |spec| %>
-      <%== action_button(spec, action_path(wt, spec), disabled: busy) %>
-      <% end %>
+      <div class="action-buttons">
+        <% specs.each do |spec| %>
+        <%== action_button(spec, action_path(wt, spec), disabled: busy) %>
+        <% end %>
+      </div>
     </div>
     <% end %>
   </section>
