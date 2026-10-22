@@ -35,7 +35,9 @@
         </div>
         <div class="pr-title"><%= pr&.title %></div>
         <div class="meta">
-          <% if pr %>
+          <% if unknown?(wt.pr) %>
+          <span class="muted">PR ?</span>
+          <% elsif pr %>
           <% pr_meta(pr).each_with_index do |(text, cls), i| %><%= " · " if i.positive? %><span class="<%= cls %>"><%= text %></span><% end %>
           <% if ready?(pr, b) %> · <span class="green">ready to merge</span><% end %>
           <% else %>

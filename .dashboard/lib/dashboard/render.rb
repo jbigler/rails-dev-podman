@@ -23,13 +23,15 @@ module Dashboard
 
     def self.row(wt, selected:) = view("_row", wt:, selected:)
     def self.detail(wt, state) = view("_detail", wt:, state:)
-    def self.header(state) = view("_header", state:)
+
+    # repo: the owner/name the header and the title show.
+    def self.header(state, repo:) = view("_header", state:, repo:)
 
     # The list, the detail pane of the worktree named `selected` (nil: none) and the action panel.
-    def self.page(state, selected) = view("page", state:, selected: state.worktrees.find { it.name == selected })
+    def self.page(state, selected, repo:) = view("page", state:, repo:, selected: state.worktrees.find { it.name == selected })
 
     # The HTML document around the block's output: token meta tag, import map, title.
-    def self.layout(state, token:, &) = TEMPLATES.fetch("layout").render(View::INSTANCE, state:, token:, &)
+    def self.layout(state, token:, repo:, &) = TEMPLATES.fetch("layout").render(View::INSTANCE, state:, token:, repo:, &)
 
     def self.view(name, **locals) = TEMPLATES.fetch(name).render(View::INSTANCE, locals)
     private_class_method :view

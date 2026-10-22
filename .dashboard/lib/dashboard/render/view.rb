@@ -21,7 +21,7 @@ module Dashboard
       def path(name) = Render.path(name)
       def row(wt, selected:) = Render.row(wt, selected:)
       def detail(wt, state) = Render.detail(wt, state)
-      def header(state) = Render.header(state)
+      def header(state, repo:) = Render.header(state, repo:)
 
       def logs_home = LOGS
       def traefik_url = TRAEFIK
@@ -40,15 +40,9 @@ module Dashboard
         url ? %(<a class="pr-num blue" href="#{ERB::Util.html_escape(url)}" target="_blank" rel="noopener">#{text}</a>) : %(<span class="pr-num blue">#{text}</span>)
       end
 
-      # The workspace folder, named after the repo; the base worktree sits in it.
-      def repo(state)
-        base = state.worktrees.find(&:base)
-        base ? File.basename(File.dirname(base.path)) : "wt"
-      end
-
-      def title(state)
+      def title(state, repo)
         n = state.needs_input_count
-        [("◆ #{n}" if n.positive?), "wt", repo(state)].compact.join(" · ")
+        [("◆ #{n}" if n.positive?), "wt", repo].compact.join(" · ")
       end
 
       # A stale-units line is "<file>\t<reason>".

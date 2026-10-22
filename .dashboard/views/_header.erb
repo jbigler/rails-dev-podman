@@ -1,7 +1,7 @@
 <% n = state.needs_input_count %>
-<header id="header" class="header" data-needs-input="<%= n %>" data-title="<%= title(state) %>">
+<header id="header" class="header" data-needs-input="<%= n %>" data-title="<%= title(state, repo) %>">
   <a class="brand" href="/">wt</a>
-  <span class="repo"><%= repo(state) %></span>
+  <span class="repo"><%= repo %></span>
   <% if n.positive? %>
   <span class="need-input accent">◆ <%= n %> need input</span>
   <% end %>

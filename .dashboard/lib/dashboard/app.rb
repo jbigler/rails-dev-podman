@@ -20,13 +20,21 @@ module Dashboard
       schedule = Schedule.new(Time.now)
       LocalPoller.new(hub, ws, schedule).start
       github = GithubPoller.new(hub, ws, schedule).start
-      build(hub:, runner: nil, token: SecureRandom.hex(32), port: ENV.fetch("WT_DASHBOARD_PORT"), ws:, github:)
+      build(hub:, runner: nil, token: SecureRandom.hex(32), port: ENV.fetch("WT_DASHBOARD_PORT"), ws:, github:, repo: repo_name(ws))
     end
 
-    # runner: nil until actions exist (Task 7); github: the GithubPoller, nil in tests.
-    def self.build(hub:, runner:, token:, port:, ws:, github: nil)
+    # owner/name from the base's origin remote, read once; the root folder's name when that fails.
+    def self.repo_name(ws)
+      Sources::Repo.fetch(ws)
+    rescue Sources::Failed
+      File.basename(ws.root)
+    end
+
+    # runner: nil until actions exist (Task 7); github: the GithubPoller, nil in tests;
+    # repo: what the header shows (repo_name).
+    def self.build(hub:, runner:, token:, port:, ws:, repo:, github: nil)
       app = Class.new(self)
-      app.opts.merge!(hub:, runner:, token:, ws:, github:)
+      app.opts.merge!(hub:, runner:, token:, ws:, github:, repo:)
       Guard.new(app.freeze.app, port:, token:)
     end
 
@@ -50,13 +58,20 @@ module Dashboard
 
       r.post "refresh" do
         opts[:github]&.hint(:focus)
-        response.status = 204
-        ""
+        no_content
       end
     end
 
     private
 
-    def page(state, name) = Render.layout(state, token: opts[:token]) { Render.page(state, name) }
+    def page(state, name) = Render.layout(state, token: opts[:token], repo: opts[:repo]) { Render.page(state, name, repo: opts[:repo]) }
+
+    # An empty 204 for a POST route's block to return. It must return nil, not
+    # "": Roda drops the default content-type (which Rack forbids on a 204) only
+    # when nothing was written to the body.
+    def no_content
+      response.status = 204
+      nil
+    end
   end
 end

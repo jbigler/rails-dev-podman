@@ -39,7 +39,17 @@ class RenderTest < Minitest::Test
     assert_includes detail, "? uncommitted"
     assert_includes detail, "stack ?"
     assert_includes detail, "PR ?"
-    assert_match(/services.*\?/m, detail)
+    services = detail[%r{<section class="block services">.*?</section>}m]
+    assert_match(%r{<h3>services</h3>\s*<p class="muted">\?</p>}, services)
+    refute_includes services, "<table"
+  end
+
+  def test_stacked_head_with_unknown_pr
+    st = changed("wt-stacked") { it.with(pr: U) }
+    html = R.detail(wt("wt-stacked", st), st)
+    head = html[%r{<li class="stack-branch head">.*?</li>}m]
+    assert_includes head, '<span class="muted">PR ?</span>'
+    refute_includes html, "no PR"
   end
 
   def test_unknown_pr_commits
@@ -90,21 +100,22 @@ class RenderTest < Minitest::Test
   end
 
   def test_header_counts_need_input_and_stale_units
-    plain = R.header(state)
+    plain = R.header(state, repo: "example-org/app")
+    assert_includes plain, '<span class="repo">example-org/app</span>'
     refute_includes plain, "need input"
     assert_includes plain, 'href="http://logs.localhost"'
     assert_includes plain, 'href="http://127.0.0.1:8080/"'
     st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:permission, since: NOW)) }
     st = st.with(raw: st.raw.with(stale_units: ["myproj-rails@.container\tdiffers"]))
-    html = R.header(st)
+    html = R.header(st, repo: "example-org/app")
     assert_includes html, "◆ 1 need input"
     assert_includes html, "myproj-rails@.container"
-    assert_includes R.layout(st, token: "t") { "" }, "<title>◆ 1 · "
+    assert_includes R.layout(st, token: "t", repo: "example-org/app") { "" }, "<title>◆ 1 · wt · example-org/app</title>"
   end
 
   def test_page_without_worktrees
     st = Dashboard::Hub.new(ws).snapshot
-    html = R.page(st, nil)
+    html = R.page(st, nil, repo: "myproj")
     assert_includes html, 'id="header"'
     assert_includes html, 'id="detail"'
     assert_includes html, 'id="actions"'

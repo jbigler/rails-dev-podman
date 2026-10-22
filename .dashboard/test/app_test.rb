@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "rack/lint"
 require "rack/test"
 
 class AppTest < Minitest::Test
@@ -17,9 +18,23 @@ class AppTest < Minitest::Test
     def hint(kind) = @hints << kind
   end
 
+  # Through Rack::Lint, so a response that breaks the Rack SPEC fails the test.
   def app
-    @app ||= Dashboard::App.build(hub: Dashboard::Hub.new(ws, raw: @raw || fixture_raw), runner: nil, token: "t", port: 7700, ws:,
-                                  github: @github)
+    @app ||= Rack::Lint.new(Dashboard::App.build(hub: Dashboard::Hub.new(ws, raw: @raw || fixture_raw), runner: nil, token: "t", port: 7700,
+                                                 ws:, github: @github, repo: "example-org/app"))
+  end
+
+  def test_header_shows_repo
+    get "/w/wt-01", {}, HOST
+    assert_includes last_response.body, '<span class="repo">example-org/app</span>'
+  end
+
+  def test_repo_name_from_origin_else_root_folder
+    master = "#{ROOT}/master"
+    remote = { "git -C #{master} remote get-url origin" => Dashboard::Shell::Result.new(stdout: "git@github.com:example-org/app.git\n", stderr: "",
+                                                                                         status: 0, timed_out: false) }
+    with_shell(FakeShell.new(no_filters(master).merge(remote))) { assert_equal "example-org/app", Dashboard::App.repo_name(ws) }
+    with_shell(FakeShell.new(no_filters(master))) { assert_equal "myproj", Dashboard::App.repo_name(ws) }
   end
 
   def test_lists_every_worktree
@@ -50,7 +65,8 @@ class AppTest < Minitest::Test
     assert_nil last_response.headers["x-dashboard-reload"]
     assert_empty @github.hints
     post "/refresh", {}, HOST.merge("HTTP_X_DASHBOARD_TOKEN" => "t", "HTTP_ORIGIN" => ORIGIN)
-    assert_predicate last_response, :successful?
+    assert_equal 204, last_response.status
+    assert_nil last_response.headers["content-type"]
     assert_equal [:focus], @github.hints
   end
 
