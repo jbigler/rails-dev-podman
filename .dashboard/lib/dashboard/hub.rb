@@ -3,7 +3,7 @@
 module Dashboard
   # What every page renders from. failed: failure key ("units", "stacks:<W>") => message.
   State = Data.define(:worktrees, :raw, :failed, :jobs) do
-    # Worktrees whose agent waits on a permission or a question (header and <title>).
+    # Worktrees whose agent waits on a permission, a question or a reply (header and <title>).
     def needs_input_count = worktrees.count { it.agent.is_a?(Agent) && it.agent.needs_input? }
   end
 
@@ -23,7 +23,7 @@ module Dashboard
   # into Raw, re-derives the worktrees and queues what changed for each page:
   # [:row, W] to all (W added, changed or removed), [:detail, W] to pages
   # viewing W, [:gone, W] to pages viewing a removed W, [:notify, W] to all
-  # when W's agent starts waiting on a permission or a question, [:header] to
+  # when W's agent starts waiting on a permission, a question or a reply, [:header] to
   # all when the needs-input count, the stale units or autostart changed.
   # Jobs come from the Runner through #publish_job: [:job, id] to all.
   class Hub

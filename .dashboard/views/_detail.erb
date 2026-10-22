@@ -136,6 +136,9 @@
     <% a = wt.agent %>
     <% if unknown?(a) %>
     <p class="muted">?</p>
+    <% elsif a.state == :reply %>
+    <p class="accent"><strong>◆ waiting for reply<%= " · #{age(a.since)}" if a.since %></strong></p>
+    <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
     <% elsif a.needs_input? %>
     <p class="accent"><strong>◆ <%= a.state == :permission ? "needs permission" : "question" %><%= " · #{age(a.since)}" if a.since %></strong></p>
     <% if a.message %>
@@ -146,8 +149,8 @@
     <% if a.tool %>
     <p class="muted tool"><%= a.tool %></p>
     <% end %>
-    <% elsif a.state == :done %>
-    <p>· done<%= " #{age(a.since)} ago" if a.since %><% if a.last_message %> <span class="muted">· last message</span><% end %></p>
+    <% elsif a.state == :your_turn %>
+    <p><span class="yellow">· your turn<%= " #{age(a.since)}" if a.since %></span><% if a.last_message %> <span class="muted">· last message</span><% end %></p>
     <% if a.last_message %>
     <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
     <% end %>

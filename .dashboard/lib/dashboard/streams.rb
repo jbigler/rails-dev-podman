@@ -13,7 +13,9 @@ module Dashboard
     LIST = "worktrees"
     # The action panel's job container's id (views/page.erb).
     JOBS = "actions"
-    QUESTIONS = { permission: "needs permission", question: "question" }.freeze
+    QUESTIONS = { permission: "needs permission", question: "question", reply: "waiting for reply" }.freeze
+    # A reply's notification body: the end of the last message, where the question is.
+    REPLY_BODY_CHARS = 200
 
     # <turbo-stream> with the given attributes (escaped; nil ones left out) around a
     # <template> of `html`, which is already HTML. No template without html.
@@ -99,10 +101,17 @@ module Dashboard
       agent = find(state, name)&.agent
       return [] unless agent.is_a?(Agent) && agent.needs_input?
 
-      [turbo("notify", nil, title: "#{name}: #{QUESTIONS.fetch(agent.state)}", body: agent.message.to_s, tag: name)]
+      [turbo("notify", nil, title: "#{name}: #{QUESTIONS.fetch(agent.state)}", body: body(agent), tag: name)]
+    end
+
+    def self.body(agent)
+      return agent.message.to_s unless agent.state == :reply
+
+      text = agent.last_message.to_s
+      text.length > REPLY_BODY_CHARS ? "…#{text[-(REPLY_BODY_CHARS - 1)..]}" : text
     end
 
     def self.find(state, name) = state.worktrees.find { it.name == name }
-    private_class_method :row, :detail, :job, :gone, :notify, :find
+    private_class_method :row, :detail, :job, :gone, :notify, :body, :find
   end
 end

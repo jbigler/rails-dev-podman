@@ -7,8 +7,10 @@ module Dashboard
     # scope of every render.
     class View
       SERVICE = { up: ["●", "green"], starting: ["◐", "yellow"], stopped: ["○", "muted"], failed: ["✗", "red"], unknown: ["?", "muted"] }.freeze
-      AGENT = { permission: ["◆", "accent"], question: ["◆", "accent"], working: ["●", "blue"], done: ["·", "muted"], idle: ["·", "muted"],
-                off: ["○", "muted"] }.freeze
+      # state => [glyph, class, list word]
+      AGENT = { permission: ["◆", "accent", "permission"], question: ["◆", "accent", "question"], reply: ["◆", "accent", "waiting for reply"],
+                working: ["●", "blue", "working"], your_turn: ["·", "yellow", "your turn"], idle: ["·", "muted", "idle"],
+                off: ["○", "muted", "off"] }.freeze
       REVIEW = { approved: ["✓", "green", "approved"], changes: ["✗", "red", "changes requested"],
                  review: ["⟳", "yellow", "review requested"], none: ["⟳", "yellow", "review requested"] }.freeze
       SERVICE_SVC = Workspace::SERVICES.to_h.freeze # label => unit svc
@@ -94,8 +96,8 @@ module Dashboard
         return ["?", "muted"] if a == UNKNOWN
         return nil if a.state == :off && wt.base
 
-        glyph, cls = AGENT.fetch(a.state)
-        text = a.state == :done && a.since ? "done #{age(a.since)}" : a.state.to_s
+        glyph, cls, word = AGENT.fetch(a.state)
+        text = a.state == :your_turn && a.since ? "#{word} #{age(a.since)}" : word
         ["#{glyph} #{text}", cls]
       end
 

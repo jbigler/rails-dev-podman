@@ -1,4 +1,4 @@
-// Browser notifications for an agent waiting on a permission or a question.
+// Browser notifications for an agent waiting on a permission, a question or a reply.
 // The server sends <turbo-stream action="notify" title=… body=… tag=…>; the
 // header's button (the "ask" target) asks for permission and hides once the
 // browser has an answer.

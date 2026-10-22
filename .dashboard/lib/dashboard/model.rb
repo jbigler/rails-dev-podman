@@ -20,10 +20,11 @@ module Dashboard
     # 1-based position of HEAD's branch from the bottom.
     def position = current_index&.+(1)
   end
-  # state: :permission | :question | :working | :done | :idle | :off
+  # state: :permission | :question | :working | :reply (a finished turn whose last message asks something)
+  #        | :your_turn (any other finished turn) | :idle | :off
   Agent = Data.define(:state, :since, :message, :tool, :last_message) do
     def self.of(state, since: nil, message: nil, tool: nil, last_message: nil) = new(state:, since:, message:, tool:, last_message:)
-    def needs_input? = %i[permission question].include?(state)
+    def needs_input? = %i[permission question reply].include?(state)
   end
 
   # Raw source results, keyed by worktree name where per worktree.

@@ -133,6 +133,22 @@ class StreamsTest < Minitest::Test
                  "</turbo-stream>", frame
   end
 
+  def test_notify_frame_for_a_reply_carries_the_tail_of_the_last_message
+    claude = Dashboard::Container.new(name: "myproj-wt-01-claude", state: "running", health: nil, exit_code: 0, started_at: NOW - 3600)
+    last = "#{"word " * 60}go with <B>?"
+    file = Dashboard::StatusFile.new(v: 2, state: "working", phase: "done", ts: NOW, message: nil, tool: nil, last_message: last, rtk: nil)
+    @raw = fixture_raw.with(containers: fixture_raw.containers.merge(claude.name => claude), agent_files: { "wt-01" => [NOW, file] })
+    frame = one(S.frames([:notify, "wt-01"], state, sub(nil)))
+    body = "…#{last[-199..]}"
+    assert_equal 200, body.length
+    assert_equal %(<turbo-stream action="notify" title="wt-01: waiting for reply" body="#{ERB::Util.html_escape(body)}" tag="wt-01">) \
+                 "</turbo-stream>", frame
+    file = file.with(last_message: "pick one?")
+    @raw = @raw.with(agent_files: { "wt-01" => [NOW, file] })
+    @hub = nil
+    assert_includes one(S.frames([:notify, "wt-01"], state, sub(nil))), 'body="pick one?"'
+  end
+
   def job(id, state: :running, worktree: "wt-01", lines: ["hello <b>"], created: nil)
     Dashboard::Job.new(id:, worktree:, label: "up", state:, exit_status: state == :failed ? 1 : nil, started_at: NOW, finished_at: nil,
                        lines:, created:)

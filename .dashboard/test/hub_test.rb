@@ -9,7 +9,16 @@ class HubTest < Minitest::Test
   # Everything queued so far; apply is synchronous, so nothing is in flight.
   def drain(sub) = Array.new(sub.queue.size) { sub.queue.pop }
 
-  def status_file(phase) = Dashboard::StatusFile.new(v: 2, state: "working", phase:, ts: NOW, message: "Which database?", tool: nil, last_message: nil, rtk: nil)
+  def status_file(phase, last_message: nil)
+    Dashboard::StatusFile.new(v: 2, state: "working", phase:, ts: NOW, message: "Which database?", tool: nil, last_message:, rtk: nil)
+  end
+
+  # A hub whose wt-01 has a running claude container and a working status file.
+  def working_hub
+    claude = Dashboard::Container.new(name: "myproj-wt-01-claude", state: "running", health: nil, exit_code: 0, started_at: NOW - 3600)
+    hub(fixture_raw.with(containers: fixture_raw.containers.merge(claude.name => claude),
+                         agent_files: { "wt-01" => [NOW - 60, status_file("working")] }))
+  end
 
   def test_detail_events_only_to_viewers
     h = hub
@@ -22,10 +31,7 @@ class HubTest < Minitest::Test
   end
 
   def test_notify_on_question
-    claude = Dashboard::Container.new(name: "myproj-wt-01-claude", state: "running", health: nil, exit_code: 0, started_at: NOW - 3600)
-    raw = fixture_raw.with(containers: fixture_raw.containers.merge(claude.name => claude),
-                           agent_files: { "wt-01" => [NOW - 60, status_file("working")] })
-    h = hub(raw)
+    h = working_hub
     sub = h.subscribe(viewing: "wt-stacked")
     asked = { changed: { "wt-01" => [NOW, status_file("question")] }, gone: [] }
     h.apply(:agent_files, asked)
@@ -35,6 +41,30 @@ class HubTest < Minitest::Test
     assert_equal 1, h.snapshot.needs_input_count
     h.apply(:agent_files, asked)
     assert_empty drain(sub)
+  end
+
+  def test_notify_when_a_finished_turn_asks_for_a_reply
+    h = working_hub
+    sub = h.subscribe(viewing: nil)
+    asked = { changed: { "wt-01" => [NOW, status_file("done", last_message: "Go with B, or change the canvas first?")] }, gone: [] }
+    h.apply(:agent_files, asked)
+    events = drain(sub)
+    assert_equal 1, events.count([:notify, "wt-01"])
+    assert_includes events, [:header]
+    assert_equal 1, h.snapshot.needs_input_count
+    h.apply(:agent_files, asked)
+    assert_empty drain(sub)
+  end
+
+  def test_a_finished_turn_that_asks_nothing_neither_notifies_nor_needs_input
+    h = working_hub
+    sub = h.subscribe(viewing: nil)
+    h.apply(:agent_files, { changed: { "wt-01" => [NOW, status_file("done", last_message: "All tests pass.")] }, gone: [] })
+    events = drain(sub)
+    assert_equal :your_turn, h.snapshot.worktrees.find { it.name == "wt-01" }.agent.state
+    refute_includes events, [:notify, "wt-01"]
+    refute_includes events, [:header]
+    assert_equal 0, h.snapshot.needs_input_count
   end
 
   def test_gone_when_viewed_worktree_removed

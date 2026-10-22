@@ -129,10 +129,28 @@ class RenderTest < Minitest::Test
     end
   end
 
-  def agent_detail(file)
-    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:done, since: NOW, last_message: file.last_message)) }
+  def agent_detail(file, state = :your_turn)
+    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(state, since: NOW - 240, last_message: file.last_message)) }
     st = st.with(raw: st.raw.with(agent_files: { "wt-01" => [NOW, file] }))
     R.detail(wt("wt-01", st), st)
+  end
+
+  def test_a_reply_is_accented_and_needs_input_a_plain_finished_turn_is_highlighted
+    file = Dashboard::Sources::AgentFiles.parse(JSON.generate(v: 2, phase: "done", last_message: "Go with B, or <change> it?"))
+    reply = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:reply, since: NOW - 240, last_message: file.last_message)) }
+    assert_includes R.row(wt("wt-01", reply), selected: false), '<span class="c-agent accent">◆ waiting for reply</span>'
+    assert_includes R.header(reply, repo: "r"), "◆ 1 need input"
+    agent = agent_detail(file, :reply)[%r{<section class="block agent">.*?</section>}m]
+    assert_match(%r{<p class="accent"><strong>◆ waiting for reply · \d+[smhd]</strong></p>}, agent)
+    assert_includes agent, '<blockquote class="last-message">Go with B, or &lt;change&gt; it?</blockquote>'
+
+    turn = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:your_turn, since: NOW - 240, last_message: "Done.")) }
+    assert_match(%r{<span class="c-agent yellow">· your turn \d+[smhd]</span>}, R.row(wt("wt-01", turn), selected: false))
+    refute_includes R.header(turn, repo: "r"), "need input"
+    agent = agent_detail(Dashboard::Sources::AgentFiles.parse('{"v":2,"phase":"done","last_message":"Done."}'))[%r{<section class="block agent">.*?</section>}m]
+    assert_match(%r{<span class="yellow">· your turn \d+[smhd]</span>}, agent)
+    assert_includes agent, '<blockquote class="last-message">Done.</blockquote>'
+    refute_includes agent, "done"
   end
 
   def test_header_counts_need_input_and_stale_units

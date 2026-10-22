@@ -197,7 +197,11 @@ logs.localhost→Dozzle (live logs, all project containers, DOZZLE_FILTER=name=$
 The worktree units pull the proxy in via Wants=, so `up` needs no proxy step.  
 Claude status: claude-status-hook.sh (v2: state/ts/rtk plus phase/event/message/tool/last_message), registered
 per event idempotently by entrypoint-claude.sh into shared settings.json, writes
-.container-config/status/<slug>.json (git-ignored); the dashboard reads it from disk. wt:rm cleans the file.  
+.container-config/status/<slug>.json (git-ignored); the dashboard reads it from disk. wt:rm cleans the file.
+The dashboard's agent states: permission/question (◆, accent), working, idle, off, and for phase done (v1
+waiting) either reply — the last message ends in `?` once trailing space, `)`/`]`, quotes and `*`/`_`/backtick are trimmed
+(◆ waiting for reply, accent) — or your turn (yellow). permission/question/reply count as needing input and
+notify when entered; your turn does neither. The hook is unchanged: the dashboard derives reply.  
 Host ports (80/8080, the dashboard port, also nvim/ruby-debug in worktree stack) bind 127.0.0.1 only — Host-header routing would  
 otherwise expose all worktrees + password-less VNC to LAN. Containers can't reach loopback-bound host ports, so  
 Traefik has static IP PODMAN_TRAEFIK_IP (default 10.214.0.2, subnet PODMAN_PROXY_SUBNET 10.214.0.0/24 —

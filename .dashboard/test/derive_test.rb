@@ -77,17 +77,36 @@ class DeriveTest < Minitest::Test
       [ctr, file(phase: "permission"), :permission],
       [ctr, file(phase: "question"), :question],
       [ctr, file(phase: "working"), :working],
-      [ctr, file(phase: "done"), :done],
+      [ctr, file(phase: "done"), :your_turn],                     # a finished turn without a last message
       [ctr, file(phase: "idle"), :idle],
       [ctr, file(phase: "offline"), :off],
       [ctr, file(v: 0, state: "working"), :working],              # v1 files
-      [ctr, file(v: 0, state: "waiting"), :done],
+      [ctr, file(v: 0, state: "waiting"), :your_turn],
       [ctr, file(v: 0, state: "offline"), :off]
     ]
     rows.each_with_index do |(c, f, want), i|
       assert_equal want, Dashboard::AgentStatus.derive(c, f).state, "row #{i}"
     end
     assert_equal Dashboard::UNKNOWN, Dashboard::AgentStatus.derive(Dashboard::UNKNOWN, nil)
+  end
+
+  # A finished turn whose last message asks something waits for a reply; any other is just the user's turn.
+  def test_a_done_turn_ending_in_a_question_waits_for_a_reply
+    {
+      "Go with B, or change the canvas first?" => :reply,
+      "Which one do you **prefer?**" => :reply,
+      "(shall I go on?)" => :reply,
+      "He said “ready?”" => :reply,
+      "Ready? \n\t " => :reply,
+      "It's ‘done?’ `x?`_*\"']" => :reply,
+      "Done. Tests pass." => :your_turn,
+      "Is it? It is." => :your_turn,
+      "" => :your_turn
+    }.each do |last_message, want|
+      assert_equal want, Dashboard::AgentStatus.derive(ctr, file(phase: "done", last_message:)).state, last_message.inspect
+    end
+    assert_equal :your_turn, Dashboard::AgentStatus.derive(ctr, file(phase: "done")).state
+    assert_equal :your_turn, Dashboard::AgentStatus.derive(ctr, file(v: 0, state: "waiting", last_message: "ok?")).state
   end
 
   def test_v2_details_and_v1_has_no_last_message

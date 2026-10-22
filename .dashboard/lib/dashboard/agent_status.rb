@@ -3,9 +3,12 @@
 module Dashboard
   # §7.2: the claude container plus the status file → Agent.
   module AgentStatus
-    PHASES = { "permission" => :permission, "question" => :question, "working" => :working, "done" => :done,
+    PHASES = { "permission" => :permission, "question" => :question, "working" => :working, "done" => :your_turn,
                "idle" => :idle, "offline" => :off }.freeze
-    V1 = { "working" => :working, "waiting" => :done, "offline" => :off }.freeze
+    V1 = { "working" => :working, "waiting" => :your_turn, "offline" => :off }.freeze
+    # A finished turn's last message asks something when it ends in "?" once trailing space and closers
+    # (brackets, quotes, markdown emphasis/code marks) are trimmed.
+    ASKS = /\?[\s)\]"'*_`”’]*\z/
 
     # ctr: the <P>-<W>-claude Container (nil when absent, UNKNOWN when podman failed); file: StatusFile or nil.
     def self.derive(ctr, file)
@@ -15,7 +18,9 @@ module Dashboard
       return Agent.of(:idle, since: file.ts) if file.ts && ctr.started_at && file.ts < ctr.started_at
 
       if file.v == 2
-        Agent.of(PHASES.fetch(file.phase.to_s, :idle), since: file.ts, message: file.message, tool: file.tool, last_message: file.last_message)
+        phase = PHASES.fetch(file.phase.to_s, :idle)
+        phase = :reply if phase == :your_turn && file.last_message.to_s.match?(ASKS)
+        Agent.of(phase, since: file.ts, message: file.message, tool: file.tool, last_message: file.last_message)
       else
         Agent.of(V1.fetch(file.state.to_s, :idle), since: file.ts)
       end
