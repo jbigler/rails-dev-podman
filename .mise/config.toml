@@ -42,6 +42,9 @@ NVIM_BACKGROUND = "{{ exec(command = config_root ~ '/.scripts/detect-terminal-ba
 CPUS_75 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 75') }}"
 CPUS_50 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 50') }}"
 CPUS_25 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 25') }}"
+# Host port of the wt dashboard, bound to 127.0.0.1 only. No container may
+# reach it: `mise run dashboard:isolation-check` proves that.
+WT_DASHBOARD_PORT = "7700"
 
 [tasks.nvim]
 description = "Connect to Neovim in the container."
@@ -361,6 +364,10 @@ run = "{{config_root}}/.scripts/quadlet.sh proxy-pull"
 [tasks.verify]
 description = "Check that Traefik actually discovered the proxy containers over the podman socket, and that routing works end to end."
 run = "{{config_root}}/.scripts/quadlet.sh verify"
+
+[tasks."dashboard:isolation-check"]
+description = "Prove no container can connect to the dashboard port (127.0.0.1:WT_DASHBOARD_PORT): throwaway probes on the proxy and every dev network, plus each running playwright container. Exit 1 if any probe connects, 2 if it cannot probe."
+run = "{{config_root}}/.scripts/dashboard-isolation-check.sh"
 
 [tasks."units:env"]
 description = "Write the unit env file the Quadlet templates read. From a worktree, just that one; from the workspace root, every worktree in ports.registry. up, build and claude rerun it themselves when a .nvmrc, .ruby-version, Gemfile.lock or config change makes it stale; run it by hand only to refresh every worktree at once."
