@@ -156,11 +156,39 @@ class StreamsTest < Minitest::Test
     hub.apply([:git, "wt-01"], git(3))
     output = stream.wait_for('target="row-wt-01"')
     assert output, "no row frame within 1 s"
-    assert_match(/\Adata: <turbo-stream action="replace" target="row-wt-01">/, output)
+    assert_match(/^data: <turbo-stream action="replace" target="row-wt-01">/, output)
+    stream.close
+    hub.apply([:git, "wt-01"], git(4)) # a write to the closed stream ends the loop
+    assert thread.join(1), "the stream did not stop"
   ensure
     stream&.close
-    hub.apply([:git, "wt-01"], git(4)) # a write to the closed stream ends the loop
-    assert thread&.join(1), "the stream did not stop"
+    thread&.kill
+  end
+
+  # A connect first brings the page up to date: whatever changed between its render
+  # (or an EventSource reconnect gap) and the stream.
+  def test_connect_catches_up_list_header_and_detail
+    _, _, stream, thread = open_stream
+    output = stream.wait_for('target="detail"')
+    assert output, "no catch-up within 1 s"
+    first = output.split("\n\n")
+    assert_match(/\Adata: <turbo-stream action="replace" target="worktrees">/, first[0])
+    assert_match(/\Adata: <turbo-stream action="replace" target="header">/, first[1])
+    assert_match(/\Adata: <turbo-stream action="replace" target="detail">/, first[2])
+    assert_includes first[0], 'aria-current="page"'
+    assert_includes first[1], '<span class="repo">example-org/app</span>'
+    assert_includes first[2], "wt-01"
+  ensure
+    stream&.close
+    thread&.kill
+  end
+
+  def test_catch_up_for_a_removed_worktree_shows_the_gone_notice
+    hub.apply(:worktrees, fixture_raw.refs.reject { it.name == "wt-01" })
+    frames = S.catch_up(state, sub("wt-01"), repo: "example-org/app")
+    assert_equal 3, frames.size
+    assert_includes frames.last, "worktree removed"
+    assert_equal 2, S.catch_up(state, sub(nil), repo: "example-org/app").size # nothing shown, no detail to repair
   end
 
   def test_disconnect_unsubscribes

@@ -40,6 +40,15 @@ module Dashboard
       end
     end
 
+    # → [String] frames that bring a page rendered from an older state up to date:
+    # the list, the header and (when it shows one) the detail pane. A connect sends
+    # them first, so changes before it (render to connect, a reconnect gap) still show.
+    def self.catch_up(state, sub, repo:)
+      frames = [turbo("replace", LIST, Render.list(state, sub.viewing)), turbo("replace", "header", Render.header(state, repo:))]
+      frames << detail(sub.viewing, state) if sub.viewing
+      frames
+    end
+
     def self.row(name, state, sub, listed)
       wt = find(state, name)
       if wt.nil? || (listed && !listed.include?(name))

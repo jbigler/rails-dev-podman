@@ -75,12 +75,16 @@ module Dashboard
 
     def page(state, name) = Render.layout(state, token: opts[:token], repo: opts[:repo]) { Render.page(state, name, repo: opts[:repo]) }
 
-    # Subscribes, then writes each Hub event's frames (a ping when none came for
-    # Streams::PING seconds) until a write fails because the client disconnected.
+    # Subscribes, sends the catch-up frames, then writes each Hub event's frames (a
+    # ping when none came for Streams::PING seconds) until a write fails because the
+    # client disconnected.
     def events(stream, name)
       hub = opts[:hub]
       sub = hub.subscribe(viewing: name)
-      listed = hub.snapshot.worktrees.map(&:name) # what the page's list holds
+      state = hub.snapshot # after subscribe: any later change is queued
+      listed = state.worktrees.map(&:name) # what the page's list holds once the catch-up lands
+      return unless deliver(stream, Streams.catch_up(state, sub, repo: opts[:repo]).map { Streams.sse(it) }.join)
+
       loop do
         event = sub.queue.pop(timeout: Streams::PING)
         payload = if event
