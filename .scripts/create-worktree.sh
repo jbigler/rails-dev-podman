@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
 
-input="${1:?Usage: mise run wt <branch-name|PR#|new-branch-name>}"
+input="${1:?Usage: mise run wt <branch-name|PR#|new-branch-name> [--name <worktree-name>]}"
+# The worktree's name (directory, hosts, units); empty or blank = ask, or the branch's.
+requested_name="${2:-}"
 
 # --- Find a git worktree to run git commands from ---
 
@@ -43,11 +45,6 @@ else
   run_git fetch origin "$branch" 2>/dev/null || true
 fi
 
-# --- Sanitize for directory and compose project name ---
-
-clean_name=$(sanitize_worktree_name "$branch")
-worktree_dir="${root}/${clean_name}"
-
 # Refuse if this exact branch is already checked out in a worktree —
 # that's a retry, not a name collision.
 if run_git worktree list --porcelain | awk '/^branch / {print $2}' | grep -qx "refs/heads/${branch}"; then
@@ -56,26 +53,82 @@ if run_git worktree list --porcelain | awk '/^branch / {print $2}' | grep -qx "r
   exit 1
 fi
 
-# Different branch, but its sanitized name collides with an existing
-# worktree directory. Append a short deterministic hash of the full
-# branch name so both can coexist.
-if [ -d "$worktree_dir" ]; then
-  hash=$(printf '%s' "$branch" | sha1sum | cut -c1-4)
-  base_len=$((WORKTREE_NAME_MAX_LEN - 5))
-  short_base=$(printf '%s' "$clean_name" | cut -c1-"$base_len" | sed 's/-$//')
-  clean_name="${short_base}-${hash}"
-  worktree_dir="${root}/${clean_name}"
-
-  if [ -d "$worktree_dir" ]; then
-    echo "Name collision unresolvable — '${worktree_dir}' also exists"
-    exit 1
-  fi
-  echo "Name collision — using hash-suffixed slug: ${clean_name}"
-fi
+# --- Choose the worktree name ---
+# It names the directory, the hosts, the units and the volumes, and need not
+# match the branch. Whatever is typed or passed goes through the same
+# sanitizing as a branch name, so spaces and other separators become '-' and
+# an answer with no letters or digits names nothing.
 
 REGISTRY="${root}/ports.registry"
-base_name=$(find_base_worktree_name)
 
+# → why $1 (sanitized) cannot name a new worktree; nothing when it can.
+name_problem() {
+  if [ -z "$1" ]; then
+    echo "it has no letters or digits"
+  elif [ -e "${root}/$1" ]; then
+    echo "${root}/$1 already exists"
+  elif [ -f "$REGISTRY" ] && grep -q "^$1:" "$REGISTRY"; then
+    echo "'$1' is already in ports.registry"
+  fi
+}
+
+# The default: the branch's slug. When another worktree holds it, append a
+# short deterministic hash of the full branch name so both can coexist.
+default_name=$(sanitize_worktree_name "$branch")
+if [ -n "$(name_problem "$default_name")" ]; then
+  hash=$(printf '%s' "$branch" | sha1sum | cut -c1-4)
+  base_len=$((WORKTREE_NAME_MAX_LEN - 5))
+  short_base=$(printf '%s' "$default_name" | cut -c1-"$base_len" | sed 's/-$//')
+  default_name="${short_base}-${hash}"
+  [ -z "$(name_problem "$default_name")" ] || default_name=""
+fi
+
+# Says what a typed or passed name became, when that is not what was given.
+# A name is cut at WORKTREE_NAME_MAX_LEN; said so when that is what changed it.
+say_used() {
+  [ "$1" = "$2" ] && return 0
+  if [ "${#2}" -eq "$WORKTREE_NAME_MAX_LEN" ] && [ "${#1}" -gt "$WORKTREE_NAME_MAX_LEN" ]; then
+    echo "Using worktree name: $2 (cut at ${WORKTREE_NAME_MAX_LEN} characters)"
+  else
+    echo "Using worktree name: $2"
+  fi
+}
+
+# A blank --name is no --name.
+if [ -n "$(printf '%s' "$requested_name" | tr -d ' \t\n')" ]; then
+  clean_name=$(sanitize_worktree_name "$requested_name")
+  problem=$(name_problem "$clean_name")
+  if [ -n "$problem" ]; then
+    echo "Error: can't name the worktree '${requested_name}': ${problem}" >&2
+    exit 1
+  fi
+  say_used "$requested_name" "$clean_name"
+elif [ -t 0 ]; then
+  while :; do
+    if [ -n "$default_name" ]; then
+      printf 'Worktree name, up to %s characters [%s]: ' "$WORKTREE_NAME_MAX_LEN" "$default_name"
+    else
+      printf 'Worktree name, up to %s characters: ' "$WORKTREE_NAME_MAX_LEN"
+    fi
+    # read trims surrounding blanks, so a blank answer reads as empty: the default.
+    answer=""
+    read -r answer || { echo ""; echo "Cancelled."; exit 1; }
+    clean_name=$(sanitize_worktree_name "${answer:-$default_name}")
+    problem=$(name_problem "$clean_name")
+    [ -z "$problem" ] && break
+    echo "  Can't use that: ${problem}"
+  done
+  [ -z "$answer" ] || say_used "$answer" "$clean_name"
+else
+  clean_name="$default_name"
+  if [ -z "$clean_name" ]; then
+    echo "Error: no free worktree name for '${branch}'; pass --name <worktree-name>" >&2
+    exit 1
+  fi
+fi
+worktree_dir="${root}/${clean_name}"
+
+base_name=$(find_base_worktree_name)
 if [ ! -f "$REGISTRY" ]; then
   echo "${base_name}:0" > "$REGISTRY"
 fi

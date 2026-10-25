@@ -1,0 +1,9 @@
+{
+  "CURRENT_WORKTREE_NAME": "wt-stacked",
+  "WORKTREE_HOST": "wt-stacked.localhost",
+  "APP_PORT": "13022",
+  "DB_PORT": "55454",
+  "S3_PORT": "19022",
+  "PLAYWRIGHT_HOST_PORT": "18910",
+  "NVIM_PORT": "17022"
+}

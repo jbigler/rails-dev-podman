@@ -1,0 +1,14 @@
+{
+  "state": "offline",
+  "ts": "2026-10-20T13:40:45Z",
+  "rtk": {
+    "total_commands": 548,
+    "total_input": 143022,
+    "total_output": 97714,
+    "total_saved": 45561,
+    "avg_savings_pct": 31.85593824726266,
+    "total_time_ms": 1348205,
+    "avg_time_ms": 2460,
+    "oversized_excluded": 4
+  }
+}

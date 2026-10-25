@@ -1,0 +1,22 @@
+[Unit]
+Description=wt dashboard for @@P@@
+
+[Service]
+# mise resolves its env (PROJECT_PREFIX, WT_DASHBOARD_PORT) and the Ruby from
+# the directory it runs in, so the workspace root, not .dashboard/.
+WorkingDirectory=@@ROOT@@
+# Absolute path, baked in by units:install: the user manager's PATH is not the
+# login shell's and need not contain mise.
+ExecStart=@@MISE@@ run dashboard:serve
+# `mise run` does not put mise itself on PATH, yet the dashboard runs `mise`
+# by name for its actions, and quadlet.sh check-stale needs `command -v mise`
+# to render this very file the way install did. dashboard:serve prepends this
+# dir to the manager's PATH, which it keeps (environment.d included).
+Environment=DASHBOARD_MISE_DIR=@@MISE_DIR@@
+Restart=on-failure
+
+# Never enabled by units:install, so it starts on demand (mise run dashboard,
+# up, proxy:up). `mise run dashboard:autostart on` enables it, which makes the
+# user manager start it at login -- or at boot, with linger.
+[Install]
+WantedBy=default.target

@@ -1,0 +1,10 @@
+<div id="worktrees" class="rows">
+  <% state.worktrees.each do |wt| %>
+<%== row(wt, selected: wt.name == selected) %>
+  <% end %>
+  <% if state.worktrees.empty? %>
+  <p class="muted empty-list">loading worktrees…</p>
+  <% else %>
+  <p class="muted list-hint" title="↑↓ or j k: previous/next worktree · Home End or g G: first/last">↑↓ select</p>
+  <% end %>
+</div>

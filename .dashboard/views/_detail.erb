@@ -1,0 +1,169 @@
+<% busy = busy?(state, wt) %>
+<section id="detail" class="detail<%= " busy" if busy %>" data-worktree="<%= wt.name %>">
+  <h2 class="detail-name"><%= wt.name %></h2>
+  <div class="branch-line">
+    <span class="purple">⎇ <%= wt.branch || "(detached)" %></span>
+    <% if wt.branch %>
+    <button type="button" class="copy" title="copy the branch name" data-controller="clipboard" data-clipboard-text-value="<%= wt.branch %>" data-action="clipboard#copy">copy</button>
+    <% end %>
+    <% [sync(wt), dirty(wt)].compact.each do |part| %>
+    <span class="muted">· <%= part %></span>
+    <% end %>
+  </div>
+
+  <section class="block pr-block">
+    <% if unknown?(wt.stack) %>
+    <p class="muted">stack ?</p>
+    <% end %>
+    <% if stack?(wt) %>
+    <% stack = wt.stack %>
+    <% merged = stack.merged %>
+    <% progress, target = stack_progress(state, wt) %>
+    <div class="stack-head muted">
+      stack · <%= stack.open.size %> open · <%= merged.size %> merged · on <%= stack.trunk %>
+      <% if stack.restack_needed? %>
+      <span class="yellow">⚠ restack needed</span>
+      <% end %>
+      <% if progress %>
+      <span class="blue stack-progress"><span class="spinner" aria-hidden="true"></span> <%= progress %></span>
+      <% end %>
+    </div>
+    <ol class="stack">
+      <% stack.open.reverse_each do |b| %>
+      <% bpr = branch_pr(state, b.branch) %>
+      <% if b.current %>
+      <% pr = head_pr(wt) %>
+      <li class="stack-branch head">
+        <div class="stack-line">
+          <span class="muted">├</span> <%== pr_number(b.pr_number, bpr) %> <strong><%= b.branch %></strong>
+          <strong class="accent head-mark">◀ HEAD</strong>
+        </div>
+        <div class="pr-title"><%= pr&.title %></div>
+        <div class="meta">
+          <% if unknown?(wt.pr) %>
+          <span class="muted">PR ?</span>
+          <% elsif pr %>
+          <% pr_meta(pr).each_with_index do |(text, cls), i| %><%= " · " if i.positive? %><span class="<%= cls %>"><%= text %></span><% end %>
+          <% if ready?(pr, b) %> · <span class="green">ready to merge</span><% end %>
+          <% else %>
+          <span class="muted">no PR</span>
+          <% end %>
+          <% if b.needs_rebase %> · <span class="yellow">needs restack</span><% end %>
+        </div>
+      </li>
+      <% else %>
+      <% glyph = review_glyph(bpr) %>
+      <li class="stack-branch<%= " switching" if b.branch == target %>">
+        <span class="muted">├</span> <%== pr_number(b.pr_number, bpr) %> <%== stack_switch(wt, b.branch, disabled: busy) %>
+        <span class="stack-marks"><% if b.needs_rebase %><span class="yellow" title="needs restack">⚠</span><% end %><% if glyph %><span class="<%= glyph[1] %>"><%= glyph[0] %></span><% end %></span>
+      </li>
+      <% end %>
+      <% end %>
+      <% unless merged.empty? %>
+      <li class="stack-merged">
+        <details>
+          <summary><span class="muted">├</span> <span class="green">✓ <%= merged.size %> merged</span></summary>
+          <ol>
+            <% merged.reverse_each do |b| %>
+            <li class="muted"><%== pr_number(b.pr_number, branch_pr(state, b.branch)) %> <%= b.branch %></li>
+            <% end %>
+          </ol>
+        </details>
+      </li>
+      <% end %>
+      <li class="stack-trunk muted">└ <%= stack.trunk %></li>
+    </ol>
+    <% elsif wt.branch.nil? || wt.pr.nil? %>
+    <p class="muted">no PR</p>
+    <% elsif unknown?(wt.pr) %>
+    <p class="muted">PR ?</p>
+    <% else %>
+    <div class="pr-line"><%== pr_number(wt.pr.number, wt.pr) %> <span class="pr-title"><%= wt.pr.title %></span></div>
+    <div class="meta">
+      <% pr_meta(wt.pr).each_with_index do |(text, cls), i| %><%= " · " if i.positive? %><span class="<%= cls %>"><%= text %></span><% end %>
+    </div>
+    <% end %>
+  </section>
+
+  <section class="block services">
+    <h3>services</h3>
+    <% if unknown?(wt.services) %>
+    <p class="muted">?</p>
+    <% else %>
+    <table class="services-table">
+      <tbody>
+        <% wt.services.each do |s| %>
+        <% glyph, cls, word = service_state(s) %>
+        <tr>
+          <td><%= s.label %></td>
+          <td class="<%= cls %>"><%= glyph %> <%= word %></td>
+          <td class="muted"><%= port(wt, s) %></td>
+          <td><a href="<%= logs_url(wt, s) %>" target="_blank" rel="noopener">logs</a></td>
+          <td><%== action_button(restart_spec(s), action_path(wt, restart_spec(s)), disabled: busy, label: "restart") %></td>
+        </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% end %>
+  </section>
+
+  <section class="block links">
+    <h3>links</h3>
+    <% up = rails_up?(wt) %>
+    <% app_links(wt).each do |label, url| %>
+    <% if up %>
+    <a class="app-link" href="<%= url %>" target="_blank" rel="noopener"><%= label %></a>
+    <% else %>
+    <a class="app-link" aria-disabled="true" title="<%= url %> (rails is not up)"><%= label %></a>
+    <% end %>
+    <% end %>
+  </section>
+
+  <section class="block actions">
+    <h3>actions<% if busy %> <span class="blue">· running</span><% end %></h3>
+    <% action_groups(wt).each do |group, specs| %>
+    <div class="action-group">
+      <span class="muted"><%= group %></span>
+      <div class="action-buttons">
+        <% specs.each do |spec| %>
+        <%== action_button(spec, action_path(wt, spec), disabled: busy) %>
+        <% end %>
+      </div>
+    </div>
+    <% end %>
+  </section>
+
+  <section class="block agent">
+    <h3>agent
+      <% if (chip = rtk(state, wt.name)) %>
+      <span class="rtk" title="<%= chip[1] %>"><%= chip[0] %></span>
+      <% end %>
+    </h3>
+    <% a = wt.agent %>
+    <% if unknown?(a) %>
+    <p class="muted">?</p>
+    <% elsif a.state == :reply %>
+    <p class="accent"><strong>◆ waiting for reply<%= " · #{age(a.since)}" if a.since %></strong></p>
+    <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
+    <% elsif a.needs_input? %>
+    <p class="accent"><strong>◆ <%= a.state == :permission ? "needs permission" : "question" %><%= " · #{age(a.since)}" if a.since %></strong></p>
+    <% if a.message %>
+    <p class="message"><%= a.message %></p>
+    <% end %>
+    <% elsif a.state == :working %>
+    <p class="blue">● working<%= " · #{age(a.since)}" if a.since %></p>
+    <% if a.tool %>
+    <p class="muted tool"><%= a.tool %></p>
+    <% end %>
+    <% elsif a.state == :your_turn %>
+    <p><span class="yellow">· your turn<%= " #{age(a.since)}" if a.since %></span><% if a.last_message %> <span class="muted">· last message</span><% end %></p>
+    <% if a.last_message %>
+    <blockquote class="last-message"><%= tail(a.last_message) %></blockquote>
+    <% end %>
+    <% elsif a.state == :idle %>
+    <p class="muted">· idle</p>
+    <% else %>
+    <p class="muted">○ off</p>
+    <% end %>
+  </section>
+</section>

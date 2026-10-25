@@ -23,6 +23,16 @@ PODMAN_PROXY_GATEWAY="${PODMAN_PROXY_GATEWAY:-${PODMAN_PROXY_SUBNET%.*}.1}"
 
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/containers/systemd"
 MARKER="# rendered by .scripts/quadlet.sh"
+# The dashboard is a plain service, not a container, and Quadlet's generator
+# dir only takes container units -- so it is rendered into systemd's own.
+SYSTEMD_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+DASHBOARD_UNIT="${PROJECT_PREFIX}-dashboard.service"
+# Baked into the dashboard unit at install time: the user manager's PATH need
+# not contain mise. Empty is an error only for install. check-stale renders
+# with it too, so without mise on PATH it would report the dashboard unit as
+# differing -- which is why that unit puts mise's dir on the dashboard's PATH.
+MISE="$(command -v mise || true)"
+MISE_DIR="${MISE:+$(dirname "$MISE")}"
 # The firewall's OCI hook descriptor (.container-config/firewall/). JSON takes no
 # marker comment, so it is identified by path; units point --hooks-dir here.
 HOOKS_DIR="$ROOT/.firewall/hooks.d"
@@ -50,6 +60,8 @@ render() {
       -e "s|@@PROXY_SUBNET@@|$PODMAN_PROXY_SUBNET|g" \
       -e "s|@@PROXY_GATEWAY@@|$PODMAN_PROXY_GATEWAY|g" \
       -e "s|@@PROXY_IP_RANGE@@|$PODMAN_PROXY_IP_RANGE|g" \
+      -e "s|@@MISE@@|$MISE|g" \
+      -e "s|@@MISE_DIR@@|$MISE_DIR|g" \
       "$1"
 }
 
@@ -168,6 +180,87 @@ lint_env_expansion() {
   return 1
 }
 
+# Every template install renders, one "<template>\t<installed file>" line each:
+# the Quadlet ones into Quadlet's dir, the plain systemd ones into systemd's.
+templates() {
+  local src
+  shopt -s nullglob
+  for src in "$ROOT"/.container-config/quadlet/*; do
+    printf '%s\t%s\n' "$src" "$DEST/${PROJECT_PREFIX}-$(basename "$src")"
+  done
+  for src in "$ROOT"/.container-config/systemd/*; do
+    printf '%s\t%s\n' "$src" "$SYSTEMD_DEST/${PROJECT_PREFIX}-$(basename "$src")"
+  done
+}
+
+# A second workspace's prefix can extend this one's (dev and dev-x), so
+# dev-x-traefik.container matches dev-* without being ours to judge. Prefixes
+# are known from Quadlet's dir (<p>-traefik.container) and from systemd's
+# (<p>-dashboard.service), since either can be installed without the other
+# being visible here.
+other_prefix_owns() {
+  local q f b prefixes
+  prefixes="$(installed_prefixes)"
+  for f in "$SYSTEMD_DEST"/*-dashboard.service; do
+    b="$(basename "$f")"
+    prefixes+=$'\n'"${b%-dashboard.service}"
+  done
+  while IFS= read -r q; do
+    [[ -n "$q" && "$q" != "$PROJECT_PREFIX" && "$1" == "$q-"* ]] && return 0
+  done <<<"$prefixes"
+  return 1
+}
+
+# Installed files of ours -- this prefix, marker line first -- whose template
+# is gone. Walking only the templates never sees them, so a deleted template
+# (the removed home.container) would leave its unit installed and running for good.
+orphans() {
+  local f want
+  want="$(templates | cut -f2)"
+  shopt -s nullglob
+  for f in "$DEST/${PROJECT_PREFIX}-"* "$SYSTEMD_DEST/${PROJECT_PREFIX}-"*; do
+    [[ -f "$f" ]] || continue   # drop-in dirs (<unit>.service.d/) are the user's
+    head -1 "$f" 2>/dev/null | grep -qF "$MARKER" || continue
+    grep -qxF "$f" <<<"$want" && continue
+    other_prefix_owns "$(basename "$f")" && continue
+    printf '%s\n' "$f"
+  done
+}
+
+# The service an installed file runs as. Quadlet names a .container's service
+# after it and a .network's or .volume's <name>-network/-volume; a template
+# (name@) has only instances to stop, which systemctl matches by glob.
+service_of() {
+  local b="${1##*/}" name ext base at=""
+  name="${b%.*}" ext="${b##*.}"
+  base="${name%@}"
+  [[ "$name" == *@ ]] && at="@*"
+  case "$ext" in
+    container|service) printf '%s%s.service\n' "$base" "$at" ;;
+    network|volume)    printf '%s-%s%s.service\n' "$base" "$ext" "$at" ;;
+    *) return 1 ;;
+  esac
+}
+
+# Stopped before removal: once the file and its generated unit are gone,
+# systemd can no longer stop what is still running from it.
+remove_orphans() {
+  local f svc
+  while IFS= read -r f; do
+    if svc="$(service_of "$f")"; then
+      if [[ "$f" == "$SYSTEMD_DEST"/* ]]; then
+        # A plain unit can be enabled; disabling it too leaves no dangling
+        # wants/ symlink behind.
+        systemctl --user disable --now "$svc" 2>/dev/null || true
+      else
+        systemctl --user stop "$svc" 2>/dev/null || true
+      fi
+    fi
+    rm -f "$f"
+    printf 'removed orphan %s\n' "$(basename "$f")"
+  done < <(orphans)
+}
+
 # The generated units live in ~/.config/containers/systemd, so editing a
 # template in the repo -- or checking out a branch that does -- changes nothing
 # until install re-renders them. systemd then keeps running the old ExecStart and
@@ -177,17 +270,17 @@ lint_env_expansion() {
 #
 # Installed files carry the marker line as line 1, hence tail -n +2.
 stale_units() {
-  local src b out
-  shopt -s nullglob
-  for src in "$ROOT"/.container-config/quadlet/*; do
-    b="$(basename "$src")"
-    out="$DEST/${PROJECT_PREFIX}-${b}"
+  local src out f
+  while IFS=$'\t' read -r src out; do
     if [[ ! -f "$out" ]]; then
-      printf '%s\tnot installed\n' "${PROJECT_PREFIX}-${b}"
+      printf '%s\tnot installed\n' "$(basename "$out")"
     elif ! diff -q <(render "$src") <(tail -n +2 "$out") >/dev/null 2>&1; then
-      printf '%s\tdiffers from the template\n' "${PROJECT_PREFIX}-${b}"
+      printf '%s\tdiffers from the template\n' "$(basename "$out")"
     fi
-  done
+  done < <(templates)
+  while IFS= read -r f; do
+    printf '%s\tno template (remove with units:install)\n' "$(basename "$f")"
+  done < <(orphans)
   if [[ ! -f "$HOOK_JSON" ]]; then
     printf '%s\tnot installed\n' "$(basename "$HOOK_JSON")"
   elif ! diff -q <(render_hook) "$HOOK_JSON" >/dev/null 2>&1; then
@@ -195,11 +288,13 @@ stale_units() {
   fi
 }
 
+# The dashboard parses this stderr (Sources::StaleUnits): a header line holding
+# "no longer match", a blank line, the indented block, a blank line.
 cmd_check_stale() {
   local out
   out="$(stale_units)"
   [[ -n "$out" ]] || { printf 'installed units match the templates\n'; return 0; }
-  printf 'These installed units no longer match .container-config/quadlet/:\n\n' >&2
+  printf 'These installed units no longer match their templates in .container-config/:\n\n' >&2
   printf '%s\n' "$out" | while IFS=$'\t' read -r name why; do
     printf '  %-40s %s\n' "$name" "$why" >&2
   done
@@ -291,15 +386,15 @@ cmd_install() {
   lint_env_expansion || die "refusing to install templates whose keys cannot expand"
   lint_env_values || die "refusing to install with env values podman would mangle"
   lint_restart || die "refusing to install templates with an unusable Restart= policy"
-  mkdir -p "$DEST"
-  local src b out
-  for src in "$ROOT"/.container-config/quadlet/*; do
-    b="$(basename "$src")"
-    out="$DEST/${PROJECT_PREFIX}-${b}"
-    { printf '%s from .container-config/quadlet/%s -- edit the repo, not this file.\n' "$MARKER" "$b"
+  [[ -n "$MISE" ]] || die "mise is not on PATH; the dashboard unit runs it by absolute path"
+  mkdir -p "$DEST" "$SYSTEMD_DEST"
+  remove_orphans
+  local src out
+  while IFS=$'\t' read -r src out; do
+    { printf '%s from %s -- edit the repo, not this file.\n' "$MARKER" "${src#"$ROOT"/}"
       render "$src"; } > "$out"
     printf 'installed %s\n' "$(basename "$out")"
-  done
+  done < <(templates)
   # Without this file every firewalled container starts with no firewall at
   # all -- podman runs no hook and says nothing -- so it is installed together
   # with the units and checked by the same staleness test.
@@ -314,6 +409,9 @@ cmd_install() {
   printf 'are pulled in automatically by Requires= -- never create them by hand.\n'
   printf 'Quadlet units also cannot be `systemctl --user enable`d; the [Install]\n'
   printf 'section in each .container file already handles autostart.\n'
+  printf '\nThe dashboard (%s) is a plain unit, never enabled here:\n' "$DASHBOARD_UNIT"
+  printf '  mise run dashboard                  # start it and open the page\n'
+  printf '  mise run dashboard:autostart on     # also start it at login\n'
 }
 
 # The failure this most often hits: units installed under one PROJECT_PREFIX
@@ -344,17 +442,20 @@ require_prefix() {
   die "no units installed at all. Run: mise run units:install"
 }
 
-PROXY_UNITS=(traefik dozzle home)
+# The dashboard is not among them: it no longer goes through Traefik, and it
+# is the page you bring the proxy back up from, so proxy:down and
+# proxy:restart leave it running. proxy:up starts it as well.
+PROXY_UNITS=(traefik dozzle)
 
 cmd_proxy_status() {
   printf '\n'
   systemctl --user --no-pager --no-legend list-units "${PROJECT_PREFIX}-traefik.service" \
-    "${PROJECT_PREFIX}-dozzle.service" "${PROJECT_PREFIX}-home.service" 2>/dev/null \
+    "${PROJECT_PREFIX}-dozzle.service" "$DASHBOARD_UNIT" 2>/dev/null \
     | sed 's/^/  /' || true
   printf '\n'
-  podman ps --filter "name=^${PROJECT_PREFIX}-\(traefik\|dozzle\|home\)$" \
+  podman ps --filter "name=^${PROJECT_PREFIX}-\(traefik\|dozzle\)$" \
     --format 'table {{.Names}} {{.Status}} {{.Ports}}' 2>/dev/null || true
-  printf '\n  dashboard  http://wt.localhost\n'
+  printf '\n  dashboard  http://wt.localhost:%s\n' "${WT_DASHBOARD_PORT:?WT_DASHBOARD_PORT unset (mise env not loaded)}"
   printf '  logs       http://logs.localhost\n'
   printf '  traefik    http://127.0.0.1:8080/\n'
 }
@@ -365,13 +466,17 @@ cmd_proxy_up() {
   for u in "${PROXY_UNITS[@]}"; do
     systemctl --user start "${PROJECT_PREFIX}-$u.service"
   done
+  # Same as start_proxy: the dashboard's terminal actions need this shell's
+  # display and agent socket in the user manager.
+  push_session_env
+  systemctl --user start "$DASHBOARD_UNIT"
   cmd_proxy_status
 }
 
 cmd_proxy_down() {
   local u
-  # Reverse order: dozzle and home Require= traefik.
-  for u in home dozzle traefik; do
+  # Reverse order: dozzle Requires= traefik.
+  for u in dozzle traefik; do
     systemctl --user stop "${PROJECT_PREFIX}-$u.service" 2>/dev/null || true
   done
   systemctl --user stop "${PROJECT_PREFIX}-proxy-network.service" 2>/dev/null || true
@@ -387,7 +492,7 @@ cmd_proxy_restart() {
   cmd_proxy_status
 }
 
-# traefik, dozzle and home log with k8s-file, so their output is in podman logs,
+# traefik and dozzle log with k8s-file, so their output is in podman logs,
 # not the unit journal.
 cmd_proxy_logs() {
   require_prefix
@@ -397,23 +502,36 @@ cmd_proxy_logs() {
   exec podman logs -f --tail 100 "$ct"
 }
 
-# The three proxy images are registry images, so this is a plain pull plus a
+# The two proxy images are registry images, so this is a plain pull plus a
 # recreate -- no --ignore-buildable equivalent needed.
 cmd_proxy_pull() {
   require_prefix
-  podman pull docker.io/traefik:v3.7 docker.io/amir20/dozzle:latest docker.io/library/nginx:alpine
+  podman pull docker.io/traefik:v3.7 docker.io/amir20/dozzle:latest
   cmd_proxy_restart
 }
 
 cmd_uninstall() {
   local f removed=0
   shopt -s nullglob
+  # Quadlet's dir: every marker-bearing file, as it always was.
   for f in "$DEST"/*; do
+    [[ -f "$f" ]] || continue
     if head -1 "$f" 2>/dev/null | grep -qF "$MARKER"; then
       rm -f "$f"; printf 'removed %s\n' "$(basename "$f")"; removed=1
     fi
   done
-  (( removed )) || printf 'nothing of ours in %s\n' "$DEST"
+  # systemd's dir is shared with other workspaces' dashboards, which may be
+  # enabled and running, so only this prefix's files go. Each is disabled
+  # first, while its file still exists: a removed unit that was enabled leaves
+  # a dangling default.target.wants/ symlink, and a running one loses its unit.
+  for f in "$SYSTEMD_DEST/${PROJECT_PREFIX}-"*; do
+    [[ -f "$f" ]] || continue
+    head -1 "$f" 2>/dev/null | grep -qF "$MARKER" || continue
+    other_prefix_owns "$(basename "$f")" && continue
+    systemctl --user disable --now "$(basename "$f")" 2>/dev/null || true
+    rm -f "$f"; printf 'removed %s\n' "$(basename "$f")"; removed=1
+  done
+  (( removed )) || printf 'nothing of ours in %s or %s\n' "$DEST" "$SYSTEMD_DEST"
   if [[ -f "$HOOK_JSON" ]]; then
     rm -f "$HOOK_JSON"; printf 'removed %s\n' "${HOOK_JSON#"$ROOT"/}"
   fi
@@ -557,6 +675,14 @@ cmd_doctor() {
       warn "linger off -- the proxy stops when you log out:
             loginctl enable-linger $(id -un)"
     fi
+    # The dashboard is a service, so a terminal it opens (newterm.sh) gets the
+    # display from the user manager, which has one only once a desktop
+    # session pushed it there.
+    if systemctl --user show-environment 2>/dev/null | grep -qE '^(DISPLAY|WAYLAND_DISPLAY)='; then
+      ok "user manager has a display (dashboard terminal actions)"
+    else
+      warn "terminal actions from the dashboard need a display; run mise run dashboard from a desktop session"
+    fi
   else
     bad "no systemd --user session"
   fi
@@ -681,15 +807,16 @@ cmd_allow_ports() {
 
 # Answer the one thing `podman ps` cannot: has Traefik actually discovered the
 # containers through the podman socket? Deliberately queries Traefik's API on
-# its published port rather than through its own routing (wt.localhost/api),
-# so it still reports correctly when discovery is exactly what is broken.
+# its published port rather than through its own routing, so it still reports
+# correctly when discovery is exactly what is broken. Then checks the
+# dashboard, which is a host process outside Traefik, and its isolation.
 cmd_verify() {
   FAILED=0
   local api="http://127.0.0.1:8080/api"
 
   printf '\n== proxy containers ==\n'
   local c
-  for c in traefik dozzle home; do
+  for c in traefik dozzle; do
     if [[ "$(podman inspect "${PROJECT_PREFIX}-$c" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]; then
       ok "${PROJECT_PREFIX}-$c running"
     else
@@ -720,7 +847,7 @@ cmd_verify() {
             podman logs ${PROJECT_PREFIX}-traefik"
   else
     printf '%s\n' "$routers" | sed 's/^/      /'
-    for want in wt-home wt-logs wt-api; do
+    for want in wt-logs; do
       if printf '%s\n' "$routers" | grep -q "^${want}@"; then
         ok "$want discovered"
       else
@@ -730,34 +857,32 @@ cmd_verify() {
   fi
 
   printf '\n== end-to-end routing ==\n'
-  local host code
-  for host in wt.localhost logs.localhost; do
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H "Host: $host" \
-      http://127.0.0.1/ 2>/dev/null || echo 000)"
-    case "$code" in
-      2*|3*) ok "http://$host -> $code" ;;
-      *)     bad "http://$host -> $code" ;;
-    esac
-  done
+  local code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 -H "Host: logs.localhost" \
+    http://127.0.0.1/ 2>/dev/null || echo 000)"
+  case "$code" in
+    2*|3*) ok "http://logs.localhost -> $code" ;;
+    *)     bad "http://logs.localhost -> $code" ;;
+  esac
 
-  # The dashboard fetches /api/http/routers same-origin, which only works if
-  # the wt-api router (Host(wt.localhost) && PathPrefix(/api) -> api@internal)
-  # wins over wt-home. When it does not, the request falls through to nginx and
-  # comes back as an HTML 404 -- which the dashboard reports as
-  # "Failed to load: Unexpected token '<'". Checking the API on :8080 directly
-  # does NOT catch this, because that bypasses Traefik's own routing.
-  local ctype
-  ctype="$(curl -s -o /dev/null -w '%{content_type}' --max-time 5 \
-    -H 'Host: wt.localhost' http://127.0.0.1/api/http/routers 2>/dev/null || echo none)"
-  case "$ctype" in
-    application/json*) ok "wt.localhost/api routes to Traefik's API (JSON)" ;;
-    text/html*)        bad "wt.localhost/api returns HTML, not JSON: the wt-api router is not
-        intercepting, so the request is falling through to nginx. The
-        dashboard will show \"Failed to load: Unexpected token '<'\".
-        Compare Traefik's own view:
-            curl -s http://127.0.0.1:8080/api/http/routers | grep -o '\"name\":\"wt-api[^\"]*\"'
-            curl -s http://127.0.0.1:8080/api/overview" ;;
-    *)                 bad "wt.localhost/api returned content-type '$ctype'" ;;
+  printf '\n== dashboard (host process, not routed) ==\n'
+  local port="${WT_DASHBOARD_PORT:?WT_DASHBOARD_PORT unset (mise env not loaded)}"
+  # Host header: the dashboard answers only for its own host names.
+  if curl -fsS --max-time 5 -o /dev/null -H "Host: wt.localhost:$port" \
+      "http://127.0.0.1:$port/healthz" 2>/dev/null; then
+    ok "dashboard answers at http://wt.localhost:$port"
+  else
+    bad "dashboard not answering on 127.0.0.1:$port: mise run dashboard;
+        journalctl --user -u $DASHBOARD_UNIT -n 30"
+  fi
+
+  # Exit 2 is "could not probe", not "reached": a warning, not a failure.
+  local rc=0
+  "$(dirname "${BASH_SOURCE[0]}")/dashboard-isolation-check.sh" || rc=$?
+  case "$rc" in
+    0) ok "no container reaches the dashboard port" ;;
+    1) bad "a container reached the dashboard port (see REACHED above)" ;;
+    *) warn "dashboard isolation could not be fully probed (exit $rc)" ;;
   esac
 
   printf '\n'

@@ -1,0 +1,59 @@
+# frozen_string_literal: true
+
+require "erb"
+require "erubi"
+require "tilt"
+require "tilt/erubi"
+
+module Dashboard
+  # The page and the fragments the server pushes (a list row, the detail pane,
+  # the header), from the views/ templates. Compiled once at load; output is
+  # HTML-escaped unless a template says <%== %>.
+  module Render
+    VIEWS = File.expand_path("../../views", __dir__)
+    TEMPLATES = %w[layout page _header _list _row _detail _job _palette].to_h do |name|
+      [name, Tilt::ErubiTemplate.new(File.join(VIEWS, "#{name}.erb"), escape_html: true, freeze: true)]
+    end.freeze
+
+    # An HTML id from a worktree name: anything outside [A-Za-z0-9_-] becomes _<hex>.
+    def self.dom_id(prefix, name) = "#{prefix}-" + name.gsub(/[^A-Za-z0-9_-]/) { format("_%02x", it.ord) }
+
+    # The page's URL for a worktree.
+    def self.path(name) = "/w/#{ERB::Util.url_encode(name)}"
+
+    # The page's SSE stream, for the worktree named `name` (nil: none shown).
+    def self.events_path(name) = name ? "/events?w=#{ERB::Util.url_encode(name)}" : "/events"
+
+    def self.row(wt, selected:) = view("_row", wt:, selected:)
+
+    # The list container (id "worktrees") with every row; `selected`: the name of the shown worktree, nil for none.
+    def self.list(state, selected) = view("_list", state:, selected:)
+    def self.detail(wt, state) = view("_detail", wt:, state:)
+
+    # One job of the action panel (id "job-<id>").
+    def self.job(job) = view("_job", job:)
+
+    # Every job, oldest first: the action panel's content.
+    def self.jobs(state) = state.jobs.map { job(it) }.join
+
+    # repo: the owner/name the header and the title show.
+    def self.header(state, repo:) = view("_header", state:, repo:)
+
+    # The palette's task list for the worktree named `name`: each row with its
+    # argument kind (Sources::Tasks.args), whether it opens a terminal and
+    # whether the page asks before running it.
+    def self.palette(tasks, name)
+      rows = tasks.map { [it, Sources::Tasks.args(it.usage), Palette.mode(it.name), Palette.confirm?(it.name)] }
+      view("_palette", rows:, url: "#{path(name)}/palette")
+    end
+
+    # The list, the detail pane of the worktree named `selected` (nil: none) and the action panel.
+    def self.page(state, selected, repo:) = view("page", state:, repo:, selected: state.worktrees.find { it.name == selected })
+
+    # The HTML document around the block's output: token meta tag, import map, title.
+    def self.layout(state, token:, repo:, &) = TEMPLATES.fetch("layout").render(View::INSTANCE, state:, token:, repo:, &)
+
+    def self.view(name, **locals) = TEMPLATES.fetch(name).render(View::INSTANCE, locals)
+    private_class_method :view
+  end
+end

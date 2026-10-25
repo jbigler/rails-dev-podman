@@ -1,0 +1,11 @@
+<% pr_text, pr_cls = pr_cell(wt.pr) %>
+<% svc_glyph, svc_cls, svc_word = svc_cell(wt.services) %>
+<% agent_text, agent_cls = agent_cell(wt) %>
+<a id="<%= dom_id("row", wt.name) %>" class="row<%= " selected" if selected %><%= " base" if wt.base %>" href="<%= path(wt.name) %>"<%== ' aria-current="page"' if selected %>>
+  <span class="c-name"><%= wt.name %></span>
+  <span class="c-branch<%= " muted" unless wt.branch %>"><%= wt.branch || "(detached)" %></span>
+  <span class="c-stack<%= " muted" if unknown?(wt.stack) %>"><%= stack_cell(wt.stack) %></span>
+  <span class="c-pr <%= pr_cls %>"><%= pr_text %></span>
+  <span title="services <%= svc_word %>" class="c-svc <%= svc_cls %>"><%= svc_glyph %></span>
+  <span class="c-agent <%= agent_cls %>"><%= agent_text %></span>
+</a>

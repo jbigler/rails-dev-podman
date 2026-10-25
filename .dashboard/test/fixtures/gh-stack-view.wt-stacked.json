@@ -1,0 +1,300 @@
+{
+  "trunk": "master",
+  "currentBranch": "feature/branch-72",
+  "branches": [
+    {
+      "name": "feature/branch-50",
+      "head": "52aac9b14fa4f5205e6a8d22a895dae5dd67a648",
+      "base": "1f1981da277f86d042a11af31d33fe656ed5ef91",
+      "isCurrent": false,
+      "isMerged": true,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10323,
+        "url": "https://github.com/example-org/app/pull/10323",
+        "state": "MERGED"
+      }
+    },
+    {
+      "name": "feature/branch-69",
+      "head": "b0b2fa803bceb326a1e75101f0068c4c82704779",
+      "base": "52aac9b14fa4f5205e6a8d22a895dae5dd67a648",
+      "isCurrent": false,
+      "isMerged": true,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10324,
+        "url": "https://github.com/example-org/app/pull/10324",
+        "state": "MERGED"
+      }
+    },
+    {
+      "name": "feature/branch-71",
+      "head": "040309fa974a49078a397cef842548e6f7d8e958",
+      "base": "b0b2fa803bceb326a1e75101f0068c4c82704779",
+      "isCurrent": false,
+      "isMerged": true,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10325,
+        "url": "https://github.com/example-org/app/pull/10325",
+        "state": "MERGED"
+      }
+    },
+    {
+      "name": "feature/branch-70",
+      "head": "da622da4a26edf163041ec764436c8d769ef2c57",
+      "base": "040309fa974a49078a397cef842548e6f7d8e958",
+      "isCurrent": false,
+      "isMerged": true,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10326,
+        "url": "https://github.com/example-org/app/pull/10326",
+        "state": "MERGED"
+      }
+    },
+    {
+      "name": "feature/branch-14",
+      "head": "7a5b91d0c1f29a234aeb9a64a9731922530751fd",
+      "base": "da622da4a26edf163041ec764436c8d769ef2c57",
+      "isCurrent": false,
+      "isMerged": true,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10327,
+        "url": "https://github.com/example-org/app/pull/10327",
+        "state": "MERGED"
+      }
+    },
+    {
+      "name": "feature/branch-65",
+      "head": "c96d9eb0e3adfd9bc058bf4921283e403f0bdc0b",
+      "base": "2def38b257e717b72a45e1d5ac997ec999d39e20",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": true,
+      "pr": {
+        "number": 10328,
+        "url": "https://github.com/example-org/app/pull/10328",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-72",
+      "head": "5a20311b02bf299d327329ea557b89d0e7a97bf9",
+      "base": "c96d9eb0e3adfd9bc058bf4921283e403f0bdc0b",
+      "isCurrent": true,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10329,
+        "url": "https://github.com/example-org/app/pull/10329",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-15",
+      "head": "eb15cade3867eed9590a376263877fb0fceab307",
+      "base": "5a20311b02bf299d327329ea557b89d0e7a97bf9",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10330,
+        "url": "https://github.com/example-org/app/pull/10330",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-16",
+      "head": "be1fc109bab894fa3650402a6dfbd423a65a4027",
+      "base": "eb15cade3867eed9590a376263877fb0fceab307",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10331,
+        "url": "https://github.com/example-org/app/pull/10331",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-52",
+      "head": "747dc1343b8c72f2ad181b8a78ace33635fa54cd",
+      "base": "be1fc109bab894fa3650402a6dfbd423a65a4027",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10332,
+        "url": "https://github.com/example-org/app/pull/10332",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-53",
+      "head": "4b6d4918a0bab156176d4c67a194a1ac1cec1fe3",
+      "base": "747dc1343b8c72f2ad181b8a78ace33635fa54cd",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10333,
+        "url": "https://github.com/example-org/app/pull/10333",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-51",
+      "head": "e1c28067210e671ce9eb9615f1d8bbb996b1198b",
+      "base": "4b6d4918a0bab156176d4c67a194a1ac1cec1fe3",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10334,
+        "url": "https://github.com/example-org/app/pull/10334",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-74",
+      "head": "c3958f495f1a1138d3d703dc8ae10bd142654563",
+      "base": "e1c28067210e671ce9eb9615f1d8bbb996b1198b",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10335,
+        "url": "https://github.com/example-org/app/pull/10335",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-19",
+      "head": "a10199afd942162b67c94a20f75f8686e9edf027",
+      "base": "c3958f495f1a1138d3d703dc8ae10bd142654563",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10336,
+        "url": "https://github.com/example-org/app/pull/10336",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-66",
+      "head": "28b243e5177de1a9b4dc3726c920a3b2bbf45d9e",
+      "base": "a10199afd942162b67c94a20f75f8686e9edf027",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10337,
+        "url": "https://github.com/example-org/app/pull/10337",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-67",
+      "head": "f03b5be972bf95ef1211e73d2c833ac24e4028a0",
+      "base": "28b243e5177de1a9b4dc3726c920a3b2bbf45d9e",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10338,
+        "url": "https://github.com/example-org/app/pull/10338",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-68",
+      "head": "9aa357507ff4a421fd58b8fc080d26166f7fac6f",
+      "base": "f03b5be972bf95ef1211e73d2c833ac24e4028a0",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10339,
+        "url": "https://github.com/example-org/app/pull/10339",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-18",
+      "head": "01cb0ccb8e7067da11aa98e510b1a2d9f8d0089f",
+      "base": "9aa357507ff4a421fd58b8fc080d26166f7fac6f",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10340,
+        "url": "https://github.com/example-org/app/pull/10340",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-17",
+      "head": "2be9afd264fd97a2335d3fa105d0c34b713426f4",
+      "base": "01cb0ccb8e7067da11aa98e510b1a2d9f8d0089f",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10342,
+        "url": "https://github.com/example-org/app/pull/10342",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-23",
+      "head": "d7f1566bde1df82f7b76209be00f5948a65f701d",
+      "base": "2be9afd264fd97a2335d3fa105d0c34b713426f4",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10343,
+        "url": "https://github.com/example-org/app/pull/10343",
+        "state": "OPEN"
+      }
+    },
+    {
+      "name": "feature/branch-73",
+      "head": "be8badfc05fde1268fb3a0336f5a2c6f7defcdba",
+      "base": "d7f1566bde1df82f7b76209be00f5948a65f701d",
+      "isCurrent": false,
+      "isMerged": false,
+      "isQueued": false,
+      "needsRebase": false,
+      "pr": {
+        "number": 10351,
+        "url": "https://github.com/example-org/app/pull/10351",
+        "state": "OPEN"
+      }
+    }
+  ]
+}

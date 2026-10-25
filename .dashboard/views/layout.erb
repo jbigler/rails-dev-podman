@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="dashboard-token" content="<%= token %>">
+  <meta name="turbo-cache-control" content="no-cache">
+  <title><%= title(state, repo) %></title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script type="importmap">
+    { "imports": { "@hotwired/turbo": "/assets/vendor/turbo.es2017-esm.js", "@hotwired/stimulus": "/assets/vendor/stimulus.js" } }
+  </script>
+  <script type="module" src="/assets/app.js"></script>
+</head>
+<body data-controller="focus notify action palette listnav" data-action="keydown@window->palette#key keydown@window->listnav#key">
+<%== yield %>
+</body>
+</html>

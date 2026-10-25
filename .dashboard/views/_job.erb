@@ -1,0 +1,20 @@
+<% glyph, cls, word = job_status(job) %>
+<% hidden, lines = job_lines(job) %>
+<article id="<%= dom_id("job", job.id.to_s) %>" class="job <%= job.state %>" data-action-target="job" data-job-id="<%= job.id %>" data-job-state="<%= job.state %>"<% if job.created %> data-job-created="<%= path(job.created) %>"<% end %>>
+  <div class="job-head">
+    <span class="<%= cls %>"><%= glyph %> <%= word %></span>
+    <strong><%= [job.worktree, job.title].compact.join(": ") %></strong>
+    <span class="muted"><%= duration(job) %></span>
+    <% if job.created %>
+    <a href="<%= path(job.created) %>">open <%= job.created %></a>
+    <% end %>
+    <% if job.running? %>
+    <button type="button" data-action="action#cancel" data-action-url-param="/jobs/<%= job.id %>/cancel">cancel</button>
+    <% end %>
+  </div>
+  <% partial = job.partial if job.running? && !job.partial.to_s.empty? %>
+  <% unless lines.empty? && partial.nil? %>
+  <pre class="job-output"><% if hidden.positive? %><span class="muted">… <%= hidden %> earlier lines</span>
+<% end %><%= lines.join("\n") %><% if partial %><%= "\n" unless lines.empty? %><span class="job-partial" title="still being written: no line end yet"><%= partial %></span><% end %></pre>
+  <% end %>
+</article>

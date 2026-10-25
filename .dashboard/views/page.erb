@@ -1,0 +1,21 @@
+<turbo-stream-source src="<%= events_path(selected&.name) %>"></turbo-stream-source>
+<%== header(state, repo:) %>
+<main class="main">
+  <nav class="list" aria-label="Worktrees">
+    <div class="list-head muted" aria-hidden="true">
+      <span>worktree</span><span>branch</span><span>stack</span><span>PR</span><span>svc</span><span>agent</span>
+    </div>
+<%== list(state, selected&.name) %>
+  </nav>
+  <% if selected %>
+<%== detail(selected, state) %>
+  <% else %>
+  <section id="detail" class="detail empty"><p class="muted">no worktree selected</p></section>
+  <% end %>
+</main>
+<section class="panel" aria-label="Actions" data-controller="panel">
+  <details open data-panel-target="details" data-action="toggle->panel#toggle">
+    <summary>actions</summary>
+    <div id="actions" class="jobs" data-panel-target="jobs"><%== jobs(state) %></div>
+  </details>
+</section>

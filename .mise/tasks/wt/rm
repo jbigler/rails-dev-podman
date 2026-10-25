@@ -1,6 +1,6 @@
 #!/bin/sh
 #MISE description="Remove a worktree"
-#USAGE arg "<worktree>" help="The git worktree to remove"
+#USAGE arg "<worktree>" help="The worktree to remove: the branch checked out in it, its name, or its path"
 #USAGE complete "worktree" run="d=$(for f in */; do [ -d \"${f}.git\" ] && echo \"${f%/}\" && break; done 2>/dev/null); if [ -n \"$d\" ]; then git -C \"$d\" worktree list --porcelain; else git worktree list --porcelain; fi | grep '^worktree ' | sed 's|^worktree .*/||' | tail -n +2"
 
 # Note: The "run" script path is relative to the project root

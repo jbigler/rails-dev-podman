@@ -85,3 +85,9 @@ Exec=/usr/local/bin/nvim --headless --listen 0.0.0.0:7777
 EnvironmentFile=@@ROOT@@/.unit-env/%i.env
 Restart=on-failure
 RestartSec=5
+# Neovim has no clean exit on a signal: SIGTERM (and SIGHUP) end it with
+# status 1 ("Caught deadly signal", measured on 0.11). `podman stop` sends
+# SIGTERM, so every stop/down left the unit failed and the dashboard showed
+# nvim as ✗. Status 1 therefore counts as a clean exit -- the cost is that a
+# `:cq` from an attached UI also ends the server without a restart, like `:qa`.
+SuccessExitStatus=1

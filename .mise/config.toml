@@ -42,6 +42,9 @@ NVIM_BACKGROUND = "{{ exec(command = config_root ~ '/.scripts/detect-terminal-ba
 CPUS_75 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 75') }}"
 CPUS_50 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 50') }}"
 CPUS_25 = "{{ exec(command = config_root ~ '/.scripts/cpu-share.sh 25') }}"
+# Host port of the wt dashboard, bound to 127.0.0.1 only. No container may
+# reach it: `mise run dashboard:isolation-check` proves that.
+WT_DASHBOARD_PORT = "7700"
 
 [tasks.nvim]
 description = "Connect to Neovim in the container."
@@ -161,9 +164,12 @@ run = """
 """
 
 [tasks.wt]
-description = "Create a worktree: mise run wt <branch|PR#|new-branch-name>"
-usage = 'arg "<branch>" help="existing branch name, PR number, or new branch name"'
-run = '{{config_root}}/.scripts/create-worktree.sh "$usage_branch"'
+description = "Create a worktree: mise run wt <branch|PR#|new-branch-name> [--name <worktree-name>]. Asks for the worktree's name (default: the branch's) when run in a terminal without --name."
+usage = '''
+arg "<branch>" help="existing branch name, PR number, or new branch name"
+flag "--name <name>" help="the worktree's name (directory, hosts, units), sanitized like a branch name; default: asked in a terminal, else the branch's"
+'''
+run = '{{config_root}}/.scripts/create-worktree.sh "$usage_branch" "${usage_name:-}"'
 
 [tasks."wt:ls"]
 description = "List all worktrees"
@@ -173,20 +179,8 @@ run = "{{config_root}}/.scripts/list-worktrees.sh"
 description = "Open the current worktree URL in a browser. Pass a browser binary name (e.g. firefox) to override xdg-open."
 usage = 'arg "[browser]" help="optional browser binary; defaults to xdg-open"'
 run = """
-  url="http://${WORKTREE_HOST}"
-  browser="${usage_browser:-}"
-  if [ -n "$browser" ]; then
-    if ! command -v "$browser" >/dev/null 2>&1; then
-      echo "Error: '$browser' not found in PATH" >&2
-      exit 1
-    fi
-    exec "$browser" "$url"
-  fi
-  if ! command -v xdg-open >/dev/null 2>&1; then
-    echo "xdg-open not found. Pass a browser binary: mise run wt:open firefox" >&2
-    exit 1
-  fi
-  exec xdg-open "$url"
+  . "{{config_root}}/.scripts/lib.sh"
+  open_url "http://${WORKTREE_HOST}" "${usage_browser:-}"
 """
 
 [tasks."log:trim"]
@@ -339,7 +333,7 @@ description = "Create the workspace-root mise.local.toml if missing (prompts for
 run = "{{config_root}}/.scripts/local-config.sh"
 
 [tasks."proxy:up"]
-description = "Start the podman proxy stack (traefik, dozzle, dashboard). Worktree units pull it in automatically, so this is for using the dashboard without a worktree running."
+description = "Start the podman proxy stack (traefik, dozzle) and the web dashboard. Worktree units pull the proxy in automatically, so this is for using the dashboard without a worktree running."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-up"
 
 [tasks."proxy:down"]
@@ -347,7 +341,7 @@ description = "Stop the podman proxy stack and its network."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-down"
 
 [tasks."proxy:restart"]
-description = "Restart the podman proxy stack, recreating its containers."
+description = "Restart the podman proxy stack (traefik, dozzle), recreating its containers. The dashboard keeps running."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-restart"
 
 [tasks."proxy:logs"]
@@ -355,12 +349,95 @@ description = "Follow a proxy container's output (default traefik; e.g. `mise ru
 run = "{{config_root}}/.scripts/quadlet.sh proxy-logs"
 
 [tasks."proxy:pull"]
-description = "Pull updated traefik, dozzle and nginx images and recreate the proxy stack with them."
+description = "Pull updated traefik and dozzle images and recreate the proxy stack with them."
 run = "{{config_root}}/.scripts/quadlet.sh proxy-pull"
 
 [tasks.verify]
-description = "Check that Traefik actually discovered the proxy containers over the podman socket, and that routing works end to end."
+description = "Check that Traefik discovered the proxy containers over the podman socket, that logs.localhost routes end to end, that the dashboard answers, and that no container reaches its port (dashboard:isolation-check)."
 run = "{{config_root}}/.scripts/quadlet.sh verify"
+
+[tasks."dashboard:isolation-check"]
+description = "Prove no container can connect to the dashboard port (127.0.0.1:WT_DASHBOARD_PORT): throwaway probes on the proxy and every dev network, plus each running playwright container. Exit 1 if any probe connects, 2 if it cannot probe."
+run = "{{config_root}}/.scripts/dashboard-isolation-check.sh"
+
+[tasks."dashboard:serve"]
+description = "Serve the web dashboard on http://127.0.0.1:WT_DASHBOARD_PORT (loopback only, one threaded Falcon worker)."
+dir = "{{config_root}}/.dashboard"
+tools = { ruby = "4.0.7" }
+run = [
+  "bundle check >/dev/null 2>&1 || bundle install --quiet",
+  # DASHBOARD_MISE_DIR is set by the unit (.container-config/systemd/): `mise
+  # run` does not put mise itself on PATH, and the dashboard runs `mise` by
+  # name. Prepended, so the user manager's own PATH is kept.
+  'export PATH="${DASHBOARD_MISE_DIR:+$DASHBOARD_MISE_DIR:}$PATH"; exec bundle exec falcon serve --bind "http://127.0.0.1:${WT_DASHBOARD_PORT}" --threaded --count 1',
+]
+
+[tasks.dashboard]
+description = "Start the web dashboard (a systemd user unit) if it is not running, wait until it answers, then open http://wt.localhost:WT_DASHBOARD_PORT. Pass a browser binary name (e.g. firefox) to override xdg-open."
+usage = 'arg "[browser]"'
+run = """
+  . "{{config_root}}/.scripts/lib.sh"
+  unit="$PROJECT_PREFIX-dashboard.service"
+  # Before the start, and on every run: the unit hands this shell's display and
+  # ssh agent to the terminals and `up`s it starts, reading them from the user
+  # manager -- which may hold none, or a previous login's.
+  push_session_env
+  # An explicit start is not refused by a start limit an earlier crash loop
+  # (Restart=on-failure) ran into; it then fails with the real cause again.
+  systemctl --user reset-failed "$unit" 2>/dev/null || true
+  # Show why instead of waiting out the poll: the unit's state and its log.
+  why() {
+    echo "error: $1" >&2
+    systemctl --user status "$unit" --no-pager --lines=0 >&2 || true
+    journalctl --user -u "$unit" -n 40 --no-pager -o cat >&2 || true
+    exit 1
+  }
+  systemctl --user start "$unit" || why "systemctl --user start $unit failed"
+  # Host header: the dashboard answers only for its own host names.
+  tries=0
+  until curl -fsS --max-time 1 -o /dev/null -H "Host: wt.localhost:$WT_DASHBOARD_PORT" \
+          "http://127.0.0.1:$WT_DASHBOARD_PORT/healthz" 2>/dev/null; do
+    systemctl --user is-failed --quiet "$unit" && why "$unit failed while starting"
+    tries=$((tries + 1))
+    [ "$tries" -lt 15 ] || why "$unit did not answer on 127.0.0.1:$WT_DASHBOARD_PORT within 15 s"
+    sleep 1
+  done
+  url="http://wt.localhost:$WT_DASHBOARD_PORT"
+  echo "$url"
+  open_url "$url" "${usage_browser:-}"
+"""
+
+[tasks."dashboard:stop"]
+description = "Stop the web dashboard's systemd user unit. Actions it started keep running."
+run = 'systemctl --user stop "$PROJECT_PREFIX-dashboard.service"'
+
+[tasks."dashboard:autostart"]
+description = "Start the web dashboard at login: on enables its systemd user unit, off disables it, no argument prints the current state."
+usage = 'arg "[state]" help="on or off; omit to print"'
+run = """
+  unit="$PROJECT_PREFIX-dashboard.service"
+  case "${usage_state:-}" in
+    on)  exec systemctl --user enable "$unit" ;;
+    off) exec systemctl --user disable "$unit" ;;
+    "")
+      # is-enabled exits non-zero for every state but enabled; printing the
+      # state is the whole job here, so that is not a failure.
+      state="$(systemctl --user is-enabled "$unit" 2>/dev/null)" || true
+      echo "${state:-not installed (mise run units:install)}" ;;
+    *)
+      echo "error: usage: mise run dashboard:autostart [on|off]" >&2
+      exit 2 ;;
+  esac
+"""
+
+[tasks."dashboard:test"]
+description = "Run the web dashboard's test suite (minitest on captured fixtures; needs no podman, systemd or gh)."
+dir = "{{config_root}}/.dashboard"
+tools = { ruby = "4.0.7" }
+run = [
+  "bundle check >/dev/null 2>&1 || bundle install --quiet",
+  "bundle exec rake",
+]
 
 [tasks."units:env"]
 description = "Write the unit env file the Quadlet templates read. From a worktree, just that one; from the workspace root, every worktree in ports.registry. up, build and claude rerun it themselves when a .nvmrc, .ruby-version, Gemfile.lock or config change makes it stale; run it by hand only to refresh every worktree at once."

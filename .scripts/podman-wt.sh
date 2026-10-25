@@ -210,17 +210,19 @@ diagnose_failure() {
 }
 
 # rails@ Wants= traefik, so starting rails pulls it in -- but only traefik.
-# Nothing pulls in dozzle or home, and the compose `up` had
-# depends = ["proxy:up"], which started all three. Losing the wt.localhost
-# dashboard and logs.localhost on every `up` was a regression from that, so the
-# whole proxy stack starts here.
+# Nothing pulls in dozzle or the dashboard, and the compose `up` had
+# depends = ["proxy:up"], which started the whole proxy stack. Losing the
+# dashboard and logs.localhost on every `up` was a regression from that, so
+# they start here.
 #
 # Not a unit dependency: the dashboard belongs to the workspace, not to any one
 # worktree, and making rails@ Want= it would tear it down with the last worktree
-# and rebuild that relationship in every template.
+# and rebuild that relationship in every template. The session environment goes
+# first, so the dashboard's terminals and ssh agent come from this shell.
 start_proxy() {
   local u rc=0
-  for u in traefik dozzle home; do
+  push_session_env 2>/dev/null || rc=1
+  for u in traefik dozzle dashboard; do
     systemctl --user start "${PROJECT_PREFIX}-$u.service" 2>/dev/null || rc=1
   done
   return "$rc"
@@ -389,7 +391,7 @@ cmd_status() {
     --format 'table {{.Names}} {{.Status}} {{.Ports}}' 2>/dev/null || true
   printf '\n  app        http://%s\n' "${WORKTREE_HOST:-$W.localhost}"
   printf '  s3 / ui    http://%s  http://%s\n' "${S3_HOST:-s3.$W.localhost}" "${RUSTFS_UI_HOST:-s3-ui.$W.localhost}"
-  printf '  dashboard  http://wt.localhost   logs  http://logs.localhost\n'
+  printf '  dashboard  http://wt.localhost:%s   logs  http://logs.localhost\n' "${WT_DASHBOARD_PORT:-7700}"
 }
 
 # Container stdout is k8s-file, not journald, so the unit journal holds only
@@ -414,7 +416,10 @@ cmd_logs() {
 # load-balances into a container that is not serving, which shows up as
 # intermittent 502s on a host that looks otherwise healthy.
 cmd_exec() {
-  local ct="$P-$W-rails" e extra=()
+  local ct="$P-$W-rails" e extra=() tty=(-i)
+  # -t only on a terminal: the dashboard streams test/ci runs with stdin
+  # closed, and podman's -t needs one; a terminal session still gets a TTY.
+  [[ -t 0 ]] && tty+=(-t)
   (( $# )) || set -- /bin/bash
   # EXEC_ENV carries the per-task overrides compose passed with -e
   # (DISABLE_COVERAGE for the test watcher, DISABLE_LOGCRAFT for the console).
@@ -425,7 +430,7 @@ cmd_exec() {
   # with it, and a ci run should not share a process space with the dev server.
   if [[ "${EXEC_FRESH:-}" != 1 ]] \
      && [[ "$(podman inspect "$ct" --format '{{.State.Running}}' 2>/dev/null)" == "true" ]]; then
-    exec podman exec -it ${extra[@]+"${extra[@]}"} "$ct" "$@"
+    exec podman exec "${tty[@]}" ${extra[@]+"${extra[@]}"} "$ct" "$@"
   fi
   require_env
   # Name the actual reason. EXEC_FRESH is a deliberate choice by the caller
@@ -452,7 +457,7 @@ cmd_exec() {
   # unfirewalled and say nothing, hence the hard stop.
   [[ -f "$ROOT/.firewall/hooks.d/$P-firewall.json" ]] \
     || die "no firewall hook descriptor in .firewall/hooks.d. Run: mise run units:install"
-  exec podman --hooks-dir "$ROOT/.firewall/hooks.d" run --rm -it ${extra[@]+"${extra[@]}"} \
+  exec podman --hooks-dir "$ROOT/.firewall/hooks.d" run --rm "${tty[@]}" ${extra[@]+"${extra[@]}"} \
     --annotation "$P.firewall=none" \
     --annotation "$P.firewall.mode=$FIREWALL_MODE" \
     --annotation "$P.firewall.networks=$P-$W-dev,${P}_proxy" \

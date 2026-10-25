@@ -1,0 +1,309 @@
+/* Nunito (SIL OFL, fonts/NUNITO-OFL.txt), vendored from @fontsource-variable/nunito
+   5.3.0: served by the dashboard itself, no font CDN. Latin and Latin Extended only;
+   other scripts and the status glyphs fall back to the system font. */
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url(/assets/fonts/nunito-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url(/assets/fonts/nunito-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Flexoki (feature/tui's theme.rb), light and dark by prefers-color-scheme. */
+:root {
+  --bg: #FFFCF0;
+  --bg2: #F2F0E5;
+  --sel: #E6E4D9;
+  --border: #CECDC3;
+  --text: #100F0F;
+  --muted: #6F6E69;
+  --accent: #BC5215;
+  --red: #AF3029;
+  --yellow: #8E6B01;
+  --green: #536907;
+  --blue: #205EA6;
+  --purple: #5E409D;
+  --sans: "Nunito", "Lato", system-ui, sans-serif;
+  /* Kept for command output and code, where columns must line up. */
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #100F0F;
+    --bg2: #1C1B1A;
+    --sel: #282726;
+    --border: #403E3C;
+    --text: #CECDC3;
+    --muted: #878580;
+    --accent: #DA702C;
+    --red: #D14D41;
+    --yellow: #D0A215;
+    --green: #879A39;
+    --blue: #4385BE;
+    --purple: #8B7EC8;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 var(--sans);
+  font-variant-numeric: tabular-nums;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: var(--blue); }
+/* Everything the browser would otherwise colour itself: focus rings, selected
+   text, scrollbars, checkboxes, placeholders. */
+:root { scrollbar-color: var(--border) var(--bg2); }
+::selection { color: var(--text); background: color-mix(in srgb, var(--blue) 30%, var(--bg)); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="text"], input[type="search"] {
+  font: inherit;
+  width: 100%;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: .2rem .4rem;
+}
+input::placeholder { color: var(--muted); }
+h2, h3 { margin: 0 0 .5rem; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: .85rem; color: var(--muted); font-weight: normal; text-transform: lowercase; }
+code, kbd, .job-output { font-family: var(--mono); }
+
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }
+.red { color: var(--red); }
+.yellow { color: var(--yellow); }
+.green { color: var(--green); }
+.blue { color: var(--blue); }
+.purple { color: var(--purple); }
+
+/* header */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  padding: .6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.brand { color: var(--accent); font-weight: bold; text-decoration: none; }
+.need-input { font-weight: bold; }
+.header-links { margin-left: auto; display: flex; gap: 1rem; }
+.banner {
+  flex-basis: 100%;
+  padding: .5rem .75rem;
+  border: 1px solid var(--yellow);
+  border-radius: 4px;
+  color: var(--yellow);
+}
+.banner ul { margin: .25rem 0 0; padding-left: 1.25rem; }
+
+/* list + detail */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+  padding: 1rem;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+}
+
+.list-head, .row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1.2fr) minmax(8rem, 2fr) 3.5rem 4.5rem 2rem minmax(6rem, 1fr);
+  gap: .75rem;
+  padding: .2rem .5rem;
+}
+.list-head { font-size: .8rem; }
+.row {
+  color: var(--text);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  border-radius: 2px;
+}
+.row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row:hover { background: var(--bg2); }
+.row.selected { background: var(--sel); border-left-color: var(--accent); font-weight: bold; }
+.row .c-branch { color: var(--purple); }
+.row .c-branch.muted { color: var(--muted); }
+.empty-list { padding: .5rem; }
+.list-hint { margin: .4rem 0 0; padding: 0 .5rem; font-size: .8rem; }
+
+.detail {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .75rem 1rem;
+}
+.detail.empty { color: var(--muted); }
+.block { margin-top: 1rem; }
+.branch-line { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+button {
+  font: inherit;
+  font-size: .8rem;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 .4rem;
+  cursor: pointer;
+}
+button:hover { background: var(--sel); }
+button:disabled { color: var(--muted); cursor: not-allowed; background: var(--bg2); }
+
+.stack, .stack ol { list-style: none; margin: .25rem 0; padding: 0; }
+.stack ol { padding-left: 1.5rem; }
+.stack-branch { display: flex; gap: .4rem; align-items: baseline; }
+.stack-branch .stack-marks { margin-left: auto; display: flex; gap: .4rem; }
+.stack-branch.head {
+  display: block;
+  background: var(--sel);
+  padding: .2rem .4rem;
+  margin: .1rem -.4rem;
+  border-radius: 3px;
+}
+.stack-line { display: flex; gap: .4rem; align-items: baseline; }
+.head-mark { margin-left: auto; }
+.stack-branch.head .pr-title, .stack-branch.head .meta { padding-left: 1.2rem; }
+.stack-merged summary { cursor: pointer; }
+/* A stack branch's name switches the worktree to it: plain text, underlined on hover. */
+button.stack-switch { font-size: inherit; background: none; border: 0; padding: 0; text-align: left; }
+button.stack-switch:hover { background: none; text-decoration: underline; }
+button.stack-switch:disabled { background: none; text-decoration: none; }
+/* A running stack action: a spinner in the stack head, the branch being switched to outlined. */
+.stack-progress { white-space: nowrap; }
+.spinner {
+  display: inline-block;
+  width: .75em;
+  height: .75em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -.05em;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.stack-branch.switching { outline: 1px dashed var(--blue); outline-offset: 1px; border-radius: 2px; }
+.stack-branch.switching button.stack-switch:disabled { color: var(--blue); }
+.pr-num { text-decoration: none; }
+.pr-num:hover { text-decoration: underline; }
+.meta { margin-top: .2rem; }
+
+.rtk {
+  font-size: .75rem;
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  padding: 0 .4rem;
+  margin-left: .4rem;
+}
+.message { white-space: pre-wrap; }
+.last-message {
+  margin: .25rem 0;
+  padding: .25rem .75rem;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.services-table { border-collapse: collapse; }
+.services-table td { padding: .05rem 1rem .05rem 0; }
+
+.links { display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: baseline; }
+.links h3 { flex-basis: 100%; margin-bottom: 0; }
+.app-link[aria-disabled="true"] { color: var(--muted); cursor: not-allowed; text-decoration: line-through; }
+
+/* action panel: pinned to the bottom of the window, so a running job stays in sight however far the page scrolls */
+.panel {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  padding: .4rem 1rem;
+}
+.panel summary { cursor: pointer; color: var(--muted); }
+.jobs { max-height: 30vh; overflow: auto; }
+.jobs:empty::before { content: "no actions yet"; color: var(--muted); display: block; padding: .25rem 0; }
+
+/* actions */
+.services-table button { font-size: .75rem; }
+/* Label in a fixed column; the buttons wrap within their own column, never under the label. */
+.actions .action-group { display: grid; grid-template-columns: 5.5rem 1fr; column-gap: .3rem; align-items: baseline; margin: .2rem 0; }
+.actions .action-group > span { font-size: .8rem; }
+.actions .action-buttons { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; }
+.settings { position: relative; }
+.settings summary { cursor: pointer; list-style: none; }
+.settings-menu {
+  position: absolute;
+  right: 0;
+  z-index: 1;
+  padding: .5rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+button[role="switch"]::before { content: "○ "; color: var(--muted); }
+button[role="switch"][aria-checked="true"]::before { content: "● "; color: var(--green); }
+.banner button { margin-left: .5rem; }
+/* Every dialog: dialogs.js's questions and errors, and the task palette. */
+dialog {
+  max-width: min(36rem, 90vw);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+/* Flexoki black (--bg in dark), literal: ::backdrop does not inherit custom properties in every browser. */
+dialog::backdrop { background: rgb(16 15 15 / .45); }
+dialog menu { display: flex; gap: .5rem; justify-content: flex-end; padding: 0; margin: .75rem 0 0; }
+.dialog-note { margin: .3rem 0 0; font-size: .8rem; }
+.dialog-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.job { border-top: 1px solid var(--border); padding: .3rem 0; }
+.job-head { display: flex; flex-wrap: wrap; gap: .3rem .75rem; align-items: baseline; }
+.job-output {
+  margin: .3rem 0 0;
+  max-height: 16rem;
+  overflow: auto;
+  font-size: .8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Output with no line end yet (test dots, a prompt): shown as it comes, a blinking caret after it. */
+.job-partial { color: var(--muted); }
+.job-partial::after { content: "▍"; color: var(--blue); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .job-partial::after { animation: none; } }
+
+/* The task palette (palette_controller.js). */
+dialog.palette { width: min(40rem, 90vw); max-width: none; max-height: 70vh; padding: 0.5rem; }
+.palette-list { list-style: none; margin: 0.5rem 0 0; padding: 0; overflow-y: auto; max-height: 60vh; }
+.palette-list button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0.25rem 0.5rem; }
+.palette-list button:hover, .palette-list li.selected button { background: var(--sel); }

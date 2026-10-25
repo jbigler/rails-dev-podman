@@ -1,0 +1,199 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+class RenderTest < Minitest::Test
+  R = Dashboard::Render
+  U = Dashboard::UNKNOWN
+
+  def state = @state ||= Dashboard::Hub.new(ws, raw: fixture_raw).snapshot
+  def wt(name, st = state) = st.worktrees.find { it.name == name }
+
+  # The state with one worktree replaced by `yield`'s result.
+  def changed(name)
+    state.with(worktrees: state.worktrees.map { it.name == name ? yield(it) : it })
+  end
+
+  def test_dom_id
+    assert_equal "row-wt-01", R.dom_id("row", "wt-01")
+    assert_equal "row-app_2ev2_3cx_3e", R.dom_id("row", "app.v2<x>")
+    assert_equal "job-a_20b", R.dom_id("job", "a b")
+  end
+
+  def test_row_marks_selection_and_links
+    html = R.row(wt("wt-stacked"), selected: true)
+    assert_includes html, 'id="row-wt-stacked"'
+    assert_includes html, 'href="/w/wt-stacked"'
+    assert_includes html, 'aria-current="page"'
+    assert_includes html, "7/21"
+    assert_includes html, "#10329"
+    refute_includes R.row(wt("wt-01"), selected: false), "aria-current"
+  end
+
+  def test_list_has_the_keyboard_hint
+    html = R.list(state, "wt-01")
+    assert_match(%r{<p class="muted list-hint"[^>]*>↑↓ select</p>}, html)
+  end
+
+  def test_unknown_cells_render_question_marks
+    unknown = wt("wt-stacked").with(ahead: U, behind: U, dirty_count: U, services: U, stack: U, pr: U, agent: U)
+    row = R.row(unknown, selected: false)
+    %w[c-stack c-pr c-svc c-agent].each { assert_match(/class="#{it}[^"]*">\?</, row) }
+    detail = R.detail(unknown, state)
+    assert_includes detail, "↑? ↓?"
+    assert_includes detail, "? uncommitted"
+    assert_includes detail, "stack ?"
+    assert_includes detail, "PR ?"
+    services = detail[%r{<section class="block services">.*?</section>}m]
+    assert_match(%r{<h3>services</h3>\s*<p class="muted">\?</p>}, services)
+    refute_includes services, "<table"
+  end
+
+  def test_stacked_head_with_unknown_pr
+    st = changed("wt-stacked") { it.with(pr: U) }
+    html = R.detail(wt("wt-stacked", st), st)
+    head = html[%r{<li class="stack-branch head">.*?</li>}m]
+    assert_includes head, '<span class="muted">PR ?</span>'
+    refute_includes html, "no PR"
+  end
+
+  def test_unknown_pr_commits
+    w = wt("wt-stacked")
+    st = changed("wt-stacked") { it.with(stack: nil, pr: it.pr.with(commits: U)) }
+    assert_includes R.detail(wt("wt-stacked", st), st), "? commits"
+    assert_includes R.detail(w, state), "6 commits"
+  end
+
+  def test_stack_top_down_with_head_and_merged
+    html = R.detail(wt("wt-stacked"), state)
+    assert_includes html, "◀ HEAD"
+    assert_includes html, "✓ 5 merged"
+    stack = html[html.index('<ol class="stack">')..]
+    assert_operator stack.index("feature/branch-73"), :<, stack.index("feature/branch-72")
+    assert_operator stack.index("feature/branch-72"), :<, stack.index("feature/branch-65")
+    assert_includes html, 'href="https://github.com/example-org/app/pull/10329"'
+    assert_match(/<details[^>]*>\s*<summary[^>]*>.*✓ 5 merged/m, html)
+    assert_includes html, "restack needed"
+  end
+
+  # HEAD follows git's branch, re-read seconds after a switch, not gh stack's
+  # last read: off the stack there is none, detached keeps what was read.
+  def test_stack_head_follows_the_worktree_branch
+    on = ->(branch) { Dashboard::Hub.new(ws, raw: fixture_raw.with(refs: fixture_raw.refs.map { it.name == "wt-stacked" ? it.with(branch:) : it })).snapshot }
+    st = on.("feature/branch-15")
+    assert_includes R.row(wt("wt-stacked", st), selected: false), "8/21"
+    assert_includes R.detail(wt("wt-stacked", st), st)[%r{<li class="stack-branch head">.*?</li>}m], "feature/branch-15"
+    assert_nil wt("wt-stacked", on.("feature/elsewhere")).stack
+    assert_equal 7, wt("wt-stacked", on.(nil)).stack.position
+  end
+
+  def test_a_running_stack_switch_shows_on_the_stack
+    job = Dashboard::Job.new(id: 1, worktree: "wt-stacked", label: "switch to", action: "stack-switch", input: "feature/branch-15",
+                             state: :running, started_at: NOW, lines: [])
+    st = state.with(jobs: [job])
+    html = R.detail(wt("wt-stacked", st), st)
+    assert_match %r{<li class="stack-branch switching">\s*<span class="muted">├</span>[^<]*<span class="pr-num[^>]*>#\d+</span> <button[^>]*>feature/branch-15</button>}m, html
+    assert_includes html[%r{<div class="stack-head.*?</div>}m], "switching to feature/branch-15"
+    assert_includes R.job(job), "wt-stacked: switch to feature/branch-15"
+    refute_includes R.detail(wt("wt-stacked"), state), "switching"
+  end
+
+  def test_services_and_logs_links
+    html = R.detail(wt("wt-stacked"), state)
+    assert_includes html, ":13022"
+    assert_includes html, 'href="http://logs.localhost/show?name=myproj-wt-stacked-rails"'
+  end
+
+  def test_app_links_follow_rails
+    up = R.detail(wt("wt-stacked"), state)
+    assert_includes up, 'href="http://wt-stacked.localhost/letter_opener"'
+    assert_includes up, 'href="http://vnc.wt-stacked.localhost/vnc.html?path=websockify&amp;autoconnect=1&amp;reconnect=1&amp;reconnect_delay=2000&amp;resize=scale"'
+    assert_includes up, 'href="http://s3-ui.wt-stacked.localhost"'
+    down = R.detail(wt("wt-02"), state)
+    assert_includes down, "wt-02.localhost"
+    refute_includes down, 'href="http://wt-02.localhost'
+    assert_includes down, 'aria-disabled="true"'
+  end
+
+  # The agent block changes height with every status update, so it sits last: nothing below it jumps.
+  def test_agent_block_is_the_last_detail_block
+    html = R.detail(wt("wt-stacked"), state)
+    blocks = html.scan(/<section class="block ([\w-]+)/).flatten
+    assert_equal %w[pr-block services links actions agent], blocks
+  end
+
+  def test_agent_tail_and_rtk
+    file = Dashboard::Sources::AgentFiles.parse(JSON.generate(
+      v: 2, phase: "done", last_message: "first " * 200 + "the end",
+      rtk: { total_commands: 548, total_input: 143_022, total_output: 97_714, total_saved: 45_561, avg_savings_pct: 31.86 }
+    ))
+    html = agent_detail(file)
+    assert_includes html, "the end"
+    assert_includes html, "…"
+    assert_includes html, "rtk 45.6K saved · 32%"
+    assert_includes html, 'title="548 rtk commands · 143.0K raw → 97.7K filtered"'
+  end
+
+  # /status is container-written: a nested rtk field of the wrong type or out of
+  # range is dropped from the chip, never a failed render.
+  def test_rtk_fields_of_the_wrong_type_never_break_the_detail
+    {
+      '{"total_commands":{}}' => nil,
+      '{"total_commands":1,"avg_savings_pct":[]}' => "rtk",
+      '{"total_commands":1e400}' => nil,
+      '{"total_saved":true}' => nil,
+      '{"total_commands":2,"total_saved":true,"avg_savings_pct":"9"}' => "rtk",
+      '{"total_commands":0,"total_saved":5}' => nil
+    }.each do |rtk, chip|
+      html = agent_detail(Dashboard::Sources::AgentFiles.parse(%({"v":2,"phase":"done","rtk":#{rtk}})))
+      shown = html[%r{<span class="rtk"[^>]*>([^<]*)</span>}, 1]
+      chip ? assert_equal(chip, shown, rtk) : assert_nil(shown, rtk)
+    end
+  end
+
+  def agent_detail(file, state = :your_turn)
+    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(state, since: NOW - 240, last_message: file.last_message)) }
+    st = st.with(raw: st.raw.with(agent_files: { "wt-01" => [NOW, file] }))
+    R.detail(wt("wt-01", st), st)
+  end
+
+  def test_a_reply_is_accented_and_needs_input_a_plain_finished_turn_is_highlighted
+    file = Dashboard::Sources::AgentFiles.parse(JSON.generate(v: 2, phase: "done", last_message: "Go with B, or <change> it?"))
+    reply = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:reply, since: NOW - 240, last_message: file.last_message)) }
+    assert_includes R.row(wt("wt-01", reply), selected: false), '<span class="c-agent accent">◆ waiting for reply</span>'
+    assert_includes R.header(reply, repo: "r"), "◆ 1 need input"
+    agent = agent_detail(file, :reply)[%r{<section class="block agent">.*?</section>}m]
+    assert_match(%r{<p class="accent"><strong>◆ waiting for reply · \d+[smhd]</strong></p>}, agent)
+    assert_includes agent, '<blockquote class="last-message">Go with B, or &lt;change&gt; it?</blockquote>'
+
+    turn = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:your_turn, since: NOW - 240, last_message: "Done.")) }
+    assert_match(%r{<span class="c-agent yellow">· your turn \d+[smhd]</span>}, R.row(wt("wt-01", turn), selected: false))
+    refute_includes R.header(turn, repo: "r"), "need input"
+    agent = agent_detail(Dashboard::Sources::AgentFiles.parse('{"v":2,"phase":"done","last_message":"Done."}'))[%r{<section class="block agent">.*?</section>}m]
+    assert_match(%r{<span class="yellow">· your turn \d+[smhd]</span>}, agent)
+    assert_includes agent, '<blockquote class="last-message">Done.</blockquote>'
+    refute_includes agent, "done"
+  end
+
+  def test_header_counts_need_input_and_stale_units
+    plain = R.header(state, repo: "example-org/app")
+    assert_includes plain, '<span class="repo">example-org/app</span>'
+    refute_includes plain, "need input"
+    assert_includes plain, 'href="http://logs.localhost"'
+    assert_includes plain, 'href="http://127.0.0.1:8080/"'
+    st = changed("wt-01") { it.with(agent: Dashboard::Agent.of(:permission, since: NOW)) }
+    st = st.with(raw: st.raw.with(stale_units: ["myproj-rails@.container\tdiffers"]))
+    html = R.header(st, repo: "example-org/app")
+    assert_includes html, "◆ 1 need input"
+    assert_includes html, "myproj-rails@.container"
+    assert_includes R.layout(st, token: "t", repo: "example-org/app") { "" }, "<title>◆ 1 · wt · example-org/app</title>"
+  end
+
+  def test_page_without_worktrees
+    st = Dashboard::Hub.new(ws).snapshot
+    html = R.page(st, nil, repo: "myproj")
+    assert_includes html, 'id="header"'
+    assert_includes html, 'id="detail"'
+    assert_includes html, 'id="actions"'
+  end
+end

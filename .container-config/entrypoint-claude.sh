@@ -62,18 +62,23 @@ if [ "$(jq -r '.mcpServers["chrome-devtools"].args // [] | join(" ")' "$CLAUDE_J
   claude mcp add -s user chrome-devtools -- npx $DEVTOOLS_ARGS 2>/dev/null || true
 fi
 
-# Register the status hook (claude badge on the wt.localhost dashboard)
-# idempotently — only touch settings.json when the hook is missing.
+# Register the status hook (agent status on the web dashboard) on every event
+# it handles. Per event and idempotent: an event that already runs the hook is
+# left alone, and one that lacks it gets it -- so homes created before an event
+# was added pick it up on the next start. settings.json is only rewritten when
+# something changed.
 SETTINGS_JSON="$CONFIG_DIR/settings.json"
 [ -f "$SETTINGS_JSON" ] || echo '{}' > "$SETTINGS_JSON"
-if ! grep -q claude-status-hook "$SETTINGS_JSON"; then
-  tmp="${SETTINGS_JSON}.tmp.$$"
-  jq '
-    def entry: {hooks: [{type: "command", command: "/usr/local/bin/claude-status-hook.sh", timeout: 5}]};
-    .hooks = reduce ("SessionStart", "UserPromptSubmit", "PostToolUse", "Stop", "Notification", "SessionEnd") as $e
-      (.hooks // {}; .[$e] = ((.[$e] // []) + [entry]))
-  ' "$SETTINGS_JSON" > "$tmp" && mv "$tmp" "$SETTINGS_JSON"
-fi
+tmp="${SETTINGS_JSON}.tmp.$$"
+jq '
+  def hook: "/usr/local/bin/claude-status-hook.sh";
+  def entry: {hooks: [{type: "command", command: hook, timeout: 5}]};
+  def runs_hook: any(.[]?.hooks[]?; .command == hook);
+  .hooks = reduce ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+                   "PermissionRequest", "Stop", "Notification", "SessionEnd") as $e
+    (.hooks // {}; if (.[$e] // []) | runs_hook then . else .[$e] = ((.[$e] // []) + [entry]) end)
+' "$SETTINGS_JSON" > "$tmp"
+if cmp -s "$tmp" "$SETTINGS_JSON"; then rm -f "$tmp"; else mv "$tmp" "$SETTINGS_JSON"; fi
 
 # Refresh global memory from the committed copy (.container-config/CLAUDE.md).
 # Plain copy, not a bind mount at this path: rtk init rewrites CLAUDE.md via
